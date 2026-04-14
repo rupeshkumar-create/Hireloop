@@ -288,7 +288,7 @@ async function scoreAndRankJobs(
   const jobList = jobsToScore
     .map(
       (job, index) =>
-        `[${index}] Title: ${job.title} | Company: ${job.company} | Location: ${job.location} | Salary: ${job.salary || 'Not listed'} | Posted: ${job.postedAt || 'Unknown'}\nDescription: ${job.description.substring(0, 400)}`
+        `[${index}] Title: ${job.title} | Company: ${job.company} | Location: ${job.location} | Salary: ${job.salary || 'Not listed'} | Posted: ${job.postedAt || 'Unknown'}\nDescription: ${job.description.substring(0, 3000)}`
     )
     .join('\n\n');
 
@@ -296,17 +296,24 @@ async function scoreAndRankJobs(
 
 Below are REAL remote job listings retrieved live from search.
 
+For each job, read the FULL description and evaluate it against the candidate's resume and goals.
+
+# STRICT DISQUALIFICATION RULES (PENALIZE MATCH SCORE HEAVILY):
+- Location mismatch: If the job requires "US Only", specific states, or specific timezones, and the candidate does not match or is unknown, the score must be low.
+- Seniority mismatch: If the resume is Junior/Mid but the job requires Staff/Principal (or vice versa), the score must be low.
+- Clearance/Citizenship: If the job requires security clearance or US Citizenship and the resume does not show it, the score must be low.
+
 For each job:
-1. Score fit against the candidate resume with matchScore (0-100)
-2. Extract 3-5 key requirements
-3. Estimate salary only if salary is missing
-4. Score company quality
-5. Flag YC/funded startup likelihood
-6. Detect urgent hiring / hot job signals
+1. Score fit against the candidate resume with matchScore (0-100) based on skills, seniority, and location constraints.
+2. Extract 3-5 key requirements.
+3. Estimate salary only if salary is missing.
+4. Score company quality.
+5. Flag YC/funded startup likelihood.
+6. Detect urgent hiring / hot job signals.
 
 Candidate Career Goals: ${careerPaths.join(', ')}
 Candidate Resume:
-${resumeText.substring(0, 2000)}
+${resumeText.substring(0, 3000)}
 
 Jobs:
 ${jobList}
@@ -329,7 +336,7 @@ Return ONLY a JSON array with one object per job in the same order:
 ]`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'openai/gpt-4o-mini');
+    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'anthropic/claude-3-opus');
     const content = response.choices?.[0]?.message?.content || '[]';
     const parsedScores = parseJsonArray(content);
 
