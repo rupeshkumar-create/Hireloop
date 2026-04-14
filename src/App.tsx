@@ -48,9 +48,9 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-surface font-sans text-foreground overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background font-sans text-foreground">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-8 bg-surface">
+      <main className="flex-1 overflow-y-auto bg-background px-6 py-8 md:px-8">
         {children}
       </main>
     </div>

@@ -22,17 +22,17 @@ export function BlogPost() {
   const shareTitle = encodeURIComponent(post.title);
 
   return (
-    <div className="py-12 max-w-4xl mx-auto">
-      <div className="bg-surface rounded-2xl shadow-sm border border-border p-8 md:p-12">
-        <Link to="/blog" className="inline-flex items-center text-zinc-500 hover:text-zinc-900 mb-8 transition-colors">
+    <div className="mx-auto max-w-4xl py-12 md:py-16">
+      <div className="rounded-[32px] border border-border bg-surface p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] md:p-12">
+        <Link to="/blog" className="mb-8 inline-flex items-center text-sm text-foreground-muted transition-colors hover:text-foreground">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Blog
         </Link>
         
         <header className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 mb-6 font-display leading-tight">
+          <h1 className="mb-6 text-4xl leading-tight tracking-tight text-foreground md:text-5xl">
             {post.title}
           </h1>
-          <div className="flex items-center gap-6 text-sm text-zinc-500 border-y border-zinc-100 py-4">
+          <div className="flex flex-wrap items-center gap-6 border-y border-border py-4 text-sm text-foreground-muted">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -44,14 +44,13 @@ export function BlogPost() {
           </div>
         </header>
 
-        <article className="prose prose-zinc lg:prose-lg max-w-none markdown-body text-zinc-800 leading-relaxed mb-16">
+        <article className="markdown-body mb-16 max-w-none text-[1.02rem] leading-8 text-foreground">
           <ReactMarkdown>{post.content}</ReactMarkdown>
         </article>
 
-        {/* Share Buttons */}
-        <div className="border-t border-zinc-200 pt-8 mt-12">
-          <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2 mb-6">
-            <Share2 className="w-5 h-5 text-orange-500" /> Share this article
+        <div className="mt-12 border-t border-border pt-8">
+          <h3 className="mb-6 flex items-center gap-2 text-xl text-foreground">
+            <Share2 className="w-5 h-5 text-primary" /> Share this article
           </h3>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="gap-2" onClick={() => window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${shareTitle}&summary=${encodeURIComponent(post.excerpt)}`, '_blank')}>

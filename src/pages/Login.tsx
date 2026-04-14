@@ -15,29 +15,29 @@ export function Login() {
   }, [user, navigate]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-surface p-10 shadow-sm border border-border">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-md space-y-8 rounded-[32px] border border-border bg-surface p-10 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-foreground mb-6">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[24px] bg-foreground shadow-[0_0_0_1px_var(--color-near-black)]">
             <Briefcase className="h-8 w-8 text-surface" />
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground">Hireschema</h2>
-          <p className="mt-2 text-sm text-foreground-muted">
-            The modern platform for mid to high-level job seekers.
+          <h2 className="text-4xl tracking-tight text-foreground">Hireschema</h2>
+          <p className="mt-3 text-base leading-7 text-foreground-muted">
+            Sign in to continue your remote job search with a warmer, more deliberate AI workflow.
           </p>
         </div>
 
         <div className="space-y-6 pt-4">
-          <div className="rounded-lg bg-background p-5 border border-border">
-            <ul className="text-sm text-foreground-muted space-y-3">
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Curated daily job feed</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Personalized cold emails</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Resume tailoring</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Kanban job tracking</li>
+          <div className="rounded-[24px] border border-border bg-background p-5">
+            <ul className="space-y-3 text-sm text-foreground-muted">
+              <li className="flex items-center"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-primary"></span> Curated daily job feed</li>
+              <li className="flex items-center"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-primary"></span> Personalized cold emails</li>
+              <li className="flex items-center"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-primary"></span> Resume tailoring</li>
+              <li className="flex items-center"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-primary"></span> Kanban job tracking</li>
             </ul>
           </div>
 
-          <Button className="w-full h-12 text-base" onClick={signInWithGoogle}>
+          <Button variant="action" className="h-12 w-full text-base" onClick={signInWithGoogle}>
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

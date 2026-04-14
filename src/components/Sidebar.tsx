@@ -10,27 +10,30 @@ export function Sidebar() {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Daily Jobs', path: '/', icon: LayoutDashboard },
+    { name: 'Daily Jobs', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Job Tracker', path: '/tracker', icon: Briefcase },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border bg-background/50">
-      <div className="flex h-16 items-center px-6 border-b border-border">
-        <div className="bg-foreground p-1.5 rounded-md mr-3">
+    <div className="flex h-screen w-72 flex-col border-r border-border bg-surface/50 backdrop-blur-sm">
+      <div className="flex h-[4.5rem] items-center border-b border-border px-6">
+        <div className="mr-3 rounded-2xl bg-foreground p-2 shadow-[0_0_0_1px_var(--color-near-black)]">
           <Briefcase className="h-4 w-4 text-surface" />
         </div>
-        <span className="text-lg font-semibold tracking-tight text-foreground">Hireschema</span>
+        <div>
+          <span className="font-display text-2xl leading-none tracking-tight text-foreground">Hireschema</span>
+          <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-foreground-muted">Remote Job Agent</p>
+        </div>
       </div>
       
       {isImpersonating && (
-        <div className="bg-orange-500 text-white p-3 m-3 rounded-md text-xs text-center font-medium shadow-sm">
+        <div className="m-4 rounded-2xl border border-[rgba(201,100,66,0.2)] bg-[rgba(201,100,66,0.12)] p-4 text-center text-xs font-medium text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
           <p className="mb-2">Impersonating: {profile?.email}</p>
           <Button 
             variant="outline" 
             size="sm" 
-            className="w-full bg-white text-orange-600 border-none hover:bg-orange-50"
+            className="w-full bg-surface text-foreground"
             onClick={() => {
               stopImpersonating();
               window.location.href = '/kingdomofkumar';
@@ -42,18 +45,18 @@ export function Sidebar() {
       )}
 
       <div className="flex-1 overflow-y-auto py-6">
-        <nav className="space-y-1 px-4">
+        <nav className="space-y-2 px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
             return (
               <Link
                 key={item.name}
                 to={item.path}
                 className={cn(
-                  "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive 
-                    ? "bg-foreground text-surface" 
+                    ? "bg-foreground text-surface shadow-[0_0_0_1px_var(--color-near-black)]" 
                     : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
                 )}
               >
@@ -66,17 +69,17 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-border p-4">
-        <div className="flex items-center mb-4 px-2">
+        <div className="mb-4 flex items-center rounded-2xl border border-border bg-background/70 px-3 py-3">
           {profile?.photoURL ? (
-            <img src={profile.photoURL} alt="Profile" className="h-8 w-8 rounded-full mr-3 border border-border" referrerPolicy="no-referrer" />
+            <img src={profile.photoURL} alt="Profile" className="mr-3 h-10 w-10 rounded-full border border-border object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <div className="h-8 w-8 rounded-full bg-border flex items-center justify-center mr-3 text-foreground-muted font-medium text-sm">
+            <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-border text-sm font-medium text-foreground-muted">
               {profile?.displayName?.charAt(0) || profile?.email?.charAt(0) || 'U'}
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{profile?.displayName || 'User'}</p>
-            <p className="text-xs text-foreground-muted truncate">{profile?.email}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{profile?.displayName || 'User'}</p>
+            <p className="truncate text-xs text-foreground-muted">{profile?.email}</p>
           </div>
         </div>
         <Button variant="outline" className="w-full justify-start text-foreground-muted" onClick={logout}>

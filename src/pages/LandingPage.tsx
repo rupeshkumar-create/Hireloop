@@ -48,48 +48,47 @@ export function LandingPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center pt-8 pb-20 overflow-hidden">
-        {/* Smooth gradient from header (surface) to background */}
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-surface to-transparent z-0 pointer-events-none"></div>
+      <section className="relative flex min-h-[90vh] flex-col justify-center overflow-hidden px-6 pb-24 pt-12 md:pt-20">
+        <div className="pointer-events-none absolute left-0 top-0 z-0 h-32 w-full bg-gradient-to-b from-surface/80 to-transparent"></div>
 
         {/* Abstract Background Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] z-0 pointer-events-none"></div>
+        <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,rgba(94,93,89,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(94,93,89,0.08)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         
         {/* Floating Abstract Shapes */}
         <motion.div 
           animate={{ y: [0, -20, 0], rotate: [12, 15, 12] }}
           transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-          className="absolute top-1/4 right-[10%] w-32 h-32 bg-surface-hover border border-border -z-10 shadow-xl hidden md:block"
+          className="absolute right-[10%] top-1/4 hidden h-32 w-32 rounded-[28px] border border-border bg-surface-hover shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:block"
         ></motion.div>
         <motion.div 
           animate={{ y: [0, 20, 0], rotate: [-12, -15, -12] }}
           transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
-          className="absolute bottom-1/4 left-[10%] w-24 h-24 bg-background border border-border -z-10 shadow-xl hidden md:block"
+          className="absolute bottom-1/4 left-[10%] hidden h-24 w-24 rounded-[24px] border border-border bg-background shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:block"
         ></motion.div>
 
-        <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
+        <div className="relative z-10 mx-auto max-w-7xl text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="inline-flex items-center gap-2 border border-border-strong bg-foreground text-surface text-xs font-bold px-4 py-2 rounded-none mb-8 tracking-widest uppercase shadow-md">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground-muted shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
               <Globe className="h-3 w-3" />
               Remote Jobs Only · Worldwide
             </div>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-foreground mb-6 leading-[1.1]">
+            <h1 className="mb-6 text-5xl leading-[0.98] tracking-[-0.04em] text-foreground md:text-7xl lg:text-[5.5rem]">
               Your AI agent for <br className="hidden md:block" />
               <span className="text-foreground-muted">remote job hunting.</span>
             </h1>
-            <p className="text-lg md:text-xl text-foreground-muted mb-4 max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto mb-5 max-w-2xl text-lg leading-8 text-foreground-muted md:text-xl">
               Built exclusively for remote job seekers. Upload your resume and let the agent find, filter, and apply to remote opportunities worldwide - while you focus on what matters.
             </p>
-            <p className="text-sm text-foreground-muted mb-10 font-medium border border-border inline-block px-4 py-2 bg-background">
+            <p className="mb-10 inline-block rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground-muted">
               Not for in-office or on-site roles. 100% remote job opportunities only.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link to="/login">
-                <Button variant="action" size="lg" className="h-14 px-8 text-base rounded-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                <Button variant="action" size="lg" className="h-14 px-8 text-base shadow-[0_18px_40px_rgba(201,100,66,0.24)] hover:-translate-y-0.5">
                   Start Your Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -100,10 +99,10 @@ export function LandingPage() {
       </section>
 
       {/* Agent Workflow Section */}
-      <section id="agent-workflow" className="py-24 bg-background border-y border-border relative">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">The Autonomous Pipeline</h2>
+      <section id="agent-workflow" className="relative border-y border-border bg-background py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-20 text-center">
+            <h2 className="mb-4 text-3xl tracking-tight text-foreground md:text-5xl">The Autonomous Pipeline</h2>
             <p className="text-foreground-muted text-lg">Watch how the Hireschema agent handles the entire application lifecycle.</p>
           </div>
 
@@ -116,8 +115,8 @@ export function LandingPage() {
               className="grid md:grid-cols-2 gap-12 items-center"
             >
               <div className="order-2 md:order-1">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-foreground text-surface font-mono font-bold mb-6 shadow-lg border border-border-strong">01</div>
-                <h3 className="text-3xl font-bold mb-4">Feed the Agent</h3>
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface text-xs font-semibold tracking-[0.2em] text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">01</div>
+                <h3 className="mb-4 text-3xl text-foreground">Feed the Agent</h3>
                 <p className="text-lg text-foreground-muted leading-relaxed mb-6">
                   Upload your master resume. The agent instantly parses your experience, extracts your core skills, and establishes a baseline profile to match against the global job market.
                 </p>
@@ -128,15 +127,15 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2 relative">
-                <div className="absolute inset-0 bg-border transform rotate-3 rounded-none"></div>
+                <div className="absolute inset-0 rotate-3 rounded-[32px] bg-border"></div>
                 <motion.div 
                   animate={{ y: [0, -8, 0] }} 
                   transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} 
-                  className="bg-surface rounded-none border border-border-strong shadow-xl p-8 relative z-10 h-80 flex flex-col items-center justify-center"
+                  className="relative z-10 flex h-80 flex-col items-center justify-center rounded-[32px] border border-border bg-surface p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
                 >
                   <FileText className="h-16 w-16 text-foreground-muted mb-6" />
                   <div className="w-full space-y-3 max-w-xs mx-auto">
-                    <div className="h-2 w-full bg-surface-hover rounded-none overflow-hidden">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-surface-hover">
                       <motion.div 
                         animate={{ width: ["0%", "100%", "0%"] }}
                         transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
@@ -154,7 +153,7 @@ export function LandingPage() {
                         key={tag}
                         animate={{ opacity: [0.3, 1, 0.3] }}
                         transition={{ repeat: Infinity, duration: 2, delay: i * 0.2 }}
-                        className="px-3 py-1 bg-surface-hover border border-border text-foreground-muted text-xs font-medium rounded-none shadow-sm"
+                        className="rounded-full border border-border bg-surface-hover px-3 py-1 text-xs font-medium text-foreground-muted shadow-sm"
                       >
                         {tag}
                       </motion.span>
@@ -172,16 +171,16 @@ export function LandingPage() {
               className="grid md:grid-cols-2 gap-12 items-center"
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-border-strong transform -rotate-3 rounded-none"></div>
+                <div className="absolute inset-0 -rotate-3 rounded-[32px] bg-border-strong"></div>
                 <motion.div 
                   animate={{ y: [0, -8, 0] }} 
                   transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }} 
-                  className="bg-foreground rounded-none border border-border-strong shadow-2xl p-6 relative z-10 h-80 font-mono text-sm overflow-hidden flex flex-col"
+                  className="relative z-10 flex h-80 flex-col overflow-hidden rounded-[32px] border border-border-strong bg-foreground p-6 font-mono text-sm shadow-[0_24px_70px_rgba(0,0,0,0.16)]"
                 >
                   <div className="flex items-center gap-2 mb-4 border-b border-border-strong pb-4">
-                    <div className="w-3 h-3 rounded-none bg-surface-hover"></div>
-                    <div className="w-3 h-3 rounded-none bg-surface-hover"></div>
-                    <div className="w-3 h-3 rounded-none bg-surface-hover"></div>
+                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
+                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
+                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
                     <span className="text-foreground-muted text-xs ml-2">agent_runtime.sh</span>
                   </div>
                   <div className="text-foreground-muted space-y-2 flex-1 overflow-hidden">
@@ -201,8 +200,8 @@ export function LandingPage() {
                 </motion.div>
               </div>
               <div>
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-foreground text-surface font-mono font-bold mb-6 shadow-lg border border-border-strong">02</div>
-                <h3 className="text-3xl font-bold mb-4">Deep Web Sourcing</h3>
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface text-xs font-semibold tracking-[0.2em] text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">02</div>
+                <h3 className="mb-4 text-3xl text-foreground">Deep Web Sourcing</h3>
                 <p className="text-lg text-foreground-muted leading-relaxed mb-6">
                   The AI acts as an elite executive sourcer. It deeply analyzes your specific tech stack and generates highly optimized Boolean search queries. Instead of scraping noisy job boards, it scours the internet and directly searches Applicant Tracking Systems (Greenhouse, Lever, Workable) to find hidden remote gems perfectly matched to your resume.
                 </p>
@@ -222,8 +221,8 @@ export function LandingPage() {
               className="grid md:grid-cols-2 gap-12 items-center"
             >
               <div className="order-2 md:order-1">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-foreground text-surface font-mono font-bold mb-6 shadow-lg border border-border-strong">03</div>
-                <h3 className="text-3xl font-bold mb-4">Autonomous Tailoring</h3>
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface text-xs font-semibold tracking-[0.2em] text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">03</div>
+                <h3 className="mb-4 text-3xl text-foreground">Autonomous Tailoring</h3>
                 <p className="text-lg text-foreground-muted leading-relaxed mb-6">
                   Sending a generic resume is a waste of time. The agent reads the specific job description and automatically rewrites bullet points, swaps keywords, and restructures your file to beat the ATS.
                 </p>
@@ -234,11 +233,11 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2 relative">
-                <div className="absolute inset-0 bg-border transform rotate-2 rounded-none"></div>
+                <div className="absolute inset-0 rotate-2 rounded-[32px] bg-border"></div>
                 <motion.div 
                   animate={{ y: [0, -8, 0] }} 
                   transition={{ repeat: Infinity, duration: 3.8, ease: "easeInOut" }} 
-                  className="bg-surface rounded-none border border-border-strong shadow-xl p-6 relative z-10 h-80 flex flex-col"
+                  className="relative z-10 flex h-80 flex-col rounded-[32px] border border-border bg-surface p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
                 >
                   <div className="flex justify-between items-center mb-4 pb-2 border-b border-border">
                     <span className="text-xs font-bold text-foreground-muted">ORIGINAL</span>
@@ -246,15 +245,15 @@ export function LandingPage() {
                     <span className="text-xs font-bold text-foreground">TAILORED BY AGENT</span>
                   </div>
                   <div className="flex-1 flex gap-4 overflow-hidden text-[10px] md:text-xs font-mono">
-                    <div className="flex-1 bg-background border border-border p-4 rounded-none text-foreground-muted line-through decoration-zinc-300 decoration-2 shadow-inner">
+                    <div className="flex-1 rounded-2xl border border-border bg-background p-4 text-foreground-muted line-through decoration-stone-300 decoration-2 shadow-inner">
                       - Built web apps using React.<br/><br/>
                       - Managed state for the team.<br/><br/>
                       - Improved speed by 20%.
                     </div>
-                    <div className="flex-1 bg-surface-hover p-4 rounded-none text-foreground shadow-sm border border-border-strong">
-                      - Architected scalable <span className="bg-border-strong text-foreground px-1 rounded-none">React/Next.js</span> applications.<br/><br/>
-                      - Implemented complex state management using <span className="bg-border-strong text-foreground px-1 rounded-none">Redux Toolkit</span>.<br/><br/>
-                      - Optimized Core Web Vitals, reducing LCP by <span className="bg-border-strong text-foreground px-1 rounded-none">20%</span>.
+                    <div className="flex-1 rounded-2xl border border-border-strong bg-surface-hover p-4 text-foreground shadow-sm">
+                      - Architected scalable <span className="rounded-md bg-border-strong px-1 text-foreground">React/Next.js</span> applications.<br/><br/>
+                      - Implemented complex state management using <span className="rounded-md bg-border-strong px-1 text-foreground">Redux Toolkit</span>.<br/><br/>
+                      - Optimized Core Web Vitals, reducing LCP by <span className="rounded-md bg-border-strong px-1 text-foreground">20%</span>.
                     </div>
                   </div>
                 </motion.div>
@@ -269,11 +268,11 @@ export function LandingPage() {
               className="grid md:grid-cols-2 gap-12 items-center"
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-border transform -rotate-2 rounded-none"></div>
+                <div className="absolute inset-0 -rotate-2 rounded-[32px] bg-border"></div>
                 <motion.div 
                   animate={{ y: [0, -8, 0] }} 
                   transition={{ repeat: Infinity, duration: 4.2, ease: "easeInOut" }} 
-                  className="bg-surface rounded-none border border-border-strong shadow-xl overflow-hidden relative z-10 h-80 flex flex-col"
+                  className="relative z-10 flex h-80 flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
                 >
                   <div className="bg-surface-hover p-3 flex items-center gap-4 border-b border-border">
                     <div className="text-xs text-foreground-muted font-medium">New Message</div>
@@ -285,7 +284,7 @@ export function LandingPage() {
                   <div className="p-4 text-sm text-foreground-muted leading-relaxed flex-1 bg-background">
                     <p>Hi Team,</p>
                     <p className="mt-2">I noticed the Frontend Engineer opening and was impressed by the recent updates to your API dashboard.</p>
-                    <p className="mt-2 text-foreground bg-border inline-block px-1 rounded-none animate-pulse">
+                    <p className="mt-2 inline-block rounded-md bg-border px-2 py-1 text-foreground animate-pulse">
                       [Agent is drafting based on your 5 years of React experience...]
                     </p>
                   </div>
@@ -293,13 +292,13 @@ export function LandingPage() {
                     <div className="flex items-center gap-2 text-xs text-foreground-muted">
                       <FileText className="h-4 w-4" /> Tailored_Resume.md attached
                     </div>
-                    <Button size="sm" className="bg-foreground hover:opacity-90 text-surface rounded-none shadow-md px-4"><Send className="h-3 w-3 mr-2" /> Send via Gmail</Button>
+                    <Button size="sm" className="px-4"><Send className="h-3 w-3 mr-2" /> Send via Gmail</Button>
                   </div>
                 </motion.div>
               </div>
               <div>
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-foreground text-surface font-mono font-bold mb-6 shadow-lg border border-border-strong">04</div>
-                <h3 className="text-3xl font-bold mb-4">1-Click Outreach</h3>
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface text-xs font-semibold tracking-[0.2em] text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">04</div>
+                <h3 className="mb-4 text-3xl text-foreground">1-Click Outreach</h3>
                 <p className="text-lg text-foreground-muted leading-relaxed mb-6">
                   Applying through portals is a black hole. The agent drafts a highly personalized cold email directed at the hiring manager, attaches your newly tailored resume, and opens it directly in your Gmail ready to send.
                 </p>
@@ -316,17 +315,17 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-background border-t border-border text-center">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="inline-flex items-center gap-2 border border-border-strong bg-surface text-foreground-muted text-xs font-bold px-4 py-2 rounded-none mb-6 tracking-widest uppercase">
+      <section className="border-t border-border bg-background py-24 text-center">
+        <div className="mx-auto max-w-3xl px-6">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground-muted">
             <Globe className="h-3 w-3" /> Remote Job Seekers Only
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">Land your next remote role faster.</h2>
-          <p className="text-foreground-muted text-lg mb-10">
+          <h2 className="mb-6 text-4xl tracking-tight text-foreground md:text-5xl">Land your next remote role faster.</h2>
+          <p className="mb-10 text-lg text-foreground-muted">
             Hireschema is purpose-built for remote professionals. If you're looking for an office job, this isn't for you. If you want to work from anywhere - deploy your agent now.
           </p>
           <Link to="/login">
-            <Button size="lg" className="h-14 px-8 text-base rounded-none shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all bg-foreground text-surface hover:opacity-90">
+            <Button size="lg" className="h-14 px-8 text-base shadow-[0_18px_40px_rgba(20,20,19,0.16)] hover:-translate-y-0.5">
               Start your free remote job search
             </Button>
           </Link>

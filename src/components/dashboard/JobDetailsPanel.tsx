@@ -27,24 +27,23 @@ export function JobDetailsPanel({
   const { user, profile } = useAuth();
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 sm:p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-surface/80 backdrop-blur-2xl border border-border shadow-2xl"
+          className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]"
         >
-          {/* Close Button */}
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 bg-foreground/5 hover:bg-foreground/10 rounded-full backdrop-blur-md transition-colors"
+            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 transition-colors hover:bg-background"
           >
             <X className="h-5 w-5 text-foreground-muted" />
           </button>
 
           <div className="p-6 md:p-8 overflow-y-auto flex-1">
             <div className="flex justify-between items-start mb-1 pr-10">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground font-display">{selectedJob.title}</h2>
+              <h2 className="text-3xl tracking-tight text-foreground">{selectedJob.title}</h2>
               {selectedJob.matchScore !== undefined && (
                 <Badge variant={selectedJob.matchScore >= 80 ? 'success' : 'secondary'} className="font-semibold shadow-sm">
                   {selectedJob.matchScore}% Match
@@ -54,28 +53,28 @@ export function JobDetailsPanel({
             <p className="text-xl font-medium text-foreground-muted mb-6">{selectedJob.company}</p>
             
             <div className="flex gap-3 mb-8">
-              <Button className="flex-1 font-display font-semibold shadow-lg shadow-black/10" size="lg" onClick={() => window.open(selectedJob.url, '_blank')}>
+              <Button variant="action" className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]" size="lg" onClick={() => window.open(selectedJob.url, '_blank')}>
                 Apply Now <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
-              <Button variant="outline" size="lg" className="bg-surface/50 backdrop-blur-sm border-border" onClick={() => saveJob(selectedJob)} title="Save to Tracker">
+              <Button variant="outline" size="lg" className="border-border bg-surface" onClick={() => saveJob(selectedJob)} title="Save to Tracker">
                 <BookmarkPlus className="h-5 w-5" /> Save Job
               </Button>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-8">
-              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-surface/50 backdrop-blur-sm border-border"><MapPin className="mr-1.5 h-4 w-4" /> {selectedJob.location}</Badge>
-              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-surface/50 backdrop-blur-sm border-border"><DollarSign className="mr-1.5 h-4 w-4" /> {selectedJob.salary || 'Not specified'}</Badge>
+              <Badge variant="outline" className="border-border bg-background px-4 py-1.5 font-medium normal-case tracking-normal"><MapPin className="mr-1.5 h-4 w-4" /> {selectedJob.location}</Badge>
+              <Badge variant="outline" className="border-border bg-background px-4 py-1.5 font-medium normal-case tracking-normal"><DollarSign className="mr-1.5 h-4 w-4" /> {selectedJob.salary || 'Not specified'}</Badge>
             </div>
 
             <div className="space-y-8">
-              <div className="bg-surface/50 backdrop-blur-sm p-6 rounded-2xl border border-border">
-                <h4 className="font-bold text-foreground font-display text-lg mb-4">About the Role</h4>
+              <div className="rounded-[28px] border border-border bg-background p-6">
+                <h4 className="mb-4 text-xl text-foreground">About the Role</h4>
                 <p className="text-foreground-muted leading-relaxed whitespace-pre-wrap">{selectedJob.description}</p>
               </div>
               
               {selectedJob.requirements && selectedJob.requirements.length > 0 && (
-                <div className="bg-surface/50 backdrop-blur-sm p-6 rounded-2xl border border-border">
-                  <h4 className="font-bold text-foreground font-display text-lg mb-4">Requirements</h4>
+                <div className="rounded-[28px] border border-border bg-background p-6">
+                  <h4 className="mb-4 text-xl text-foreground">Requirements</h4>
                   <ul className="space-y-3">
                     {selectedJob.requirements.map((req, i) => (
                       <li key={i} className="text-foreground-muted flex items-start">
@@ -89,19 +88,19 @@ export function JobDetailsPanel({
             </div>
           </div>
 
-          <div className="p-6 md:p-8 bg-background/80 backdrop-blur-xl border-t border-border">
-            <h4 className="font-bold text-foreground font-display mb-4">AI Copilot</h4>
+          <div className="border-t border-border bg-background/80 p-6 md:p-8">
+            <h4 className="mb-4 text-xl text-foreground">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('email', selectedJob)}>
-                <Mail className="mr-2 h-4 w-4 text-orange-500" /> Cold Email
+              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('email', selectedJob)}>
+                <Mail className="mr-2 h-4 w-4 text-primary" /> Cold Email
               </Button>
-              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('resume', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('resume', selectedJob)}>
                 <FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailor Resume
               </Button>
-              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('interview', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('interview', selectedJob)}>
                 <MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Prep
               </Button>
-              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('salary', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('salary', selectedJob)}>
                 <TrendingUp className="mr-2 h-4 w-4 text-foreground-muted" /> Salary Data
               </Button>
             </div>
@@ -113,11 +112,11 @@ export function JobDetailsPanel({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="p-6 md:p-8 border-t border-border bg-surface max-h-[50vh] overflow-y-auto"
+                className="max-h-[50vh] overflow-y-auto border-t border-border bg-surface p-6 md:p-8"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h4 className="font-bold text-foreground font-display flex items-center gap-2 text-lg">
-                    <Sparkles className="h-5 w-5 text-orange-500" />
+                  <h4 className="flex items-center gap-2 text-xl text-foreground">
+                    <Sparkles className="h-5 w-5 text-primary" />
                     {aiAction === 'email' && 'Cold Email Draft'}
                     {aiAction === 'resume' && 'Tailored Resume'}
                     {aiAction === 'interview' && 'Interview Questions'}

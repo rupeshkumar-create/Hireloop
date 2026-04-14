@@ -21,30 +21,30 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-muted">Saved Jobs</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase tracking-[0.12em] text-foreground-muted">Saved Jobs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">
+            <div className="text-3xl font-medium text-foreground">
               {statsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.saved}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-muted">Applications Sent</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase tracking-[0.12em] text-foreground-muted">Applications Sent</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">
+            <div className="text-3xl font-medium text-foreground">
               {statsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.applied}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-foreground-muted">Interviews</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase tracking-[0.12em] text-foreground-muted">Interviews</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">
+            <div className="text-3xl font-medium text-foreground">
               {statsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.interviewing}
             </div>
           </CardContent>
@@ -53,21 +53,21 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
 
       {profile?.resumeAnalysis ? (
         <div className="space-y-6">
-          <h3 className="text-2xl font-bold text-foreground font-display">Resume Analysis</h3>
+          <h3 className="text-2xl text-foreground">Resume Analysis</h3>
           <p className="text-foreground-muted">{profile.resumeAnalysis.summary}</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-border bg-surface">
               <CardHeader className="pb-2">
                 <CardTitle className="text-foreground flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-orange-500" /> Strengths
+                  <Sparkles className="h-5 w-5 text-primary" /> Strengths
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.strengths.map((strength: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
                       <span className="leading-relaxed">{strength}</span>
                     </li>
                   ))}
@@ -78,14 +78,14 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
             <Card className="border-border bg-surface">
               <CardHeader className="pb-2">
                 <CardTitle className="text-foreground flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-500" /> Areas for Improvement
+                  <TrendingUp className="h-5 w-5 text-primary" /> Areas for Improvement
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.improvements.map((improvement: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
                       <span className="leading-relaxed">{improvement}</span>
                     </li>
                   ))}
@@ -100,7 +100,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-foreground flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-orange-500" /> Remote Readiness
+                    <Globe className="h-5 w-5 text-primary" /> Remote Readiness
                   </CardTitle>
                   <span className="text-2xl font-bold text-foreground">
                     {profile.resumeAnalysis.remoteReadiness.score}/100
@@ -108,7 +108,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                 </div>
                 <div className="w-full bg-surface-hover rounded-full h-2 mt-2">
                   <div
-                    className="bg-orange-500 h-2 rounded-full transition-all"
+                    className="h-2 rounded-full bg-primary transition-all"
                     style={{ width: `${profile.resumeAnalysis.remoteReadiness.score}%` }}
                   />
                 </div>
@@ -117,7 +117,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.remoteReadiness.tips.map((tip: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
                       <span className="leading-relaxed">{tip}</span>
                     </li>
                   ))}
@@ -127,11 +127,11 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
           )}
         </div>
       ) : (
-        <div className="bg-background border border-border rounded-2xl p-8 text-center max-w-2xl mx-auto mt-12">
+        <div className="mx-auto mt-12 max-w-2xl rounded-[28px] border border-border bg-surface p-8 text-center shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
           <Briefcase className="h-12 w-12 text-foreground-muted mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-foreground font-display mb-2">Ready to find your next role?</h3>
+          <h3 className="mb-2 text-2xl text-foreground">Ready to find your next role?</h3>
           <p className="text-foreground-muted mb-6">We've analyzed your resume and are ready to find the best matches for you. Check your daily matches to see what we found.</p>
-          <Button onClick={() => setActiveTab('matches')} size="lg">
+          <Button variant="action" onClick={() => setActiveTab('matches')} size="lg">
             View Daily Matches
           </Button>
         </div>

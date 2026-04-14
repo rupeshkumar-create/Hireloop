@@ -8,13 +8,13 @@ export function BlogIndex() {
   const sortedPosts = [...blogPosts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="py-12">
-      <div className="max-w-4xl mx-auto px-6">
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 mb-4 font-display">
+    <div className="py-16 md:py-20">
+      <div className="mx-auto max-w-4xl px-6">
+        <div className="mb-14 text-center">
+          <h1 className="mb-4 text-4xl tracking-tight text-foreground md:text-5xl">
             The Hireschema Blog
           </h1>
-          <p className="text-xl text-zinc-500">
+          <p className="text-xl leading-8 text-foreground-muted">
             Insights, strategies, and guides on landing the best remote jobs.
           </p>
         </div>
@@ -24,19 +24,19 @@ export function BlogIndex() {
             <Link 
               key={post.slug} 
               to={`/blog/${post.slug}`}
-              className="block bg-white border border-zinc-200 p-8 hover:shadow-lg hover:-translate-y-1 transition-all rounded-2xl"
+              className="block rounded-[28px] border border-border bg-surface p-8 shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)]"
             >
-              <div className="flex items-center text-sm text-zinc-500 mb-3 gap-2">
+              <div className="mb-3 flex items-center gap-2 text-sm text-foreground-muted">
                 <Calendar className="w-4 h-4" />
                 {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
-              <h2 className="text-2xl font-bold text-zinc-900 mb-3 font-display">
+              <h2 className="mb-3 text-3xl leading-tight text-foreground">
                 {post.title}
               </h2>
-              <p className="text-zinc-600 mb-6 leading-relaxed">
+              <p className="mb-6 leading-7 text-foreground-muted">
                 {post.excerpt}
               </p>
-              <div className="text-orange-500 font-medium flex items-center">
+              <div className="flex items-center font-medium text-primary">
                 Read article <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </Link>

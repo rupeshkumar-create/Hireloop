@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ResumeUploader } from '../components/dashboard/ResumeUploader';
+import { PageShell } from '../components/ui/page-shell';
 
 export function Onboarding() {
   const { profile, updateProfile, loading } = useAuth();
@@ -17,21 +18,20 @@ export function Onboarding() {
   }
 
   return (
-    <div className="h-full overflow-y-auto pb-12 pr-4 flex flex-col items-center justify-center pt-20">
-      <div className="max-w-2xl w-full space-y-8 text-center">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground mb-4">Welcome to Hireschema</h1>
-          <p className="text-foreground-muted text-lg">Let's set up your AI recruiting agent. Upload your current resume and we'll automatically configure your job preferences.</p>
-        </div>
-        
-        <div className="text-left bg-surface rounded-none border border-border shadow-xl overflow-hidden p-1">
+    <div className="h-full overflow-y-auto pb-12 pt-6">
+      <PageShell
+        title="Set up your AI recruiting agent"
+        description="Upload your current resume once and Hireschema will configure your job preferences, analysis, and matching workflow around it."
+        className="max-w-3xl"
+      >
+        <div className="overflow-hidden rounded-[32px] border border-border bg-surface p-2 shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
           <ResumeUploader 
             updateProfile={updateProfile} 
             profile={profile} 
             onSuccess={() => navigate('/dashboard')} 
           />
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 }

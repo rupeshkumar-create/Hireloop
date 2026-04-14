@@ -4,9 +4,9 @@ import { ArrowLeft } from 'lucide-react';
 
 export function PrivacyPolicy() {
   return (
-    <div className="py-12 max-w-4xl mx-auto">
-      <div className="bg-surface rounded-2xl shadow-sm border border-border p-8 md:p-12 prose prose-zinc max-w-none">
-        <Link to="/" className="inline-flex items-center text-zinc-500 hover:text-zinc-900 mb-8 transition-colors no-underline">
+    <div className="mx-auto max-w-4xl py-12 md:py-16">
+      <div className="markdown-body max-w-none rounded-[32px] border border-border bg-surface p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] md:p-12">
+        <Link to="/" className="mb-8 inline-flex items-center text-sm text-foreground-muted transition-colors no-underline hover:text-foreground">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
         </Link>
         <h1>Privacy Policy</h1>

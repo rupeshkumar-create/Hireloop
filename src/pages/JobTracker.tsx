@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
+import { PageShell } from '../components/ui/page-shell';
 
 interface TrackedJob {
   id: string;
@@ -229,17 +230,15 @@ export function JobTracker() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Job Tracker</h1>
-          <p className="text-foreground-muted mt-1">Manage and track your job applications.</p>
-        </div>
-        <div className="flex bg-surface-hover p-1 rounded-lg border border-border">
+    <PageShell
+      title="Job Tracker"
+      description="Manage and track your job applications."
+      actions={
+        <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
           <Button 
             variant={viewMode === 'board' ? 'default' : 'ghost'} 
             size="sm" 
-            className={`h-8 px-3 ${viewMode === 'board' ? 'shadow-sm' : 'text-foreground-muted'}`}
+            className={`px-3 ${viewMode === 'board' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
             onClick={() => setViewMode('board')}
           >
             <LayoutGrid className="h-4 w-4 mr-2" /> Board
@@ -247,22 +246,24 @@ export function JobTracker() {
           <Button 
             variant={viewMode === 'list' ? 'default' : 'ghost'} 
             size="sm" 
-            className={`h-8 px-3 ${viewMode === 'list' ? 'shadow-sm' : 'text-foreground-muted'}`}
+            className={`px-3 ${viewMode === 'list' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
             onClick={() => setViewMode('list')}
           >
             <List className="h-4 w-4 mr-2" /> History List
           </Button>
         </div>
-      </div>
+      }
+    >
+      <div className="flex h-full flex-col space-y-6">
 
       {viewMode === 'board' ? (
         <Tooltip.Provider delayDuration={200}>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
             {STATUSES.map(status => (
-              <div key={status} className="bg-background/50 rounded-xl p-4 border border-border h-[calc(100vh-180px)] flex flex-col">
+              <div key={status} className="flex h-[calc(100vh-220px)] flex-col rounded-[28px] border border-border bg-surface p-4 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
                 <h3 className="font-medium text-foreground capitalize mb-4 flex items-center justify-between">
                   {status}
-                  <Badge variant="secondary" className="font-normal">{jobs.filter(j => j.status === status).length}</Badge>
+                  <Badge variant="secondary" className="font-normal normal-case tracking-normal">{jobs.filter(j => j.status === status).length}</Badge>
                 </h3>
                 
                 <div className="space-y-3 overflow-y-auto flex-1 pr-1">
@@ -276,7 +277,7 @@ export function JobTracker() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Card className="cursor-pointer hover:border-border-strong transition-colors">
+                        <Card className="cursor-pointer transition-colors hover:border-border-strong">
                           <CardContent className="p-4">
                             <h4 className="font-medium text-sm text-foreground leading-tight mb-1">{job.title}</h4>
                             <p className="text-xs text-foreground-muted mb-3">{job.company}</p>
@@ -327,7 +328,7 @@ export function JobTracker() {
           </div>
         </Tooltip.Provider>
       ) : (
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-8">
+        <div className="flex-1 space-y-4 overflow-y-auto pb-8 pr-2">
           {jobs.length === 0 ? (
             <div className="text-center py-12 text-foreground-muted">No jobs tracked yet.</div>
           ) : (
@@ -377,14 +378,14 @@ export function JobTracker() {
                       className="border-t border-border bg-background/50"
                     >
                       {profile?.plan?.toLowerCase() === 'pro' && (
-                        <div className="px-5 py-3 flex justify-between items-center border-b border-border/50">
+                        <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
                           <span className="text-sm font-medium text-foreground flex items-center">
-                            <Sparkles className="h-4 w-4 text-orange-500 mr-2" /> AI Asset Hub
+                            <Sparkles className="mr-2 h-4 w-4 text-primary" /> AI Asset Hub
                           </span>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            className="text-xs h-8 bg-surface shadow-sm border-border hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors"
+                            className="h-8 bg-surface text-xs shadow-sm transition-colors hover:bg-surface-hover"
                             disabled={actionLoading[`${job.id}-all`]}
                             onClick={() => handleGenerateAllAssets(job)}
                           >
@@ -426,11 +427,11 @@ export function JobTracker() {
                                 <input 
                                   type="text" 
                                   placeholder="e.g. Make it shorter and more aggressive" 
-                                  className="flex-1 text-xs border border-orange-200 bg-orange-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                  className="flex-1 rounded-xl border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3898ec]"
                                   value={emailInstruction}
                                   onChange={(e) => setEmailInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-surface" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
+                                <Button size="sm" variant="action" className="h-8 text-xs" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
                                   {actionLoading[`${job.id}-email-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>
@@ -494,11 +495,11 @@ export function JobTracker() {
                                 <input 
                                   type="text" 
                                   placeholder="e.g. Focus more on Leadership skills" 
-                                  className="flex-1 text-xs border border-orange-200 bg-orange-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                  className="flex-1 rounded-xl border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3898ec]"
                                   value={resumeInstruction}
                                   onChange={(e) => setResumeInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-surface" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
+                                <Button size="sm" variant="action" className="h-8 text-xs" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
                                   {actionLoading[`${job.id}-resume-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>
@@ -575,6 +576,7 @@ export function JobTracker() {
         resumeText={previewResumeData?.text || ''}
         companyName={previewResumeData?.company || ''}
       />
-    </div>
+      </div>
+    </PageShell>
   );
 }

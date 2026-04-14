@@ -7,6 +7,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Save, Upload, X, Plus, Loader2, CreditCard, CheckCircle2, Sparkles } from 'lucide-react';
 import { suggestCareerPaths } from '../services/aiService';
 import { toast } from 'sonner';
+import { PageShell } from '../components/ui/page-shell';
 
 const PREDEFINED_PATHS = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
@@ -152,12 +153,12 @@ export function Settings() {
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-12 pr-4">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Settings</h1>
-          <p className="text-foreground-muted mt-1">Manage your job search preferences and resume.</p>
-        </div>
+    <div className="h-full overflow-y-auto pb-12">
+      <PageShell
+        title="Settings"
+        description="Manage your job search preferences, billing, and resume."
+        className="max-w-4xl"
+      >
 
         <Card>
           <CardHeader>
@@ -165,9 +166,9 @@ export function Settings() {
             <CardDescription>Manage your subscription and upgrade to Pro.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="p-4 rounded-xl border border-border bg-background flex items-center justify-between">
+            <div className="flex items-center justify-between rounded-[24px] border border-border bg-background p-4">
               <div>
-                <p className="font-semibold text-foreground">Current Plan: <span className="uppercase text-orange-500">{profile?.plan || 'Free'}</span></p>
+                <p className="font-semibold text-foreground">Current Plan: <span className="uppercase text-primary">{profile?.plan || 'Free'}</span></p>
                 <p className="text-sm text-foreground-muted mt-1">
                   {profile?.plan?.toLowerCase() === 'pro' 
                     ? 'You have access to all premium features including 10 daily AI job matches.' 
@@ -197,13 +198,13 @@ export function Settings() {
                       Subscribe Monthly
                     </a>
                   </div>
-                  <div className="flex-1 p-4 rounded-xl border border-orange-200 bg-orange-50/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-orange-500 text-surface text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
-                    <h4 className="font-semibold text-orange-900">Yearly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4 text-orange-900">$79<span className="text-sm font-normal text-orange-500/70">/yr</span></p>
+                  <div className="relative flex-1 overflow-hidden rounded-xl border border-[rgba(201,100,66,0.22)] bg-[rgba(201,100,66,0.10)] p-4">
+                    <div className="absolute right-0 top-0 rounded-bl-lg bg-primary px-2 py-0.5 text-[10px] font-bold text-surface">SAVE 25%</div>
+                    <h4 className="font-semibold text-foreground">Yearly Pro</h4>
+                    <p className="mb-4 mt-1 text-2xl font-bold text-foreground">$79<span className="text-sm font-normal text-foreground-muted">/yr</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-orange-500 text-surface rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-surface transition-colors hover:brightness-95"
                     >
                       Subscribe Yearly
                     </a>
@@ -306,7 +307,7 @@ export function Settings() {
                   checked={formData.receiveDailyAlerts}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border-strong after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
+                <div className="peer h-6 w-11 rounded-full bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[rgba(56,152,236,0.28)] peer-checked:bg-foreground peer-checked:after:translate-x-full peer-checked:after:border-border after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border-strong after:bg-surface after:transition-all after:content-['']"></div>
               </label>
             </div>
 
@@ -328,7 +329,7 @@ export function Settings() {
                   checked={formData.antiSlopEnabled}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border-strong after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
+                <div className="peer h-6 w-11 rounded-full bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[rgba(56,152,236,0.28)] peer-checked:bg-foreground peer-checked:after:translate-x-full peer-checked:after:border-border after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border-strong after:bg-surface after:transition-all after:content-['']"></div>
               </label>
             </div>
           </CardContent>
@@ -373,7 +374,7 @@ export function Settings() {
             </Button>
           </CardFooter>
         </Card>
-      </div>
+      </PageShell>
     </div>
   );
 }

@@ -8,32 +8,36 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-border overflow-x-hidden flex flex-col">
-      {/* Navigation */}
-      <nav className="border-b border-border bg-surface/90 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-none bg-foreground shadow-md">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-background font-sans text-foreground">
+      <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-6">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-foreground shadow-[0_0_0_1px_var(--color-near-black)]">
               <Briefcase className="h-4 w-4 text-surface" />
             </div>
-            <span className="font-bold text-xl tracking-tight">Hireschema</span>
+            <div>
+              <span className="font-display text-2xl leading-none tracking-tight">Hireschema</span>
+              <p className="mt-0.5 hidden text-[11px] uppercase tracking-[0.16em] text-foreground-muted md:block">
+                Remote Job Agent
+              </p>
+            </div>
           </Link>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500">
-            <Link to="/#agent-workflow" className="hover:text-zinc-900 transition-colors">How it works</Link>
-            <Link to="/blog" className="hover:text-zinc-900 transition-colors">Blog</Link>
+          <div className="hidden items-center gap-8 text-sm font-medium text-foreground-muted md:flex">
+            <Link to="/#agent-workflow" className="transition-colors hover:text-foreground">How it works</Link>
+            <Link to="/blog" className="transition-colors hover:text-foreground">Blog</Link>
           </div>
           <div className="flex items-center gap-4">
             {user ? (
               <Link to="/dashboard">
-                <Button variant="action" size="sm" className="rounded-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all px-5">Dashboard</Button>
+                <Button variant="action" size="sm" className="px-5">Dashboard</Button>
               </Link>
             ) : (
               <>
-                <Link to="/login" className="text-sm font-medium text-foreground-muted hover:text-foreground transition-colors hidden sm:block">
+                <Link to="/login" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
                   Sign in
                 </Link>
                 <Link to="/login">
-                  <Button variant="action" size="sm" className="rounded-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all px-5">Get Started</Button>
+                  <Button variant="action" size="sm" className="px-5">Get Started</Button>
                 </Link>
               </>
             )}
@@ -41,43 +45,43 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-[4.5rem]">
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-background/80 backdrop-blur-xl py-12 border-t border-border/50 mt-auto">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+      <footer className="mt-auto border-t border-border bg-surface/40 py-14">
+        <div className="mx-auto mb-12 grid max-w-7xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
           <div className="col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4 inline-flex">
-              <div className="flex h-6 w-6 items-center justify-center rounded-none bg-foreground">
+            <Link to="/" className="mb-4 inline-flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-foreground">
                 <Briefcase className="h-3 w-3 text-surface" />
               </div>
-              <span className="font-bold tracking-tight">Hireschema</span>
+              <span className="font-display text-2xl tracking-tight">Hireschema</span>
             </Link>
-            <p className="text-foreground-muted text-sm max-w-xs">The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles - from anywhere in the world.</p>
+            <p className="max-w-sm text-sm leading-6 text-foreground-muted">
+              The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles from anywhere in the world.
+            </p>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Product</h4>
+            <h4 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-foreground-muted">Product</h4>
             <ul className="space-y-2 text-sm text-foreground-muted">
               <li>
-                <Link to={user ? "/dashboard" : "/login"} className="hover:text-foreground">
+                <Link to={user ? "/dashboard" : "/login"} className="transition-colors hover:text-foreground">
                   {user ? "Dashboard" : "Sign In"}
                 </Link>
               </li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
+            <h4 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-foreground-muted">Legal</h4>
             <ul className="space-y-2 text-sm text-foreground-muted">
-              <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
-              <li><a href="mailto:support@hireschema.com" className="hover:text-foreground">Contact</a></li>
+              <li><Link to="/privacy" className="transition-colors hover:text-foreground">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="transition-colors hover:text-foreground">Terms of Service</Link></li>
+              <li><a href="mailto:support@hireschema.com" className="transition-colors hover:text-foreground">Contact</a></li>
             </ul>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-border text-center text-foreground-muted text-sm">
+        <div className="mx-auto max-w-7xl border-t border-border px-6 pt-8 text-center text-sm text-foreground-muted">
           <p>© {new Date().getFullYear()} Hireschema. All rights reserved.</p>
         </div>
       </footer>

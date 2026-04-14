@@ -15,21 +15,21 @@ export function ResumeUploader({ updateProfile, profile, onSuccess }: ResumeUplo
   const { analyzingResume, handleFileUpload } = useResumeParser(updateProfile, profile);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto text-center space-y-6">
+    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center space-y-6 text-center">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-background p-6 rounded-full"
+        className="rounded-full bg-background p-6"
       >
         <FileText className="h-16 w-16 text-foreground-muted" />
       </motion.div>
       <div>
-        <h2 className="text-3xl font-bold text-foreground font-display mb-2">Welcome to Hireschema</h2>
-        <p className="text-foreground-muted text-lg">You just need to upload your resume once to get started. We'll automatically analyze it and find the best matches.</p>
+        <h2 className="mb-2 text-3xl text-foreground">Upload your resume</h2>
+        <p className="text-lg text-foreground-muted">You only need to do this once. We'll analyze it automatically and use it to find better-fit remote roles.</p>
       </div>
       
-      <Card className="w-full mt-8 border-dashed border-2 border-border">
-        <CardContent className="pt-6 pb-8 flex flex-col items-center justify-center">
+      <Card className="mt-8 w-full border-2 border-dashed border-border shadow-none">
+        <CardContent className="flex flex-col items-center justify-center pb-8 pt-6">
           {analyzingResume ? (
             <div className="flex flex-col items-center space-y-4">
               <Loader2 className="h-8 w-8 animate-spin text-foreground" />

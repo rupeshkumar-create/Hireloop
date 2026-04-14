@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Job, SortOption } from '../../types/dashboard';
+import { cn } from '../../lib/utils';
 
 interface MatchesTabProps {
   jobs: Job[];
@@ -36,30 +37,30 @@ export function MatchesTab({
     <div className="flex-1 flex flex-col min-h-0 w-full">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground font-display">Your Daily Matches</h1>
-          <p className="text-foreground-muted text-sm mt-1">Curated jobs based on your preferences and resume.</p>
+          <h2 className="text-2xl tracking-tight text-foreground">Your Daily Matches</h2>
+          <p className="mt-1 text-sm text-foreground-muted">Curated jobs based on your preferences and resume.</p>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full flex-shrink-0">
-        <div className="grid grid-cols-3 gap-3 flex-1 w-full">
+      <div className="mb-4 flex w-full flex-shrink-0 flex-col gap-3 rounded-[28px] border border-border bg-surface p-4 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+        <div className="grid flex-1 w-full grid-cols-1 gap-3 md:grid-cols-3">
           <Input 
             placeholder="Filter by company..." 
             value={filterCompany} 
             onChange={(e) => setFilterCompany(e.target.value)} 
-            className="h-9 text-sm w-full"
+            className="w-full text-sm"
           />
           <Input 
             placeholder="Filter by location..." 
             value={filterLocation} 
             onChange={(e) => setFilterLocation(e.target.value)} 
-            className="h-9 text-sm w-full"
+            className="w-full text-sm"
           />
           <Input 
             placeholder="Filter by salary..." 
             value={filterSalary} 
             onChange={(e) => setFilterSalary(e.target.value)} 
-            className="h-9 text-sm w-full"
+            className="w-full text-sm"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -67,7 +68,7 @@ export function MatchesTab({
           <select 
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-9 text-sm border border-border rounded-md px-3 bg-surface text-foreground-muted outline-none focus:ring-2 focus:ring-foreground"
+            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground-muted outline-none focus:ring-2 focus:ring-[#3898ec]"
           >
             <option value="matchScore">Match Score</option>
             <option value="datePosted">Newest First</option>
@@ -94,7 +95,10 @@ export function MatchesTab({
                 transition={{ duration: 0.2, delay: idx * 0.05 }}
               >
                 <Card 
-                  className={`cursor-pointer transition-all hover:border-border-strong ${selectedJob === job ? 'border-border-strong ring-1 ring-foreground shadow-md' : 'border-border shadow-sm'}`}
+                  className={cn(
+                    "cursor-pointer transition-all hover:-translate-y-0.5 hover:border-border-strong",
+                    selectedJob === job ? "border-border-strong ring-1 ring-ring" : ""
+                  )}
                   onClick={() => { setSelectedJob(job); setAiAction(null); }}
                 >
                   <CardContent className="p-5">
