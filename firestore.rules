@@ -41,6 +41,14 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Super Admin Check
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'rupesh.kr128@gmail.com' ||
+        request.auth.token.email == 'hi@hireschema.com'
+      );
+    }
+    
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
@@ -92,21 +100,25 @@ service cloud.firestore {
 
     // Rules
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isSuperAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
                     request.resource.data.uid == resource.data.uid &&
-                    request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isOwner(userId);
+                    request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
+      allow delete: if isOwner(userId) || isSuperAdmin();
     }
 
     match /trackedJobs/{jobId} {
-      allow read: if isDocOwner() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow read: if isDocOwner() || (isAuthenticated() && request.resource.data.userId == request.auth.uid) || isSuperAdmin();
       allow create: if isAuthenticated() && isValidTrackedJob(request.resource.data);
-      allow update: if isDocOwner() && isValidTrackedJob(request.resource.data) &&
+      allow update: if (isDocOwner() && isValidTrackedJob(request.resource.data) &&
                     request.resource.data.userId == resource.data.userId &&
-                    request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isDocOwner();
+                    request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
+      allow delete: if isDocOwner() || isSuperAdmin();
+    }
+    
+    match /admin_logs/{logId} {
+      allow read, create: if isSuperAdmin();
     }
   }
 }
