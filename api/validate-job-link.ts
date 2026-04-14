@@ -9,6 +9,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allowedDomains = Array.isArray(req.body?.allowedDomains)
     ? req.body.allowedDomains.filter((value: unknown): value is string => typeof value === 'string')
     : [];
+  const blockedDomains = Array.isArray(req.body?.blockedDomains)
+    ? req.body.blockedDomains.filter((value: unknown): value is string => typeof value === 'string')
+    : [];
+  const allowCompanyCareerPages = req.body?.allowCompanyCareerPages === true;
 
   if (!url) {
     return res.status(400).json({ error: 'Missing url' });
@@ -32,7 +36,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const finalUrl = (response.url || url).toLowerCase();
-    const valid = allowedDomains.some((domain) => finalUrl.includes(domain.toLowerCase()));
+    const isBlocked = blockedDomains.some((domain) => finalUrl.includes(domain.toLowerCase()));
+    const isAllowed = allowedDomains.some((domain) => finalUrl.includes(domain.toLowerCase()));
+    const looksLikeCareerPage =
+      allowCompanyCareerPages &&
+      /careers|jobs|job-application|job\/|apply/.test(finalUrl) &&
+      !isBlocked;
+    const valid = !isBlocked && (isAllowed || looksLikeCareerPage);
 
     return res.status(200).json({ valid, finalUrl });
   } catch (error: any) {

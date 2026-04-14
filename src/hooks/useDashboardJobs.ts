@@ -88,6 +88,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const lastFetch = profile.lastJobFetchTime ? new Date(profile.lastJobFetchTime) : null;
     
     // If not forcing, and we already fetched after the most recent 8 AM IST, just use cached jobs
+    // Free stays at 1/day. Pro targets 10/day, with staged retrieval filling as much real inventory as possible.
     const limit = profile?.plan?.toLowerCase() === 'pro' ? 10 : 1;
     if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length >= limit) {
       setJobs(profile.dailyJobs);
@@ -99,7 +100,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       // Load fingerprints of jobs already shown to this user (deduplication)
       const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-      const results = await generateDailyJobs(
+      const result = await generateDailyJobs(
         profile.careerPaths,
         'remote',
         profile.minSalary || null,
@@ -108,6 +109,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         seenFingerprints,
         profile.learningProfile?.jobPreferences || ''
       );
+      const results = result.jobs;
       setJobs(results);
 
       // Build updated fingerprint list - append new jobs, cap at MAX_SEEN_FINGERPRINTS
@@ -140,7 +142,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       }
 
       if (results.length === 0) {
-        toast.error("Could not find any matching jobs right now. Please try adjusting your preferences.");
+        toast.error('Live search did not return enough valid remote matches right now. Please try again later.');
+      } else if (result.usedBackfill) {
+        toast.success(`Found ${results.length} jobs. Today was light, so we included some strong repeat matches to fill your Pro list.`);
+      } else if (results.length < limit) {
+        toast.info(`Found ${results.length} real matches. Live inventory was lighter than usual, so we returned the best available jobs.`);
       } else {
         toast.success(`Found ${results.length} new jobs matching your profile!`);
       }

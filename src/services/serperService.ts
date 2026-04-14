@@ -11,6 +11,33 @@ export interface SerperJob {
   daysOld?: number;
 }
 
+export interface SearchRemoteJobsOptions {
+  allowedDomains?: string[];
+  allowCompanyCareerPages?: boolean;
+  maxQueries?: number;
+}
+
+export interface SearchRemoteJobsStats {
+  queriesRun: number;
+  jobsSeen: number;
+  removedByDuplicate: number;
+  removedByRemoteFilter: number;
+  removedByFreshnessFilter: number;
+  removedByMissingLink: number;
+  removedByLinkValidation: number;
+  removedByShapeValidation: number;
+}
+
+export interface SearchRemoteJobsResult {
+  jobs: SerperJob[];
+  stats: SearchRemoteJobsStats;
+}
+
+export interface JobLinkValidationResult {
+  valid: boolean;
+  finalUrl: string;
+}
+
 /**
  * Parses Serper's "X days ago" / "X weeks ago" strings into a number of days.
  * Returns 0 for "today", "just posted", "X hours ago".
@@ -48,10 +75,21 @@ const VALID_ATS_DOMAINS = [
   'workable.com',
   'ashbyhq.com',
   'workday.com',
-  'jobs.',
 ];
 
-export async function validateJobLink(url: string): Promise<boolean> {
+const BLOCKED_JOB_DOMAINS = [
+  'linkedin.com',
+  'indeed.com',
+  'glassdoor.com',
+  'ziprecruiter.com',
+  'google.com',
+];
+
+export async function validateJobLink(
+  url: string,
+  allowedDomains: string[] = VALID_ATS_DOMAINS,
+  allowCompanyCareerPages: boolean = false
+): Promise<JobLinkValidationResult> {
   try {
     const response = await fetch('/api/validate-job-link', {
       method: 'POST',
@@ -60,15 +98,29 @@ export async function validateJobLink(url: string): Promise<boolean> {
       },
       body: JSON.stringify({
         url,
-        allowedDomains: VALID_ATS_DOMAINS,
+        allowedDomains,
+        blockedDomains: BLOCKED_JOB_DOMAINS,
+        allowCompanyCareerPages,
       }),
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) {
+      return {
+        valid: false,
+        finalUrl: url,
+      };
+    }
+
     const data = await response.json();
-    return data.valid === true;
+    return {
+      valid: data.valid === true,
+      finalUrl: typeof data.finalUrl === 'string' ? data.finalUrl : url,
+    };
   } catch {
-    return false;
+    return {
+      valid: false,
+      finalUrl: url,
+    };
   }
 }
 
@@ -97,16 +149,30 @@ export function jobFingerprint(title: string, company: string): string {
  * - Deduplicates within the response by title+company fingerprint.
  */
 export async function searchRemoteJobs(
-  queries: string[]
-): Promise<SerperJob[]> {
+  queries: string[],
+  options: SearchRemoteJobsOptions = {}
+): Promise<SearchRemoteJobsResult> {
+  const stats: SearchRemoteJobsStats = {
+    queriesRun: 0,
+    jobsSeen: 0,
+    removedByDuplicate: 0,
+    removedByRemoteFilter: 0,
+    removedByFreshnessFilter: 0,
+    removedByMissingLink: 0,
+    removedByLinkValidation: 0,
+    removedByShapeValidation: 0,
+  };
   const allJobs: SerperJob[] = [];
   const seen = new Set<string>();
+  const allowedDomains = options.allowedDomains || VALID_ATS_DOMAINS;
+  const allowCompanyCareerPages = options.allowCompanyCareerPages === true;
 
   // Ensure we don't spam the API if the array is huge
-  const queriesToSearch = queries.slice(0, 3);
+  const queriesToSearch = queries.slice(0, options.maxQueries ?? 3);
 
   for (const query of queriesToSearch) {
     try {
+      stats.queriesRun += 1;
       const response = await fetch('/api/serper', {
         method: 'POST',
         headers: {
@@ -124,9 +190,13 @@ export async function searchRemoteJobs(
       const jobs: any[] = data.jobs || [];
 
       for (const job of jobs) {
+        stats.jobsSeen += 1;
         // ── 1. Deduplicate within this batch ──────────────────────────────
         const fp = jobFingerprint(job.title || '', job.company_name || '');
-        if (seen.has(fp)) continue;
+        if (seen.has(fp)) {
+          stats.removedByDuplicate += 1;
+          continue;
+        }
         seen.add(fp);
 
         // ── 2. Remote-only filter ─────────────────────────────────────────
@@ -136,12 +206,18 @@ export async function searchRemoteJobs(
           loc.toLowerCase().includes('remote') ||
           scheduleType.toLowerCase().includes('remote') ||
           job.detected_extensions?.work_from_home === true;
-        if (!isRemote) continue;
+        if (!isRemote) {
+          stats.removedByRemoteFilter += 1;
+          continue;
+        }
 
         // ── 3. 7-day staleness filter ─────────────────────────────────────
         const postedAt: string = job.detected_extensions?.posted_at || '';
         const daysOld = parsePostedDaysAgo(postedAt);
-        if (daysOld > 7) continue;
+        if (daysOld > 7) {
+          stats.removedByFreshnessFilter += 1;
+          continue;
+        }
 
         // Try to get the direct ATS link from apply_options
         let directApplyLink = '';
@@ -153,24 +229,31 @@ export async function searchRemoteJobs(
         
         // Ensure there is a valid direct link
         if (!finalLink || finalLink.includes('google.com/search')) {
+          stats.removedByMissingLink += 1;
           continue;
         }
 
-        const isValid = await validateJobLink(finalLink);
-        if (!isValid) continue;
+        const linkValidation = await validateJobLink(finalLink, allowedDomains, allowCompanyCareerPages);
+        if (!linkValidation.valid) {
+          stats.removedByLinkValidation += 1;
+          continue;
+        }
 
         const candidateJob: SerperJob = {
           title: job.title || '',
           company: job.company_name || '',
           location: loc || 'Remote',
           description: job.description || '',
-          applyLink: finalLink,
+          applyLink: linkValidation.finalUrl || finalLink,
           salary: job.detected_extensions?.salary || '',
           postedAt,
           daysOld,
         };
 
-        if (!isValidJob(candidateJob)) continue;
+        if (!isValidJob(candidateJob)) {
+          stats.removedByShapeValidation += 1;
+          continue;
+        }
         allJobs.push(candidateJob);
       }
     } catch (err) {
@@ -178,5 +261,8 @@ export async function searchRemoteJobs(
     }
   }
 
-  return allJobs;
+  return {
+    jobs: allJobs,
+    stats,
+  };
 }

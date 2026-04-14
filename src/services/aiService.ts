@@ -1,4 +1,4 @@
-import { SerperJob, searchRemoteJobs, jobFingerprint } from './serperService';
+import { SerperJob, SearchRemoteJobsStats, searchRemoteJobs, jobFingerprint } from './serperService';
 
 interface RankedJob {
   title: string;
@@ -23,6 +23,15 @@ interface RankedJob {
   hotJobScore?: number;
   hotSignals?: string[];
   isHotJob?: boolean;
+}
+
+export interface GenerateDailyJobsResult {
+  jobs: RankedJob[];
+  requestedLimit: number;
+  usedBackfill: boolean;
+  totalValidatedJobs: number;
+  unseenCount: number;
+  seenCount: number;
 }
 
 function parseJsonArray(content: string): any[] {
@@ -239,6 +248,101 @@ function buildFallbackRankedJobs(jobs: SerperJob[], limit: number): RankedJob[] 
     .slice(0, limit);
 }
 
+function createEmptySearchStats(): SearchRemoteJobsStats {
+  return {
+    queriesRun: 0,
+    jobsSeen: 0,
+    removedByDuplicate: 0,
+    removedByRemoteFilter: 0,
+    removedByFreshnessFilter: 0,
+    removedByMissingLink: 0,
+    removedByLinkValidation: 0,
+    removedByShapeValidation: 0,
+  };
+}
+
+function mergeSearchStats(base: SearchRemoteJobsStats, next: SearchRemoteJobsStats): SearchRemoteJobsStats {
+  return {
+    queriesRun: base.queriesRun + next.queriesRun,
+    jobsSeen: base.jobsSeen + next.jobsSeen,
+    removedByDuplicate: base.removedByDuplicate + next.removedByDuplicate,
+    removedByRemoteFilter: base.removedByRemoteFilter + next.removedByRemoteFilter,
+    removedByFreshnessFilter: base.removedByFreshnessFilter + next.removedByFreshnessFilter,
+    removedByMissingLink: base.removedByMissingLink + next.removedByMissingLink,
+    removedByLinkValidation: base.removedByLinkValidation + next.removedByLinkValidation,
+    removedByShapeValidation: base.removedByShapeValidation + next.removedByShapeValidation,
+  };
+}
+
+async function scoreAndRankJobs(
+  jobs: SerperJob[],
+  careerPaths: string[],
+  resumeText: string,
+  limit: number
+): Promise<RankedJob[]> {
+  const jobsToScore = jobs.slice(0, Math.max(limit, 20));
+  if (jobsToScore.length === 0) {
+    return [];
+  }
+
+  const jobList = jobsToScore
+    .map(
+      (job, index) =>
+        `[${index}] Title: ${job.title} | Company: ${job.company} | Location: ${job.location} | Salary: ${job.salary || 'Not listed'} | Posted: ${job.postedAt || 'Unknown'}\nDescription: ${job.description.substring(0, 400)}`
+    )
+    .join('\n\n');
+
+  const scoringPrompt = `You are an expert technical recruiter.
+
+Below are REAL remote job listings retrieved live from search.
+
+For each job:
+1. Score fit against the candidate resume with matchScore (0-100)
+2. Extract 3-5 key requirements
+3. Estimate salary only if salary is missing
+4. Score company quality
+5. Flag YC/funded startup likelihood
+6. Detect urgent hiring / hot job signals
+
+Candidate Career Goals: ${careerPaths.join(', ')}
+Candidate Resume:
+${resumeText.substring(0, 2000)}
+
+Jobs:
+${jobList}
+
+Return ONLY a JSON array with one object per job in the same order:
+[
+  {
+    "matchScore": 0,
+    "requirements": [],
+    "salaryPrediction": "",
+    "salaryConfidence": "",
+    "salarySource": "estimated",
+    "companyQualityScore": 0,
+    "companyQualityReason": "",
+    "isYC": false,
+    "isFundedStartup": false,
+    "hotJobScore": 0,
+    "hotSignals": []
+  }
+]`;
+
+  try {
+    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'openai/gpt-4o-mini');
+    const content = response.choices?.[0]?.message?.content || '[]';
+    const parsedScores = parseJsonArray(content);
+
+    return jobsToScore
+      .map((job, index) => normalizeRankedJob(parsedScores[index] || {}, job))
+      .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
+      .slice(0, limit);
+  } catch (error: any) {
+    console.error('Error scoring real jobs:', error);
+    return buildFallbackRankedJobs(jobsToScore, limit);
+  }
+}
+
 export async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-2.0-flash') {
   const response = await fetch('/api/openai', {
     method: 'POST',
@@ -326,7 +430,7 @@ export async function generateDailyJobs(
   limit: number = 1,
   seenFingerprints: string[] = [], // fingerprints of jobs already shown to this user
   learningContext: string = ''
-) {
+): Promise<GenerateDailyJobsResult> {
   const queryPrompt = `
 You are a top 0.1% technical recruiter.
 
@@ -383,105 +487,95 @@ Return JSON array of 5 queries
   optimizedQueries = optimizedQueries.slice(0, 5);
   console.log('Queries:', optimizedQueries);
 
-  let realJobs: Awaited<ReturnType<typeof searchRemoteJobs>> = [];
+  const atsDomains = ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'];
+  const aggregatedStats = createEmptySearchStats();
+  let realJobs: SerperJob[] = [];
+
   try {
-    realJobs = await searchRemoteJobs(optimizedQueries);
+    const strictStage = await searchRemoteJobs(optimizedQueries, {
+      allowedDomains: atsDomains,
+      allowCompanyCareerPages: false,
+      maxQueries: Math.max(5, optimizedQueries.length),
+    });
+    realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
+    Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, strictStage.stats));
   } catch (err) {
     console.warn('Serper unavailable during primary search:', err);
   }
-  console.log('Serper Jobs:', realJobs.length);
+  console.log('Serper Jobs After Strict Stage:', realJobs.length);
 
   const extraQueries = buildExpansionQueries(careerPaths, resumeText).filter(
     (query) => !optimizedQueries.includes(query)
   );
 
-  while (realJobs.length < limit && extraQueries.length > 0) {
-    const nextBatch = extraQueries.splice(0, 5);
-    const moreJobs = await searchRemoteJobs(nextBatch);
-    realJobs = mergeDedupJobs(realJobs, moreJobs);
+  if (realJobs.length < limit && extraQueries.length > 0) {
+    try {
+      const broaderStage = await searchRemoteJobs(extraQueries, {
+        allowedDomains: atsDomains,
+        allowCompanyCareerPages: false,
+        maxQueries: Math.min(15, extraQueries.length),
+      });
+      realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
+      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, broaderStage.stats));
+    } catch (err) {
+      console.warn('Serper unavailable during expanded ATS search:', err);
+    }
+  }
+
+  if (realJobs.length < limit) {
+    const trustedCareerQueries = Array.from(new Set([...optimizedQueries, ...extraQueries]));
+    try {
+      const trustedCareerStage = await searchRemoteJobs(trustedCareerQueries, {
+        allowedDomains: atsDomains,
+        allowCompanyCareerPages: true,
+        maxQueries: Math.min(20, trustedCareerQueries.length),
+      });
+      realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
+      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
+    } catch (err) {
+      console.warn('Serper unavailable during trusted career-page search:', err);
+    }
   }
 
   const filteredJobs = mergeDedupJobs([], realJobs);
   console.log('After Validation:', filteredJobs.length);
 
-  let unseenJobs = filteredJobs;
-  if (seenFingerprints.length > 0) {
-    const seenSet = new Set(seenFingerprints);
-    unseenJobs = filteredJobs.filter((job) => !seenSet.has(jobFingerprint(job.title, job.company)));
-  }
+  const seenSet = new Set(seenFingerprints);
+  const unseenJobs = filteredJobs.filter((job) => !seenSet.has(jobFingerprint(job.title, job.company)));
+  const seenJobs = filteredJobs.filter((job) => seenSet.has(jobFingerprint(job.title, job.company)));
   console.log('After Seen Filter:', unseenJobs.length);
 
-  const jobsToScore = unseenJobs.slice(0, Math.max(limit, 20));
-  if (jobsToScore.length === 0) {
-    return [];
+  const unseenRankedJobs = await scoreAndRankJobs(unseenJobs, careerPaths, resumeText, limit);
+  let finalJobs = unseenRankedJobs.slice(0, limit);
+  let usedBackfill = false;
+
+  if (finalJobs.length < limit && limit > 1 && seenJobs.length > 0) {
+    const backfillRankedJobs = await scoreAndRankJobs(
+      seenJobs,
+      careerPaths,
+      resumeText,
+      limit - finalJobs.length
+    );
+    finalJobs = [...finalJobs, ...backfillRankedJobs.slice(0, limit - finalJobs.length)];
+    usedBackfill = backfillRankedJobs.length > 0;
   }
 
-  const jobList = jobsToScore
-    .map(
-      (job, index) =>
-        `[${index}] Title: ${job.title} | Company: ${job.company} | Location: ${job.location} | Salary: ${job.salary || 'Not listed'} | Posted: ${job.postedAt || 'Unknown'}\nDescription: ${job.description.substring(0, 400)}`
-    )
-    .join('\n\n');
+  console.log('Job retrieval stats:', aggregatedStats);
+  console.log('Validated jobs:', filteredJobs.length);
+  console.log('Unseen jobs:', unseenJobs.length);
+  console.log('Seen jobs:', seenJobs.length);
+  console.log('Used Pro backfill:', usedBackfill);
+  console.log('After Scoring:', finalJobs.length);
+  console.log('Top Final Scores:', finalJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
 
-  const scoringPrompt = `You are an expert technical recruiter.
-
-Below are REAL remote job listings retrieved live from search.
-
-For each job:
-1. Score fit against the candidate resume with matchScore (0-100)
-2. Extract 3-5 key requirements
-3. Estimate salary only if salary is missing
-4. Score company quality
-5. Flag YC/funded startup likelihood
-6. Detect urgent hiring / hot job signals
-
-Candidate Career Goals: ${careerPaths.join(', ')}
-Candidate Resume:
-${resumeText.substring(0, 2000)}
-
-Jobs:
-${jobList}
-
-Return ONLY a JSON array with one object per job in the same order:
-[
-  {
-    "matchScore": 0,
-    "requirements": [],
-    "salaryPrediction": "",
-    "salaryConfidence": "",
-    "salarySource": "estimated",
-    "companyQualityScore": 0,
-    "companyQualityReason": "",
-    "isYC": false,
-    "isFundedStartup": false,
-    "hotJobScore": 0,
-    "hotSignals": []
-  }
-]
-`;
-
-  try {
-    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'openai/gpt-4o-mini');
-    const content = response.choices?.[0]?.message?.content || '[]';
-    const parsedScores = parseJsonArray(content);
-    const rankedJobs = jobsToScore
-      .map((job, index) => normalizeRankedJob(parsedScores[index] || {}, job))
-      .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
-      .slice(0, limit);
-
-    console.log('After Scoring:', rankedJobs.length);
-    console.log('Top Final Scores:', rankedJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
-    return rankedJobs;
-  } catch (error: any) {
-    console.error('Error scoring real jobs:', error);
-    if (error?.status === 429 || error?.message?.includes('quota')) {
-      throw new Error('AI quota exceeded. Please try again later or check your API key plan.');
-    }
-    const fallbackRankedJobs = buildFallbackRankedJobs(jobsToScore, limit);
-    console.log('After Scoring:', fallbackRankedJobs.length);
-    console.log('Top Final Scores:', fallbackRankedJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
-    return fallbackRankedJobs;
-  }
+  return {
+    jobs: finalJobs,
+    requestedLimit: limit,
+    usedBackfill,
+    totalValidatedJobs: filteredJobs.length,
+    unseenCount: unseenJobs.length,
+    seenCount: seenJobs.length,
+  };
 }
 
 // ---------------------------------------------------------------------------
