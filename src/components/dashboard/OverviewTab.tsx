@@ -16,7 +16,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto"
+      className="flex-1 overflow-y-auto pb-8 min-h-0"
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>

@@ -111,7 +111,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 relative flex flex-col min-h-0">
         {activeTab === 'overview' && (
           <OverviewTab 
             stats={stats} 
@@ -125,7 +125,7 @@ export function Dashboard() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="h-full overflow-hidden"
+            className="flex-1 flex flex-col min-h-0"
           >
             <MatchesTab 
               jobs={filteredAndSortedJobs}

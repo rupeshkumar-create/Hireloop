@@ -33,15 +33,15 @@ export function MatchesTab({
   selectedJob, setSelectedJob, setAiAction
 }: MatchesTabProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden w-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex-1 flex flex-col min-h-0 w-full">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-display">Your Daily Matches</h1>
           <p className="text-foreground-muted text-sm mt-1">Curated jobs based on your preferences and resume.</p>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full flex-shrink-0">
         <div className="grid grid-cols-3 gap-3 flex-1 w-full">
           <Input 
             placeholder="Filter by company..." 
