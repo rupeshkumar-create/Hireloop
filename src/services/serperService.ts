@@ -8,6 +8,7 @@ export interface SerperJob {
   applyLink: string;
   salary: string;
   postedAt: string;
+  daysOld?: number;
 }
 
 /**
@@ -39,6 +40,49 @@ function parsePostedDaysAgo(postedAt: string): number {
   if (monthsMatch) return parseInt(monthsMatch[1], 10) * 30;
 
   return 0; // unparseable → let it through rather than silently dropping it
+}
+
+const VALID_ATS_DOMAINS = [
+  'greenhouse.io',
+  'lever.co',
+  'workable.com',
+  'ashbyhq.com',
+  'workday.com',
+  'jobs.',
+];
+
+export async function validateJobLink(url: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/validate-job-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        allowedDomains: VALID_ATS_DOMAINS,
+      }),
+    });
+
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.valid === true;
+  } catch {
+    return false;
+  }
+}
+
+function isValidJob(job: SerperJob): boolean {
+  const normalizedTitle = job.title.trim().toLowerCase();
+  return (
+    job.title.trim().length > 3 &&
+    job.company.trim().length > 2 &&
+    job.applyLink.startsWith('http') &&
+    job.location.toLowerCase().includes('remote') &&
+    job.description.trim().length > 0 &&
+    normalizedTitle !== 'job' &&
+    normalizedTitle !== 'opening'
+  );
 }
 
 /** Stable fingerprint for deduplication: lowercase title + company */
@@ -112,7 +156,10 @@ export async function searchRemoteJobs(
           continue;
         }
 
-        allJobs.push({
+        const isValid = await validateJobLink(finalLink);
+        if (!isValid) continue;
+
+        const candidateJob: SerperJob = {
           title: job.title || '',
           company: job.company_name || '',
           location: loc || 'Remote',
@@ -120,7 +167,11 @@ export async function searchRemoteJobs(
           applyLink: finalLink,
           salary: job.detected_extensions?.salary || '',
           postedAt,
-        });
+          daysOld,
+        };
+
+        if (!isValidJob(candidateJob)) continue;
+        allJobs.push(candidateJob);
       }
     } catch (err) {
       console.error(`Serper search failed for "${query}":`, err);

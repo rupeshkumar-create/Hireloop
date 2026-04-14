@@ -1,50 +1,245 @@
-import { searchRemoteJobs, jobFingerprint } from './serperService';
+import { SerperJob, searchRemoteJobs, jobFingerprint } from './serperService';
 
-// ---- NEW: AI Live Search Fallback (Perplexity) ----
-async function searchJobsWithAI(
-  careerPaths: string[],
-  minSalary: number | null,
-  missingCount: number,
-  resumeText: string
-): Promise<any[]> {
-  const prompt = `You are a live web-searching AI. Search the internet right now for EXACTLY ${missingCount} active, remote job openings that match these career paths: ${careerPaths.join(', ')}.
-  
-Rules:
-1. The jobs MUST be 100% remote.
-2. They MUST have been posted within the last 7 days.
-3. ${minSalary ? `They MUST have a salary of at least $${minSalary}.` : 'Salary is preferred but optional.'}
-4. The applyLink MUST be a direct link to the job posting (ATS, company career page, or specialized remote job board). Do NOT return generic Google search links.
-5. Return the results as a raw JSON array of objects. Do not include markdown code blocks, just the JSON.
+interface RankedJob {
+  title: string;
+  company: string;
+  location: string;
+  salary: string;
+  description: string;
+  url: string;
+  requirements: string[];
+  matchScore: number;
+  datePosted: string;
+  finalScore?: number;
+  freshnessScore?: number;
+  atsQualityScore?: number;
+  companyQualityScore?: number;
+  companyQualityReason?: string;
+  isYC?: boolean;
+  isFundedStartup?: boolean;
+  salaryPrediction?: string;
+  salaryConfidence?: string;
+  salarySource?: string;
+  hotJobScore?: number;
+  hotSignals?: string[];
+  isHotJob?: boolean;
+}
 
-Required JSON format for each object in the array:
-{
-  "title": "Job Title",
-  "company": "Company Name",
-  "location": "Remote",
-  "description": "Brief 2-sentence summary of the role",
-  "applyLink": "https://actual-link-to-apply.com",
-  "salary": "$XXX,XXX",
-  "postedAt": "2 days ago"
-}`;
+function parseJsonArray(content: string): any[] {
+  const trimmed = content.trim();
+  const cleaned = trimmed
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
 
   try {
-    // OpenRouter Perplexity model with online capabilities
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'perplexity/llama-3.1-sonar-small-128k-online');
-    const content = response.choices?.[0]?.message?.content || '[]';
-    
-    // Safely parse the JSON out of the response (sometimes AI wraps it in markdown)
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    const jsonString = jsonMatch ? jsonMatch[0] : content;
-    
-    const parsed = JSON.parse(jsonString);
+    const parsed = JSON.parse(cleaned);
     return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error('AI Fallback Search failed:', error);
-    return [];
+  } catch {
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    return match ? JSON.parse(match[0]) : [];
   }
 }
 
-export async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-3-flash-preview') {
+function extractSkills(resumeText: string): string[] {
+  const skillCandidates = [
+    'node.js',
+    'typescript',
+    'javascript',
+    'react',
+    'python',
+    'aws',
+    'postgresql',
+    'docker',
+    'kubernetes',
+    'graphql',
+    'firebase',
+    'java',
+    'golang',
+    'next.js',
+  ];
+
+  const lowerResume = resumeText.toLowerCase();
+  const matched = skillCandidates.filter((skill) => lowerResume.includes(skill));
+  return matched.slice(0, 4);
+}
+
+function normalizeQueries(rawValue: unknown): string[] {
+  if (Array.isArray(rawValue)) {
+    return rawValue.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  }
+
+  if (rawValue && typeof rawValue === 'object') {
+    for (const value of Object.values(rawValue)) {
+      if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      }
+    }
+  }
+
+  return [];
+}
+
+function buildDeterministicQueries(careerPaths: string[], resumeText: string, minSalary: number | null): string[] {
+  const skills = extractSkills(resumeText);
+  const primarySkill = skills[0] || 'typescript';
+  const secondarySkill = skills[1] || 'react';
+  const salaryClause = minSalary ? ` salary ${minSalary}` : '';
+  const atsClause = '(site:greenhouse.io OR site:lever.co OR site:ashbyhq.com OR site:workable.com OR site:jobs.workday.com)';
+
+  return careerPaths.slice(0, 5).map((path) =>
+    `remote "${path}" "${primarySkill}" "${secondarySkill}" ${atsClause}${salaryClause}`.trim()
+  );
+}
+
+function buildExpansionQueries(careerPaths: string[], resumeText: string): string[] {
+  const titleSeeds = careerPaths.length > 0 ? careerPaths : ['software engineer', 'backend engineer'];
+  const synonyms = ['software engineer', 'developer', 'backend engineer', 'full stack engineer', 'platform engineer'];
+  const skills = extractSkills(resumeText);
+  const primarySkill = skills[0] || 'typescript';
+  const secondarySkill = skills[1] || 'aws';
+  const domains = [
+    'site:greenhouse.io',
+    'site:lever.co',
+    'site:ashbyhq.com',
+    'site:workable.com',
+    'site:jobs.workday.com',
+  ];
+
+  const generated: string[] = [];
+  for (const title of [...titleSeeds, ...synonyms]) {
+    for (const domain of domains) {
+      generated.push(`remote "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+    }
+  }
+
+  return Array.from(new Set(generated));
+}
+
+function mergeDedupJobs(existingJobs: SerperJob[], incomingJobs: SerperJob[]): SerperJob[] {
+  const seen = new Set(existingJobs.map((job) => jobFingerprint(job.title, job.company)));
+  const merged = [...existingJobs];
+
+  for (const job of incomingJobs) {
+    const fingerprint = jobFingerprint(job.title, job.company);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    merged.push(job);
+  }
+
+  return merged;
+}
+
+function getFreshnessScore(daysOld: number): number {
+  return daysOld === 0 ? 100 : Math.max(20, 80 - daysOld * 10);
+}
+
+function getAtsQualityScore(link: string): number {
+  const normalizedLink = link.toLowerCase();
+  if (
+    normalizedLink.includes('greenhouse.io') ||
+    normalizedLink.includes('lever.co') ||
+    normalizedLink.includes('ashbyhq.com')
+  ) {
+    return 100;
+  }
+  if (normalizedLink.includes('workable.com') || normalizedLink.includes('workday.com')) {
+    return 85;
+  }
+  return 75;
+}
+
+function toIsoDate(postedAt: string, daysOld: number | undefined): string {
+  if (!postedAt) {
+    return new Date().toISOString();
+  }
+
+  const parsedDate = new Date(postedAt);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString();
+  }
+
+  const safeDaysOld = typeof daysOld === 'number' ? daysOld : 0;
+  return new Date(Date.now() - safeDaysOld * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function normalizeRankedJob(rawJob: any, sourceJob: SerperJob): RankedJob {
+  const matchScore = typeof rawJob.matchScore === 'number' ? rawJob.matchScore : 0;
+  const companyQualityScore = typeof rawJob.companyQualityScore === 'number' ? rawJob.companyQualityScore : 60;
+  const hotJobScore = typeof rawJob.hotJobScore === 'number' ? rawJob.hotJobScore : 40;
+  const freshnessScore = getFreshnessScore(sourceJob.daysOld || 0);
+  const atsQualityScore = getAtsQualityScore(sourceJob.applyLink);
+  const finalScore =
+    matchScore * 0.45 +
+    freshnessScore * 0.15 +
+    atsQualityScore * 0.15 +
+    companyQualityScore * 0.15 +
+    hotJobScore * 0.10;
+
+  return {
+    title: sourceJob.title,
+    company: sourceJob.company,
+    location: sourceJob.location,
+    salary: sourceJob.salary || rawJob.salaryPrediction || 'Competitive',
+    description: sourceJob.description,
+    url: sourceJob.applyLink,
+    requirements: Array.isArray(rawJob.requirements) ? rawJob.requirements.filter((value: unknown): value is string => typeof value === 'string') : [],
+    matchScore,
+    datePosted: toIsoDate(sourceJob.postedAt, sourceJob.daysOld),
+    finalScore: Math.round(finalScore),
+    freshnessScore,
+    atsQualityScore,
+    companyQualityScore,
+    companyQualityReason: typeof rawJob.companyQualityReason === 'string' ? rawJob.companyQualityReason : 'No company-quality rationale returned.',
+    isYC: rawJob.isYC === true,
+    isFundedStartup: rawJob.isFundedStartup === true,
+    salaryPrediction: typeof rawJob.salaryPrediction === 'string' ? rawJob.salaryPrediction : '',
+    salaryConfidence: typeof rawJob.salaryConfidence === 'string' ? rawJob.salaryConfidence : '',
+    salarySource: typeof rawJob.salarySource === 'string' ? rawJob.salarySource : '',
+    hotJobScore,
+    hotSignals: Array.isArray(rawJob.hotSignals) ? rawJob.hotSignals.filter((value: unknown): value is string => typeof value === 'string') : [],
+    isHotJob: hotJobScore >= 70,
+  };
+}
+
+function buildFallbackRankedJobs(jobs: SerperJob[], limit: number): RankedJob[] {
+  return jobs
+    .map((job) => {
+      const freshnessScore = getFreshnessScore(job.daysOld || 0);
+      const atsQualityScore = getAtsQualityScore(job.applyLink);
+      const finalScore = freshnessScore * 0.6 + atsQualityScore * 0.4;
+
+      return {
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        salary: job.salary || 'Competitive',
+        description: job.description,
+        url: job.applyLink,
+        requirements: [],
+        matchScore: Math.round(finalScore),
+        datePosted: toIsoDate(job.postedAt, job.daysOld),
+        finalScore: Math.round(finalScore),
+        freshnessScore,
+        atsQualityScore,
+        companyQualityScore: 60,
+        companyQualityReason: 'Fallback deterministic ranking without model enrichment.',
+        isYC: false,
+        isFundedStartup: false,
+        salaryPrediction: '',
+        salaryConfidence: '',
+        salarySource: '',
+        hotJobScore: freshnessScore >= 90 ? 80 : 40,
+        hotSignals: freshnessScore >= 90 ? ['Fresh posting'] : [],
+        isHotJob: freshnessScore >= 90,
+      };
+    })
+    .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
+    .slice(0, limit);
+}
+
+export async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-2.0-flash') {
   const response = await fetch('/api/openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -100,9 +295,7 @@ Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 ye
 
 // ---------------------------------------------------------------------------
 // Agent 1: Daily Job Generation
-// Real jobs sourced from Serper (Google Jobs), scored by OpenAI against resume.
-// Falls back to pure AI generation if Serper is not configured or returns nothing.
-// Always fetches 10 jobs for every user.
+// Real jobs sourced from Serper (Google Jobs), validated and then ranked.
 // ---------------------------------------------------------------------------
 export async function updateLearningProfile(
   actionType: 'save_job' | 'edit_email' | 'edit_resume',
@@ -134,215 +327,160 @@ export async function generateDailyJobs(
   seenFingerprints: string[] = [], // fingerprints of jobs already shown to this user
   learningContext: string = ''
 ) {
-  // ---- Step 0: Generate Optimized Search Queries using Gemini ----
-  const queryPrompt = `You are an elite Executive Technical Sourcer with 20 years of experience. Your goal is to find highly relevant, active remote jobs for this candidate by bypassing generic job boards and searching ATS (Applicant Tracking System) platforms directly.
-  
-Execute a 23-step internal verification process to analyze the candidate's core competencies, seniority, and domain expertise. Based on this deep analysis of the resume and target career paths, generate 3 highly optimized Boolean search queries for Google.
+  const queryPrompt = `
+You are a top 0.1% technical recruiter.
+
+Your job is NOT to generate broad queries.
+Your job is to find REAL, ACTIVE job postings.
 
 Hidden User Preferences learned from past behavior: ${learningContext}
-Incorporate these preferences when generating the search queries.
 
-Rules:
-1. Every query MUST include the word "remote".
-2. Extract the 2-3 most important technical skills or domain expertise from the resume and include them in the query (e.g., "React" AND "TypeScript").
-3. Append ATS site operators to find direct company listings. Use this exact string at the end of every query: (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:jobs.ashbyhq.com)
-4. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically.
-5. Apply strict filters to exclude jobs older than 7 days if your boolean string permits.
-6. EXPLICITLY TARGET these platforms in your boolean strings when possible: linkedin.com, indeed.com, flexjobs.com, weworkremotely.com, remote.co, builtin.com, wellfound.com, remoteok.com, weworkremotely.com, authenticjobs.com.
+# STRICT RULES
 
-Example Output format:
-"remote" AND ("Frontend" OR "Full Stack") AND "TypeScript" AND "React" (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:weworkremotely.com OR site:remote.co)
+- MUST include:
+  "remote"
+- MUST include:
+  1 job title
+  2 core skills
+- MUST include ATS domains ONLY:
 
-Target Paths: ${careerPaths.join(', ')}
-Resume Snippet: ${resumeText.substring(0, 1000)}
+(site:greenhouse.io OR site:lever.co OR site:ashbyhq.com OR site:workable.com OR site:jobs.workday.com)
 
-Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
+- MUST avoid:
+  linkedin.com
+  indeed.com
+  naukri.com
+
+# GOAL
+
+Generate 5 HIGH-PRECISION queries:
+- narrow
+- specific
+- high signal
+
+Resume:
+${resumeText.substring(0, 1000)}
+
+Career Paths:
+${careerPaths.join(', ')}
+
+Return JSON array of 5 queries
+`;
 
   let optimizedQueries: string[] = [];
   try {
-    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], { type: 'json_object' });
+    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], undefined, 'google/gemini-2.0-flash');
     if (queryResponse.choices?.[0]?.message?.content) {
-      const parsed = JSON.parse(queryResponse.choices[0].message.content);
-      optimizedQueries = Array.isArray(parsed) ? parsed : (parsed.queries || Object.values(parsed)[0] || []);
+      optimizedQueries = normalizeQueries(parseJsonArray(queryResponse.choices[0].message.content));
     }
   } catch (error) {
-    console.error('Error generating optimized queries, falling back to basic paths:', error);
+    console.error('Error generating optimized queries:', error);
   }
 
-  // Fallback to basic string concatenation if AI fails or returns empty
   if (!optimizedQueries || optimizedQueries.length === 0) {
-    const salaryPart = minSalary ? ` salary $${minSalary.toLocaleString()}+` : '';
-    optimizedQueries = careerPaths.slice(0, 3).map(path => `remote ${path}${salaryPart}`);
+    optimizedQueries = buildDeterministicQueries(careerPaths, resumeText, minSalary);
   }
+  optimizedQueries = optimizedQueries.slice(0, 5);
+  console.log('Queries:', optimizedQueries);
 
-  // ---- Step 1: fetch real jobs from Serper using optimized queries ----
   let realJobs: Awaited<ReturnType<typeof searchRemoteJobs>> = [];
   try {
     realJobs = await searchRemoteJobs(optimizedQueries);
   } catch (err) {
-    console.warn('Serper unavailable, falling back to AI-generated jobs:', err);
+    console.warn('Serper unavailable during primary search:', err);
+  }
+  console.log('Serper Jobs:', realJobs.length);
+
+  const extraQueries = buildExpansionQueries(careerPaths, resumeText).filter(
+    (query) => !optimizedQueries.includes(query)
+  );
+
+  while (realJobs.length < limit && extraQueries.length > 0) {
+    const nextBatch = extraQueries.splice(0, 5);
+    const moreJobs = await searchRemoteJobs(nextBatch);
+    realJobs = mergeDedupJobs(realJobs, moreJobs);
   }
 
-  // ---- Deduplicate: remove jobs this user has already seen ----
+  const filteredJobs = mergeDedupJobs([], realJobs);
+  console.log('After Validation:', filteredJobs.length);
+
+  let unseenJobs = filteredJobs;
   if (seenFingerprints.length > 0) {
     const seenSet = new Set(seenFingerprints);
-    realJobs = realJobs.filter(job => !seenSet.has(jobFingerprint(job.title, job.company)));
+    unseenJobs = filteredJobs.filter((job) => !seenSet.has(jobFingerprint(job.title, job.company)));
+  }
+  console.log('After Seen Filter:', unseenJobs.length);
+
+  const jobsToScore = unseenJobs.slice(0, Math.max(limit, 20));
+  if (jobsToScore.length === 0) {
+    return [];
   }
 
-  // ---- NEW: AI Fallback Search (Perplexity) ----
-  // If Serper didn't find enough fresh, unseen jobs, use Perplexity AI to scour the live web for the rest!
-  let aiAttempts = 0;
-  const MAX_AI_ATTEMPTS = 4; // allow up to 4 AI calls to fill the gap
+  const jobList = jobsToScore
+    .map(
+      (job, index) =>
+        `[${index}] Title: ${job.title} | Company: ${job.company} | Location: ${job.location} | Salary: ${job.salary || 'Not listed'} | Posted: ${job.postedAt || 'Unknown'}\nDescription: ${job.description.substring(0, 400)}`
+    )
+    .join('\n\n');
 
-  while (realJobs.length < limit && aiAttempts < MAX_AI_ATTEMPTS) {
-    const missingCount = limit - realJobs.length;
-    console.log(`Found ${realJobs.length} jobs. Falling back to AI Search to find ${missingCount} more (Attempt ${aiAttempts + 1})...`);
-    
-    const aiFoundJobs = await searchJobsWithAI(careerPaths, minSalary, missingCount, resumeText);
-    
-    // Merge and deduplicate against existing seen list AND the newly found Serper jobs
-    for (const aiJob of aiFoundJobs) {
-      const fp = jobFingerprint(aiJob.title, aiJob.company);
-      const alreadyInSerper = realJobs.some((rj) => jobFingerprint(rj.title, rj.company) === fp);
-      
-      // Reject if it's a generic google search URL
-      const isDirectLink = aiJob.applyLink && !aiJob.applyLink.includes('google.com/search');
+  const scoringPrompt = `You are an expert technical recruiter.
 
-      if (!seenFingerprints.includes(fp) && !alreadyInSerper && isDirectLink) {
-        realJobs.push(aiJob);
-      }
-    }
-    aiAttempts++;
-  }
+Below are REAL remote job listings retrieved live from search.
 
-  // ---- NEW STEP: Limit Daily Jobs to 'limit' (10 for Pro, 1 for Free) ----
-  // Any extra jobs found are simply not processed today, saving them to be potentially found tomorrow 
-  // since their fingerprints are not added to the seen list yet.
-  if (realJobs.length > limit) {
-    realJobs = realJobs.slice(0, limit);
-  }
-
-  // ---- Step 2a: real jobs found → use OpenAI to score & format ----
-  if (realJobs.length > 0) {
-    const jobsToScore = realJobs.slice(0, 20); // cap prompt size
-    const jobList = jobsToScore
-      .map(
-        (j, i) =>
-          `[${i}] Title: ${j.title} | Company: ${j.company} | Location: ${j.location} | Salary: ${j.salary || 'Not listed'} | Posted: ${j.postedAt || 'Unknown'}\nDescription: ${j.description.substring(0, 300)}`
-      )
-      .join('\n\n');
-
-    const applyLinks = jobsToScore.map((j, i) => `[${i}] ${j.applyLink}`).join('\n');
-
-    const scoringPrompt = `You are an expert technical recruiter. Below are ${jobsToScore.length} REAL remote job listings retrieved live from Google Jobs today.
-
-Your tasks:
-1. Score each job (0-100 matchScore) against the candidate's resume and career goals.
-2. Extract 3-5 key requirements per job.
-3. Return only the top ${limit} jobs sorted by matchScore descending.
-4. Keep location and description as-is - this is real data. Do NOT fabricate.
-5. If salary is missing, write "Competitive".
+For each job:
+1. Score fit against the candidate resume with matchScore (0-100)
+2. Extract 3-5 key requirements
+3. Estimate salary only if salary is missing
+4. Score company quality
+5. Flag YC/funded startup likelihood
+6. Detect urgent hiring / hot job signals
 
 Candidate Career Goals: ${careerPaths.join(', ')}
 Candidate Resume:
 ${resumeText.substring(0, 2000)}
 
-Real Job Listings:
+Jobs:
 ${jobList}
 
-Apply Links (index matches job list):
-${applyLinks}
-
-Return a JSON array of exactly ${limit} objects (or fewer if fewer jobs are available):
-- title (string)
-- company (string)
-- location (string)
-- salary (string)
-- description (string) - preserve original description
-- url (string) - use the matching apply link from above
-- requirements (array of 3-5 strings)
-- matchScore (number 0-100)
-- datePosted (string ISO format, e.g. "2026-04-10T00:00:00Z")
-
-Respond ONLY with the JSON array. No markdown.`;
-
-    try {
-      const response = await callOpenAI([{ role: 'user', content: scoringPrompt }]);
-
-      if (response.choices?.[0]?.message?.content) {
-        let text = response.choices[0].message.content.trim();
-        if (text.startsWith('```json')) text = text.replace(/^```json/, '').replace(/```$/, '').trim();
-        else if (text.startsWith('```')) text = text.replace(/^```/, '').replace(/```$/, '').trim();
-
-        try {
-          return JSON.parse(text);
-        } catch {
-          const match = text.match(/\[[\s\S]*\]/);
-          if (match) return JSON.parse(match[0]);
-        }
-      }
-    } catch (error: any) {
-      console.error('Error scoring real jobs:', error);
-      if (error?.status === 429 || error?.message?.includes('quota')) {
-        throw new Error('AI quota exceeded. Please try again later or check your API key plan.');
-      }
-    }
+Return ONLY a JSON array with one object per job in the same order:
+[
+  {
+    "matchScore": 0,
+    "requirements": [],
+    "salaryPrediction": "",
+    "salaryConfidence": "",
+    "salarySource": "estimated",
+    "companyQualityScore": 0,
+    "companyQualityReason": "",
+    "isYC": false,
+    "isFundedStartup": false,
+    "hotJobScore": 0,
+    "hotSignals": []
   }
-
-  // ---- Step 2b: Serper unavailable or returned nothing - AI fallback ----
-  const fallbackPrompt = `You are an expert technical recruiter specializing in REMOTE job opportunities.
-Provide exactly ${limit} highly realistic REMOTE job postings based on current market trends.
-Every job MUST be a fully remote position (work from home / work from anywhere). Never include hybrid or on-site roles.
-
-Match against:
-- Career Paths/Desired Titles: ${careerPaths.join(', ')}
-- Work Type: REMOTE ONLY (100% remote, work from anywhere)
-- Minimum Salary: ${minSalary ? '$' + minSalary : 'Any'}
-
-Candidate Resume:
-${resumeText.substring(0, 3000)}
-
-STRICT RULES:
-1. ALL ${limit} jobs MUST be fully remote. No hybrid or on-site.
-2. Location must clearly say "Remote" or "Remote (Worldwide)" or "Remote (US)".
-3. Calculate matchScore (0-100) for how well the job fits the resume.
-
-Return a JSON array of EXACTLY ${limit} objects:
-- title (string)
-- company (string)
-- location (string) - must contain "Remote"
-- salary (string)
-- description (string)
-- url (string) - A direct link to the job posting. Do NOT return Google search links.
-- requirements (array of strings)
-- matchScore (number)
-- datePosted (string ISO format)
-
-Respond ONLY with the JSON array. No markdown.`;
+]
+`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: fallbackPrompt }]);
+    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'openai/gpt-4o-mini');
+    const content = response.choices?.[0]?.message?.content || '[]';
+    const parsedScores = parseJsonArray(content);
+    const rankedJobs = jobsToScore
+      .map((job, index) => normalizeRankedJob(parsedScores[index] || {}, job))
+      .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
+      .slice(0, limit);
 
-    if (response.choices?.[0]?.message?.content) {
-      let text = response.choices[0].message.content.trim();
-      if (text.startsWith('```json')) text = text.replace(/^```json/, '').replace(/```$/, '').trim();
-      else if (text.startsWith('```')) text = text.replace(/^```/, '').replace(/```$/, '').trim();
-
-      try {
-        return JSON.parse(text);
-      } catch {
-        const match = text.match(/\[[\s\S]*\]/);
-        if (match) return JSON.parse(match[0]);
-        return [];
-      }
-    }
-    return [];
+    console.log('After Scoring:', rankedJobs.length);
+    console.log('Top Final Scores:', rankedJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
+    return rankedJobs;
   } catch (error: any) {
-    console.error('Error generating jobs (fallback):', error);
+    console.error('Error scoring real jobs:', error);
     if (error?.status === 429 || error?.message?.includes('quota')) {
       throw new Error('AI quota exceeded. Please try again later or check your API key plan.');
     }
-    return [];
+    const fallbackRankedJobs = buildFallbackRankedJobs(jobsToScore, limit);
+    console.log('After Scoring:', fallbackRankedJobs.length);
+    console.log('Top Final Scores:', fallbackRankedJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
+    return fallbackRankedJobs;
   }
 }
 

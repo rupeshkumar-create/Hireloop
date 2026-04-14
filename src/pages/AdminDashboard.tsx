@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -20,9 +20,17 @@ export function AdminDashboard() {
 
   // Modal State
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [detailUser, setDetailUser] = useState<any>(null);
   const [newPlan, setNewPlan] = useState<'free' | 'pro'>('free');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const formatDate = (value: any) => {
+    if (!value) return '-';
+    const rawValue = value.seconds ? value.seconds * 1000 : value;
+    const parsed = new Date(rawValue);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
+  };
 
   useEffect(() => {
     if (sessionStorage.getItem('super_admin_unlocked') === 'true' && user?.email && ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'].includes(user.email.toLowerCase())) {
@@ -65,7 +73,11 @@ export function AdminDashboard() {
       setUsers(usersData);
       setLoading(false);
     }, (error) => {
-      console.error('Error fetching users:', error);
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      } catch (formattedError) {
+        console.error('Error fetching users:', formattedError);
+      }
       toast.error('Failed to load users. Check permissions.');
       setLoading(false);
     });
@@ -173,16 +185,13 @@ export function AdminDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-foreground-muted">
-                      {u.createdAt 
-                        ? new Date(u.createdAt.seconds ? u.createdAt.seconds * 1000 : u.createdAt).toLocaleDateString() 
-                        : '-'}
+                      {formatDate(u.createdAt)}
                     </td>
                     <td className="px-6 py-4 text-foreground-muted">
-                      {u.lastActiveAt 
-                        ? new Date(u.lastActiveAt.seconds ? u.lastActiveAt.seconds * 1000 : u.lastActiveAt).toLocaleDateString() 
-                        : '-'}
+                      {formatDate(u.lastActiveAt)}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => setDetailUser(u)}>View Details</Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         impersonateUser(u.id, u.email);
                         toast.success(`Impersonating ${u.email}`);
@@ -244,6 +253,78 @@ export function AdminDashboard() {
                 <Button variant="action" onClick={handleChangePlan} disabled={saving || !reason.trim()}>
                   {saving ? 'Saving...' : 'Confirm Change'}
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {detailUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-surface/95 backdrop-blur-2xl w-full max-w-3xl rounded-3xl p-6 shadow-2xl border border-border max-h-[85vh] overflow-y-auto"
+            >
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">User Details</h3>
+                  <p className="text-sm text-foreground-muted mt-1">{detailUser.email || 'No email found'}</p>
+                </div>
+                <Button variant="ghost" onClick={() => setDetailUser(null)}>Close</Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Name</p>
+                  <p className="text-foreground">{detailUser.displayName || '-'}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Plan</p>
+                  <p className="text-foreground">{detailUser.plan || 'free'}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Joined</p>
+                  <p className="text-foreground">{formatDate(detailUser.createdAt)}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Last Active</p>
+                  <p className="text-foreground">{formatDate(detailUser.lastActiveAt)}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Job Type</p>
+                  <p className="text-foreground">{detailUser.jobType || '-'}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wider text-foreground-muted mb-1">Minimum Salary</p>
+                  <p className="text-foreground">{detailUser.minSalary ? `$${detailUser.minSalary}` : '-'}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4 mb-4">
+                <p className="text-xs uppercase tracking-wider text-foreground-muted mb-2">Career Paths</p>
+                <p className="text-foreground">
+                  {Array.isArray(detailUser.careerPaths) && detailUser.careerPaths.length > 0
+                    ? detailUser.careerPaths.join(', ')
+                    : '-'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4 mb-4">
+                <p className="text-xs uppercase tracking-wider text-foreground-muted mb-2">Learning Profile</p>
+                <div className="space-y-2 text-sm text-foreground">
+                  <p><span className="text-foreground-muted">Job preferences:</span> {detailUser.learningProfile?.jobPreferences || '-'}</p>
+                  <p><span className="text-foreground-muted">Writing style:</span> {detailUser.learningProfile?.writingStyle || '-'}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <p className="text-xs uppercase tracking-wider text-foreground-muted mb-2">Resume Text</p>
+                <pre className="whitespace-pre-wrap break-words text-sm text-foreground-muted max-h-80 overflow-y-auto">
+                  {detailUser.resumeText || 'No resume uploaded.'}
+                </pre>
               </div>
             </motion.div>
           </div>

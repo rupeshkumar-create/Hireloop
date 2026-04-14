@@ -110,7 +110,7 @@ service cloud.firestore {
     }
 
     match /trackedJobs/{jobId} {
-      allow read: if isDocOwner() || (isAuthenticated() && request.resource.data.userId == request.auth.uid) || isSuperAdmin();
+      allow read: if isDocOwner() || isSuperAdmin();
       allow create: if (isAuthenticated() && isValidTrackedJob(request.resource.data)) || isSuperAdmin();
       allow update: if (isDocOwner() && isValidTrackedJob(request.resource.data) &&
                     request.resource.data.userId == resource.data.userId &&
