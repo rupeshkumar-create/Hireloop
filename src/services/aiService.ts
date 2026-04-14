@@ -91,9 +91,9 @@ export async function generateDailyJobs(
   learningContext: string = ''
 ) {
   // ---- Step 0: Generate Optimized Search Queries using Gemini ----
-  const queryPrompt = `You are an elite Executive Technical Sourcer. Your goal is to find highly relevant, hidden remote jobs for this candidate by bypassing generic job boards and searching ATS (Applicant Tracking System) platforms directly.
+  const queryPrompt = `You are an elite Executive Technical Sourcer with 20 years of experience. Your goal is to find highly relevant, active remote jobs for this candidate by bypassing generic job boards and searching ATS (Applicant Tracking System) platforms directly.
   
-Based on the candidate's resume and target career paths, generate 3 highly optimized Boolean search queries for Google.
+Execute a 23-step internal verification process to analyze the candidate's core competencies, seniority, and domain expertise. Based on this deep analysis of the resume and target career paths, generate 3 highly optimized Boolean search queries for Google.
 
 Hidden User Preferences learned from past behavior: ${learningContext}
 Incorporate these preferences when generating the search queries.
@@ -103,6 +103,7 @@ Rules:
 2. Extract the 2-3 most important technical skills or domain expertise from the resume and include them in the query (e.g., "React" AND "TypeScript").
 3. Append ATS site operators to find direct company listings. Use this exact string at the end of every query: (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:jobs.ashbyhq.com)
 4. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically.
+5. Apply strict filters to exclude jobs older than 7 days if your boolean string permits.
 
 Example Output format:
 "remote" AND ("Frontend" OR "Full Stack") AND "TypeScript" AND "React" (site:greenhouse.io OR site:lever.co OR site:workable.com)

@@ -71,7 +71,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
-  const fetchJobs = async (force: boolean = false) => {
+  const fetchJobs = async (forceRefresh: boolean = false) => {
     if (!profile?.careerPaths || profile.careerPaths.length === 0) {
       toast.error("Please set your Career Paths in Settings first.");
       return;
@@ -82,7 +82,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const lastFetch = profile.lastJobFetchTime ? new Date(profile.lastJobFetchTime) : null;
     
     // If not forcing, and we already fetched after the most recent 8 AM IST, just use cached jobs
-    if (!force && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length > 0) {
+    if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length > 0) {
       setJobs(profile.dailyJobs);
       return;
     }
@@ -92,6 +92,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       // Load fingerprints of jobs already shown to this user (deduplication)
       const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
+      // Pro gets 10, free gets 1
       const limit = profile?.plan === 'pro' ? 10 : 1;
       const results = await generateDailyJobs(
         profile.careerPaths,
@@ -226,6 +227,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     stats,
     statsLoading,
     fetchJobs,
+    lastFetchTime: profile?.lastJobFetchTime,
     saveJob,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,

@@ -39,12 +39,6 @@ export function MatchesTab({
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-display">Your Daily Matches</h1>
           <p className="text-zinc-500 text-sm mt-1">Curated jobs based on your preferences and resume.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => fetchJobs(true)} disabled={loadingJobs} variant="outline" size="sm" className="font-medium">
-            {loadingJobs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
-            Refresh Jobs
-          </Button>
-        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">

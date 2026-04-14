@@ -99,13 +99,21 @@ export async function searchRemoteJobs(
         const daysOld = parsePostedDaysAgo(postedAt);
         if (daysOld > 7) continue;
 
+        // Try to get the direct ATS link from apply_options
+        let directApplyLink = '';
+        if (job.apply_options && job.apply_options.length > 0) {
+          directApplyLink = job.apply_options[0].link;
+        }
+
         allJobs.push({
           title: job.title || '',
           company: job.company_name || '',
           location: loc || 'Remote',
           description: job.description || '',
           applyLink:
+            directApplyLink ||
             job.apply_link ||
+            job.link ||
             `https://www.google.com/search?q=${encodeURIComponent(
               `${job.title} ${job.company_name} remote job apply`
             )}`,
