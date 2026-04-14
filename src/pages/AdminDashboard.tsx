@@ -25,17 +25,21 @@ export function AdminDashboard() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem('super_admin_unlocked') === 'true') {
+    if (sessionStorage.getItem('super_admin_unlocked') === 'true' && user?.email && ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'].includes(user.email.toLowerCase())) {
       setIsAuthenticated(true);
     }
-  }, []);
+  }, [user]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === import.meta.env.VITE_SUPER_ADMIN_PASSWORD) {
-      sessionStorage.setItem('super_admin_unlocked', 'true');
-      setIsAuthenticated(true);
-      toast.success('Admin access granted');
+      if (user?.email && ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'].includes(user.email.toLowerCase())) {
+        sessionStorage.setItem('super_admin_unlocked', 'true');
+        setIsAuthenticated(true);
+        toast.success('Admin access granted');
+      } else {
+        toast.error('Your account is not authorized as a super admin.');
+      }
     } else {
       toast.error('Invalid password');
     }
