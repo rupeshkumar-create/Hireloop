@@ -1,8 +1,41 @@
+# Super Admin Panel Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Create a highly secure, hidden Super Admin panel to manage users, view stats, and manually change user plans (with a required reason).
+
+**Architecture:** 
+1. The route `/admin` already exists but uses an insecure email array check.
+2. We will implement a strict password gate. The user must enter a password that matches `VITE_SUPER_ADMIN_PASSWORD` from `.env`.
+3. Upon entering the correct password, it sets a session flag `super_admin_unlocked` so they don't have to enter it on every refresh.
+4. The panel will list all users. Each user row will have a "Change Plan" button.
+5. Clicking "Change Plan" opens a modal to select "free" or "pro", enter a mandatory reason, and submit. This updates the user's `plan` in Firestore and logs the action in a new `admin_logs` collection.
+
+**Tech Stack:** React, Firestore, Tailwind.
+
+---
+
+### Task 1: Add Environment Variable
+
+**Files:**
+- Modify: `.env.example`
+
+- [ ] **Step 1: Add Admin Password variable**
+```env
+VITE_SUPER_ADMIN_PASSWORD=your_secure_admin_password_here
+```
+
+### Task 2: Implement Secure Admin Gateway & User List
+
+**Files:**
+- Modify: `src/pages/AdminDashboard.tsx`
+
+- [ ] **Step 1: Rewrite AdminDashboard to use password gate and fetch users**
+```tsx
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 
@@ -43,9 +76,9 @@ export function AdminDashboard() {
     const fetchUsers = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'users'));
-        const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // Sort by newest first
-        usersData.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        usersData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setUsers(usersData);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -130,7 +163,7 @@ export function AdminDashboard() {
         </div>
 
         {loading ? (
-          <div className="text-zinc-500">Loading users...</div>
+          <div>Loading users...</div>
         ) : (
           <div className="bg-white border border-zinc-200 shadow-sm overflow-hidden rounded-lg">
             <table className="w-full text-sm text-left">
@@ -147,7 +180,7 @@ export function AdminDashboard() {
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-zinc-50">
                     <td className="px-6 py-4 font-medium text-zinc-900">{u.email}</td>
-                    <td className="px-6 py-4 text-zinc-500">{u.displayName || '-'}</td>
+                    <td className="px-6 py-4">{u.displayName || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${u.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' : 'bg-zinc-100 text-zinc-600'}`}>
                         {u.plan || 'free'}
@@ -170,15 +203,15 @@ export function AdminDashboard() {
 
       {/* Change Plan Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl border border-zinc-200">
-            <h3 className="text-lg font-bold mb-4 text-zinc-900">Change Plan: {selectedUser.email}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl">
+            <h3 className="text-lg font-bold mb-4">Change Plan: {selectedUser.email}</h3>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">New Plan</label>
                 <select 
-                  className="w-full border border-zinc-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                  className="w-full border border-zinc-300 rounded-md px-3 py-2"
                   value={newPlan}
                   onChange={(e) => setNewPlan(e.target.value as 'free' | 'pro')}
                 >
@@ -191,7 +224,7 @@ export function AdminDashboard() {
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Reason for Change (Required)</label>
                 <textarea 
                   required
-                  className="w-full border border-zinc-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none text-sm"
+                  className="w-full border border-zinc-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
                   rows={3}
                   placeholder="e.g. Paid via manual wire transfer, Refunded, VIP user"
                   value={reason}
@@ -212,3 +245,4 @@ export function AdminDashboard() {
     </div>
   );
 }
+```

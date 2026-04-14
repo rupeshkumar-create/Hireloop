@@ -72,11 +72,9 @@ export default function App() {
             </PrivateRoute>
           } />
           <Route path="/admin" element={
-            <PrivateRoute>
-              <AppLayout>
-                <AdminDashboard />
-              </AppLayout>
-            </PrivateRoute>
+            <AppLayout>
+              <AdminDashboard />
+            </AppLayout>
           } />
         </Routes>
       </Router>
