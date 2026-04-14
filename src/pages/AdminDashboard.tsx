@@ -100,10 +100,6 @@ export function AdminDashboard() {
     }
   };
 
-  const handleSeedBlog = async () => {
-    toast.info('Blog is now managed via GitHub JSON. No seeding required.');
-  };
-
   if (!isAuthenticated) {
     // Discreet login screen
     return (
@@ -132,7 +128,6 @@ export function AdminDashboard() {
             <p className="text-foreground-muted mt-1">Manage {users.length} users and platform billing.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleSeedBlog}>Seed Blog DB</Button>
             <Button variant="outline" onClick={() => {
               sessionStorage.removeItem('super_admin_unlocked');
               setIsAuthenticated(false);
