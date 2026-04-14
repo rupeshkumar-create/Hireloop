@@ -46,9 +46,15 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   // Load jobs from profile if they exist
   useEffect(() => {
     if (profile?.dailyJobs && jobs.length === 0 && !loadingJobs) {
-      setJobs(profile.dailyJobs);
+      // If they just upgraded to pro but only have 1 job cached, automatically refresh
+      const expectedLimit = profile?.plan?.toLowerCase() === 'pro' ? 10 : 1;
+      if (profile.dailyJobs.length < expectedLimit) {
+        fetchJobs(true); // force refresh
+      } else {
+        setJobs(profile.dailyJobs);
+      }
     }
-  }, [profile?.dailyJobs]);
+  }, [profile?.dailyJobs, profile?.plan]);
 
   const fetchStats = async () => {
     if (!user) return;
@@ -82,7 +88,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const lastFetch = profile.lastJobFetchTime ? new Date(profile.lastJobFetchTime) : null;
     
     // If not forcing, and we already fetched after the most recent 8 AM IST, just use cached jobs
-    if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length > 0) {
+    const limit = profile?.plan?.toLowerCase() === 'pro' ? 10 : 1;
+    if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length >= limit) {
       setJobs(profile.dailyJobs);
       return;
     }
@@ -92,8 +99,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       // Load fingerprints of jobs already shown to this user (deduplication)
       const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-      // Pro gets 10, free gets 1
-      const limit = profile?.plan === 'pro' ? 10 : 1;
       const results = await generateDailyJobs(
         profile.careerPaths,
         'remote',
@@ -165,7 +170,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       fetchStats();
 
       // Pro features: Auto-generate AI assets & trigger self-learning
-      if (profile?.plan === 'pro' && profile?.resumeText) {
+      if (profile?.plan?.toLowerCase() === 'pro' && profile?.resumeText) {
         toast.info('Generating AI assets in the background...');
         Promise.all([
           generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),

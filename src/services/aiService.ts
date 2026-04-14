@@ -1,4 +1,4 @@
-import { searchRemoteJobs, jobFingerprint } from './serperService';
+import { searchRemoteJobs, jobFingerprint, isAtsLink } from './serperService';
 
 // ---- NEW: AI Live Search Fallback (Perplexity) ----
 async function searchJobsWithAI(
@@ -13,7 +13,7 @@ Rules:
 1. The jobs MUST be 100% remote.
 2. They MUST have been posted within the last 7 days.
 3. ${minSalary ? `They MUST have a salary of at least $${minSalary}.` : 'Salary is preferred but optional.'}
-4. Prioritize direct company career pages (Greenhouse, Lever, Workable) over generic job boards.
+4. The applyLink MUST be a direct ATS link (e.g., greenhouse.io, lever.co, workable.com, myworkdayjobs.com, ashbyhq.com). Do NOT return generic job board links or Google search links.
 5. Return the results as a raw JSON array of objects. Do not include markdown code blocks, just the JSON.
 
 Required JSON format for each object in the array:
@@ -191,9 +191,12 @@ Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
 
   // ---- NEW: AI Fallback Search (Perplexity) ----
   // If Serper didn't find enough fresh, unseen jobs, use Perplexity AI to scour the live web for the rest!
-  if (realJobs.length < limit) {
+  let aiAttempts = 0;
+  const MAX_AI_ATTEMPTS = 4; // allow up to 4 AI calls to fill the gap
+
+  while (realJobs.length < limit && aiAttempts < MAX_AI_ATTEMPTS) {
     const missingCount = limit - realJobs.length;
-    console.log(`Serper found ${realJobs.length} jobs. Falling back to AI Search to find ${missingCount} more...`);
+    console.log(`Found ${realJobs.length} jobs. Falling back to AI Search to find ${missingCount} more (Attempt ${aiAttempts + 1})...`);
     
     const aiFoundJobs = await searchJobsWithAI(careerPaths, minSalary, missingCount, resumeText);
     
@@ -202,10 +205,14 @@ Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
       const fp = jobFingerprint(aiJob.title, aiJob.company);
       const alreadyInSerper = realJobs.some((rj) => jobFingerprint(rj.title, rj.company) === fp);
       
-      if (!seenFingerprints.includes(fp) && !alreadyInSerper) {
+      // Strict ATS check for AI generated links as well
+      const isAts = isAtsLink(aiJob.applyLink || '');
+
+      if (!seenFingerprints.includes(fp) && !alreadyInSerper && isAts) {
         realJobs.push(aiJob);
       }
     }
+    aiAttempts++;
   }
 
   // ---- NEW STEP: Limit Daily Jobs to 'limit' (10 for Pro, 1 for Free) ----
@@ -306,7 +313,7 @@ Return a JSON array of EXACTLY ${limit} objects:
 - location (string) - must contain "Remote"
 - salary (string)
 - description (string)
-- url (string) - https://www.google.com/search?q=remote+job+[URL-encoded title]+at+[URL-encoded company]
+- url (string) - A direct ATS link to the job (e.g. https://boards.greenhouse.io/company/jobid)
 - requirements (array of strings)
 - matchScore (number)
 - datePosted (string ISO format)

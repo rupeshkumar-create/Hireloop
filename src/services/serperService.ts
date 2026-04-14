@@ -10,6 +10,20 @@ export interface SerperJob {
   postedAt: string;
 }
 
+export const ATS_DOMAINS = [
+  'greenhouse.io', 'lever.co', 'workable.com', 'ashbyhq.com', 
+  'myworkdayjobs.com', 'bamboohr.com', 'jobvite.com', 'icims.com',
+  'smartrecruiters.com', 'recruitee.com', 'rippling.com', 'paylocity.com',
+  'breezy.hr', 'applytojob.com', 'jobs.workable.com', 'jobs.eu.lever.co',
+  'boards.greenhouse.io', 'boards.eu.greenhouse.io', 'career-pages.workable.com'
+];
+
+export function isAtsLink(url: string): boolean {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  return ATS_DOMAINS.some(domain => lowerUrl.includes(domain));
+}
+
 /**
  * Parses Serper's "X days ago" / "X weeks ago" strings into a number of days.
  * Returns 0 for "today", "just posted", "X hours ago".
@@ -68,7 +82,7 @@ export async function searchRemoteJobs(
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ q: query, gl: 'us', hl: 'en', num: 10 }),
+        body: JSON.stringify({ q: query, gl: 'us', hl: 'en', num: 30 }),
       });
 
       if (!response.ok) {
@@ -105,18 +119,19 @@ export async function searchRemoteJobs(
           directApplyLink = job.apply_options[0].link;
         }
 
+        const finalLink = directApplyLink || job.apply_link || job.link;
+        
+        // Strict ATS link check
+        if (!finalLink || !isAtsLink(finalLink)) {
+          continue;
+        }
+
         allJobs.push({
           title: job.title || '',
           company: job.company_name || '',
           location: loc || 'Remote',
           description: job.description || '',
-          applyLink:
-            directApplyLink ||
-            job.apply_link ||
-            job.link ||
-            `https://www.google.com/search?q=${encodeURIComponent(
-              `${job.title} ${job.company_name} remote job apply`
-            )}`,
+          applyLink: finalLink,
           salary: job.detected_extensions?.salary || '',
           postedAt,
         });
