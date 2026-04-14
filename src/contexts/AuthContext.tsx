@@ -6,7 +6,12 @@ import { sendSignupEmail } from '../services/emailService';
 
 import { ResumeAnalysis } from '../services/aiService';
 
-interface UserProfile {
+export interface LearningProfile {
+  jobPreferences?: string;
+  writingStyle?: string;
+}
+
+export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
@@ -23,6 +28,7 @@ interface UserProfile {
   lastJobFetchTime?: string;
   createdAt: string;
   updatedAt?: string;
+  learningProfile?: LearningProfile;
 }
 
 interface AuthContextType {

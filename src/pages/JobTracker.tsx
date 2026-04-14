@@ -8,9 +8,13 @@ import { Button } from '../components/ui/button';
 import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { generateColdEmail, tailorResume, generateInterviewQuestions } from '../services/aiService';
+import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { saveAs } from 'file-saver';
+import html2pdf from 'html2pdf.js';
 
 interface TrackedJob {
   id: string;
@@ -33,12 +37,31 @@ interface TrackedJob {
 const STATUSES = ['saved', 'applied', 'interviewing', 'offered', 'rejected'];
 
 export function JobTracker() {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [jobs, setJobs] = useState<TrackedJob[]>([]);
   const [viewMode, setViewMode] = useState<'board' | 'list'>(() => {
     return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'board';
   });
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailText, setEmailText] = useState('');
+  const [emailInstruction, setEmailInstruction] = useState('');
+  const [editingResume, setEditingResume] = useState(false);
+  const [resumeText, setResumeText] = useState('');
+  const [resumeInstruction, setResumeInstruction] = useState('');
+
+  // When expanding a new job, reset edit states
+  useEffect(() => {
+    if (expandedJobId) {
+      setEditingEmail(false);
+      setEditingResume(false);
+      const job = jobs.find(j => j.id === expandedJobId);
+      if (job) {
+        setEmailText(job.coldEmail || '');
+        setResumeText(job.tailoredResume || '');
+      }
+    }
+  }, [expandedJobId, jobs]);
 
   useEffect(() => {
     localStorage.setItem('jobTrackerViewMode', viewMode);
@@ -114,16 +137,88 @@ export function JobTracker() {
     }
   };
 
-  const downloadResume = (resumeText: string, company: string) => {
-    const blob = new Blob([resumeText], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Tailored_Resume_${company.replace(/\s+/g, '_')}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleImproveText = async (job: TrackedJob, type: 'email' | 'resume') => {
+    const loadingKey = `${job.id}-${type}-improve`;
+    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    try {
+      if (type === 'email') {
+        const newText = await improveTextWithAI(emailText, emailInstruction, profile?.learningProfile?.writingStyle);
+        setEmailText(newText);
+        setEmailInstruction('');
+        toast.success('Cold email improved!');
+      } else {
+        const newText = await improveTextWithAI(resumeText, resumeInstruction, profile?.learningProfile?.writingStyle);
+        setResumeText(newText);
+        setResumeInstruction('');
+        toast.success('Tailored resume improved!');
+      }
+    } catch (e) {
+      toast.error('Failed to improve text.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleSaveEditedText = async (job: TrackedJob, type: 'email' | 'resume') => {
+    try {
+      const updateData = type === 'email' ? { coldEmail: emailText } : { tailoredResume: resumeText };
+      await updateDoc(doc(db, 'trackedJobs', job.id), {
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Changes saved!');
+      
+      // Update learning profile
+      if (profile && updateProfile) {
+        const actionType = type === 'email' ? 'edit_email' : 'edit_resume';
+        const actionData = type === 'email' ? emailText : resumeText;
+        updateLearningProfile(actionType, actionData, profile.learningProfile?.writingStyle)
+          .then(newStyle => {
+            updateProfile({
+              learningProfile: { ...profile.learningProfile, writingStyle: newStyle }
+            });
+          });
+      }
+
+      if (type === 'email') setEditingEmail(false);
+      else setEditingResume(false);
+    } catch (e) {
+      toast.error('Failed to save changes.');
+    }
+  };
+
+  const downloadPdf = (elementId: string, filename: string) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    html2pdf().from(element).save(filename);
+  };
+
+  const downloadDocx = (text: string, filename: string) => {
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: text.split('\\n').map(line => new Paragraph({ children: [new TextRun(line)] }))
+      }]
+    });
+    Packer.toBlob(doc).then(blob => {
+      saveAs(blob, filename);
+    });
+  };
+
+  const downloadResume = (resumeText: string, company: string, format: 'md' | 'pdf' | 'docx') => {
+    if (format === 'md') {
+      const blob = new Blob([resumeText], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Tailored_Resume_${company.replace(/\\s+/g, '_')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (format === 'docx') {
+      downloadDocx(resumeText, `Tailored_Resume_${company.replace(/\\s+/g, '_')}.docx`);
+    }
   };
 
   const updateContactEmail = async (jobId: string, email: string) => {
@@ -136,7 +231,7 @@ export function JobTracker() {
 
   const sendEmail = (job: TrackedJob) => {
     if (!job.coldEmail) return;
-    const mailBody = encodeURIComponent(`${job.coldEmail}\n\nJob URL: ${job.url}`);
+    const mailBody = encodeURIComponent(`${job.coldEmail}\n\nJob URL: ${job.url}\n\n[Please see my resume attached]`);
     const to = job.contactEmail ? `&to=${encodeURIComponent(job.contactEmail)}` : '';
     window.open(`https://mail.google.com/mail/?view=cm&fs=1${to}&su=Application for ${job.title}&body=${mailBody}`, '_blank');
   };
@@ -291,16 +386,51 @@ export function JobTracker() {
                     >
                       <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Cold Email Section */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 relative">
+                          {profile?.plan !== 'pro' && (
+                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
+                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                              <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-zinc-900 flex items-center"><Mail className="mr-2 h-4 w-4 text-zinc-500" /> Cold Email</h4>
-                            {!job.coldEmail && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'email')} disabled={actionLoading[`${job.id}-email`]}>
-                                {actionLoading[`${job.id}-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
-                              </Button>
-                            )}
+                            <div className="flex gap-2">
+                              {job.coldEmail && !editingEmail && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingEmail(true)}>Edit</Button>
+                              )}
+                              {!job.coldEmail && (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'email')} disabled={actionLoading[`${job.id}-email`]}>
+                                  {actionLoading[`${job.id}-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          {job.coldEmail ? (
+                          {editingEmail ? (
+                            <div className="space-y-2">
+                              <textarea 
+                                className="w-full h-48 text-xs p-3 border border-zinc-200 rounded-md focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                                value={emailText}
+                                onChange={(e) => setEmailText(e.target.value)}
+                              />
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Make it shorter and more aggressive" 
+                                  className="flex-1 text-xs border border-indigo-200 bg-indigo-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  value={emailInstruction}
+                                  onChange={(e) => setEmailInstruction(e.target.value)}
+                                />
+                                <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
+                                  {actionLoading[`${job.id}-email-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
+                                </Button>
+                              </div>
+                              <div className="flex justify-end gap-2 mt-2">
+                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingEmail(false)}>Cancel</Button>
+                                <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'email')}>Save Changes</Button>
+                              </div>
+                            </div>
+                          ) : job.coldEmail ? (
                             <div className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto whitespace-pre-wrap">
                               {job.coldEmail}
                             </div>
@@ -315,7 +445,7 @@ export function JobTracker() {
                               value={job.contactEmail || ''}
                               onChange={(e) => updateContactEmail(job.id, e.target.value)}
                             />
-                            {job.coldEmail && (
+                            {job.coldEmail && !editingEmail && (
                               <Button size="sm" className="text-xs h-8 whitespace-nowrap" onClick={() => sendEmail(job)}>
                                 Send via Gmail
                               </Button>
@@ -324,31 +454,80 @@ export function JobTracker() {
                         </div>
 
                         {/* Tailored Resume Section */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 relative">
+                          {profile?.plan !== 'pro' && (
+                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
+                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                              <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-zinc-900 flex items-center"><FileText className="mr-2 h-4 w-4 text-zinc-500" /> Tailored Resume</h4>
-                            {!job.tailoredResume && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'resume')} disabled={actionLoading[`${job.id}-resume`]}>
-                                {actionLoading[`${job.id}-resume`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
-                              </Button>
-                            )}
+                            <div className="flex gap-2">
+                              {job.tailoredResume && !editingResume && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingResume(true)}>Edit</Button>
+                              )}
+                              {!job.tailoredResume && (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'resume')} disabled={actionLoading[`${job.id}-resume`]}>
+                                  {actionLoading[`${job.id}-resume`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          {job.tailoredResume ? (
-                            <div className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
+                          {editingResume ? (
+                            <div className="space-y-2">
+                              <textarea 
+                                className="w-full h-48 text-xs p-3 border border-zinc-200 rounded-md focus:ring-2 focus:ring-zinc-900 focus:outline-none font-mono"
+                                value={resumeText}
+                                onChange={(e) => setResumeText(e.target.value)}
+                              />
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Focus more on Leadership skills" 
+                                  className="flex-1 text-xs border border-indigo-200 bg-indigo-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  value={resumeInstruction}
+                                  onChange={(e) => setResumeInstruction(e.target.value)}
+                                />
+                                <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
+                                  {actionLoading[`${job.id}-resume-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
+                                </Button>
+                              </div>
+                              <div className="flex justify-end gap-2 mt-2">
+                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingResume(false)}>Cancel</Button>
+                                <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'resume')}>Save Changes</Button>
+                              </div>
+                            </div>
+                          ) : job.tailoredResume ? (
+                            <div id={`resume-${job.id}`} className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
                               <ReactMarkdown>{job.tailoredResume}</ReactMarkdown>
                             </div>
                           ) : (
                             <div className="text-xs text-zinc-400 italic">No tailored resume generated yet.</div>
                           )}
-                          {job.tailoredResume && (
-                            <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company)}>
-                              <Download className="mr-2 h-3 w-3" /> Download .md
-                            </Button>
+                          {job.tailoredResume && !editingResume && (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'pdf')}>
+                                <Download className="mr-2 h-3 w-3" /> PDF
+                              </Button>
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'docx')}>
+                                <Download className="mr-2 h-3 w-3" /> DOCX
+                              </Button>
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'md')}>
+                                <Download className="mr-2 h-3 w-3" /> MD
+                              </Button>
+                            </div>
                           )}
                         </div>
 
                         {/* Interview Prep Section */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 relative">
+                          {profile?.plan !== 'pro' && (
+                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
+                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                              <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-zinc-900 flex items-center"><MessageSquare className="mr-2 h-4 w-4 text-zinc-500" /> Interview Q&A</h4>
                             {!job.interviewQuestions && (

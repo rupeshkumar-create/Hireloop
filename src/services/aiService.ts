@@ -60,18 +60,43 @@ Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 ye
 // Falls back to pure AI generation if Serper is not configured or returns nothing.
 // Always fetches 10 jobs for every user.
 // ---------------------------------------------------------------------------
+export async function updateLearningProfile(
+  actionType: 'save_job' | 'edit_email' | 'edit_resume',
+  actionData: string,
+  currentContext: string = ''
+): Promise<string> {
+  const prompt = `You are a hidden AI background processor analyzing user behavior to improve future generations.
+Current learned context: "${currentContext}"
+New user action: ${actionType}
+Action details: ${actionData}
+
+Update the learned context. Keep it under 50 words. Be highly concise. Focus only on what this tells us about their job preferences (if save_job) or writing style preferences (if edit_email or edit_resume).
+Respond ONLY with the updated context string.`;
+
+  try {
+    const response = await callOpenAI([{ role: 'user', content: prompt }]);
+    return response.choices?.[0]?.message?.content?.trim() || currentContext;
+  } catch (e) {
+    return currentContext;
+  }
+}
+
 export async function generateDailyJobs(
   careerPaths: string[],
-  _jobType: string, // always 'remote' - kept for API compatibility
+  _jobType: string, // always 'remote' — kept for API compatibility
   minSalary: number | null,
   resumeText: string,
   limit: number = 1,
-  seenFingerprints: string[] = [] // fingerprints of jobs already shown to this user
+  seenFingerprints: string[] = [], // fingerprints of jobs already shown to this user
+  learningContext: string = ''
 ) {
   // ---- Step 0: Generate Optimized Search Queries using Gemini ----
   const queryPrompt = `You are an elite Executive Technical Sourcer. Your goal is to find highly relevant, hidden remote jobs for this candidate by bypassing generic job boards and searching ATS (Applicant Tracking System) platforms directly.
   
 Based on the candidate's resume and target career paths, generate 3 highly optimized Boolean search queries for Google.
+
+Hidden User Preferences learned from past behavior: ${learningContext}
+Incorporate these preferences when generating the search queries.
 
 Rules:
 1. Every query MUST include the word "remote".
@@ -374,9 +399,39 @@ Respond ONLY with the JSON object.`;
 // Agent 5: Cold Email Generation
 // Personalized cold email that highlights remote work availability.
 // ---------------------------------------------------------------------------
-export async function generateColdEmail(jobTitle: string, company: string, resumeText: string, antiSlopEnabled: boolean = true) {
+export async function improveTextWithAI(originalText: string, instruction: string, context: string = ''): Promise<string> {
+  const prompt = `You are an expert AI writing assistant.
+Here is the user's current text:
+"""
+${originalText}
+"""
+
+User instruction: "${instruction}"
+User style context: "${context}"
+
+Rewrite the text according to the instruction. Return ONLY the new text without any conversational filler.`;
+
+  try {
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
+    return response.choices?.[0]?.message?.content?.trim() || originalText;
+  } catch (error) {
+    console.error('Failed to improve text:', error);
+    return originalText;
+  }
+}
+
+export async function generateColdEmail(
+  jobTitle: string,
+  company: string,
+  resumeText: string,
+  antiSlopEnabled: boolean = true,
+  writingStyleContext: string = ''
+) {
   const prompt = `You are an expert career coach specializing in remote job applications.
 Write a highly personalized, professional, and concise cold email to a hiring manager or recruiter at ${company} for the ${jobTitle} (Remote) position.
+
+User's specific writing style preferences learned from past edits: ${writingStyleContext}
+Strictly adhere to these stylistic preferences.
 
 Rules:
 - Under 200 words.
@@ -463,9 +518,18 @@ Format in clean Markdown. Under 200 words. No fluff.`;
 // Agent 8: Resume Tailoring
 // Rewrites resume bullets for the specific role + injects remote-readiness keywords.
 // ---------------------------------------------------------------------------
-export async function tailorResume(jobTitle: string, jobDescription: string, resumeText: string, antiSlopEnabled: boolean = true) {
+export async function tailorResume(
+  jobTitle: string,
+  jobDescription: string,
+  resumeText: string,
+  antiSlopEnabled: boolean = true,
+  writingStyleContext: string = ''
+) {
   const prompt = `You are an expert resume writer specializing in remote job applications.
 Tailor the following resume for a REMOTE ${jobTitle} position.
+
+User's specific writing style preferences learned from past edits: ${writingStyleContext}
+Strictly adhere to these stylistic preferences.
 
 Instructions:
 1. Highlight the most relevant skills and experiences for this specific role.

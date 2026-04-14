@@ -24,7 +24,7 @@ export function Dashboard() {
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
     sortBy, setSortBy
-  } = useDashboardJobs(user, profile);
+  } = useDashboardJobs(user, profile, updateProfile);
 
   const {
     aiAction, setAiAction,

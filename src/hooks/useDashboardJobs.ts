@@ -3,7 +3,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Job, SortOption } from '../types/dashboard';
-import { generateDailyJobs } from '../services/aiService';
+import { generateDailyJobs, generateColdEmail, tailorResume, generateInterviewQuestions, updateLearningProfile } from '../services/aiService';
 import { jobFingerprint } from '../services/serperService';
 import { sendDailyJobAlertsEmail } from '../services/emailService';
 
@@ -24,7 +24,7 @@ function getMostRecent8AMIST(): Date {
   return mostRecent;
 }
 
-export function useDashboardJobs(user: any, profile: any) {
+export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   
@@ -99,7 +99,8 @@ export function useDashboardJobs(user: any, profile: any) {
         profile.minSalary || null,
         profile.resumeText || '',
         limit,
-        seenFingerprints
+        seenFingerprints,
+        profile.learningProfile?.jobPreferences || ''
       );
       setJobs(results);
 
@@ -111,11 +112,21 @@ export function useDashboardJobs(user: any, profile: any) {
 
       // Save jobs + updated seen list to profile
       const fetchTime = new Date().toISOString();
+      const todayDate = fetchTime.split('T')[0];
+      
       await setDoc(doc(db, 'users', user.uid), {
         dailyJobs: results,
         lastJobFetchTime: fetchTime,
         seenJobFingerprints: updatedSeen,
       }, { merge: true });
+
+      // Save historical matches by date
+      if (results.length > 0) {
+        await setDoc(doc(db, 'users', user.uid, 'daily_matches', todayDate), {
+          jobs: results,
+          fetchedAt: fetchTime
+        }, { merge: true });
+      }
 
       // Send the job alerts email via Resend if enabled
       if (results.length > 0 && user?.email && profile?.receiveDailyAlerts !== false) {
@@ -137,7 +148,7 @@ export function useDashboardJobs(user: any, profile: any) {
   const saveJob = async (job: Job) => {
     if (!user) return;
     try {
-      await addDoc(collection(db, 'trackedJobs'), {
+      const docRef = await addDoc(collection(db, 'trackedJobs'), {
         userId: user.uid,
         title: job.title,
         company: job.company,
@@ -146,10 +157,41 @@ export function useDashboardJobs(user: any, profile: any) {
         status: 'saved',
         url: job.url,
         notes: job.description,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        aiAssets: null // Will be populated if Pro
       });
       toast.success('Job saved to tracker!');
       fetchStats();
+
+      // Pro features: Auto-generate AI assets & trigger self-learning
+      if (profile?.plan === 'pro' && profile?.resumeText) {
+        toast.info('Generating AI assets in the background...');
+        Promise.all([
+          generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),
+          tailorResume(job.title, job.description, profile.resumeText, true, profile.learningProfile?.writingStyle),
+          generateInterviewQuestions(job.title, job.company, true)
+        ]).then(async ([email, resume, questions]) => {
+          await setDoc(doc(db, 'trackedJobs', docRef.id), {
+            coldEmail: email,
+            tailoredResume: resume,
+            interviewQuestions: questions
+          }, { merge: true });
+          toast.success('AI assets ready for ' + job.company);
+        }).catch(err => {
+          console.error('Background AI generation failed:', err);
+        });
+
+        // Trigger Self-Learning Background Process
+        if (profile) {
+          const actionData = `Saved job: ${job.title} at ${job.company}`;
+          updateLearningProfile('save_job', actionData, profile.learningProfile?.jobPreferences)
+            .then(newPrefs => {
+              updateProfile({
+                learningProfile: { ...profile.learningProfile, jobPreferences: newPrefs }
+              });
+            }).catch(err => console.error('Self-learning failed:', err));
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'trackedJobs');
       toast.error('Failed to save job.');
