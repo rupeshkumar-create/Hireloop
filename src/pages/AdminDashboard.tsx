@@ -7,6 +7,9 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { blogPosts } from '../data/blogPosts';
+import { setDoc } from 'firebase/firestore';
+
 export function AdminDashboard() {
   const { user } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -97,6 +100,21 @@ export function AdminDashboard() {
     }
   };
 
+  const handleSeedBlog = async () => {
+    try {
+      for (const post of blogPosts) {
+        await setDoc(doc(db, 'blog_posts', post.slug), {
+          ...post,
+          publishDate: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        });
+      }
+      toast.success('Blog seeded successfully!');
+    } catch (e) {
+      toast.error('Failed to seed blog');
+    }
+  };
+
   if (!isAuthenticated) {
     // Discreet login screen
     return (
@@ -121,13 +139,16 @@ export function AdminDashboard() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Super Admin</h1>
-            <p className="text-foreground-muted mt-1">Manage {users.length} users and platform billing.</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Super Admin</h1>
+            <p className="text-zinc-500 mt-1">Manage {users.length} users and platform billing.</p>
           </div>
-          <Button variant="outline" onClick={() => {
-            sessionStorage.removeItem('super_admin_unlocked');
-            setIsAuthenticated(false);
-          }}>Lock Panel</Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleSeedBlog}>Seed Blog DB</Button>
+            <Button variant="outline" onClick={() => {
+              sessionStorage.removeItem('super_admin_unlocked');
+              setIsAuthenticated(false);
+            }}>Lock Panel</Button>
+          </div>
         </div>
 
         {loading ? (
