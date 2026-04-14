@@ -50,6 +50,14 @@ export function AdminDashboard() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      
+      // Secondary client-side sort to handle mixed string/timestamp data
+      usersData.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
       setUsers(usersData);
       setLoading(false);
     }, (error) => {
@@ -160,9 +168,15 @@ export function AdminDashboard() {
                         {u.plan || 'free'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-foreground-muted">{new Date(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-foreground-muted">
-                      {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString() : '-'}
+                      {u.createdAt 
+                        ? new Date(u.createdAt.seconds ? u.createdAt.seconds * 1000 : u.createdAt).toLocaleDateString() 
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-foreground-muted">
+                      {u.lastActiveAt 
+                        ? new Date(u.lastActiveAt.seconds ? u.lastActiveAt.seconds * 1000 : u.lastActiveAt).toLocaleDateString() 
+                        : '-'}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => {
