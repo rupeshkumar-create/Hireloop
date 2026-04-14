@@ -25,6 +25,26 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/login" />;
 }
 
+const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return <>{children}</>;
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-surface font-sans text-foreground overflow-hidden">
@@ -74,9 +94,11 @@ export default function App() {
             </PrivateRoute>
           } />
           <Route path="/kingdomofkumar" element={
-            <AppLayout>
-              <AdminDashboard />
-            </AppLayout>
+            <AdminRoute>
+              <AppLayout>
+                <AdminDashboard />
+              </AppLayout>
+            </AdminRoute>
           } />
           <Route path="/blog" element={
             <AppLayout>

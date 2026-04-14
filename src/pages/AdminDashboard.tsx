@@ -7,8 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { blogPosts } from '../data/blogPosts';
-import { setDoc } from 'firebase/firestore';
+
 
 export function AdminDashboard() {
   const { user } = useAuth();
@@ -101,18 +100,7 @@ export function AdminDashboard() {
   };
 
   const handleSeedBlog = async () => {
-    try {
-      for (const post of blogPosts) {
-        await setDoc(doc(db, 'blog_posts', post.slug), {
-          ...post,
-          publishDate: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        });
-      }
-      toast.success('Blog seeded successfully!');
-    } catch (e) {
-      toast.error('Failed to seed blog');
-    }
+    toast.info('Blog is now managed via GitHub JSON. No seeding required.');
   };
 
   if (!isAuthenticated) {

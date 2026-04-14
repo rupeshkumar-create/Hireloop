@@ -1,43 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, Calendar, User, Share2, Linkedin, Twitter, MessageCircle, Link as LinkIcon, Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { BlogPost as BlogPostType } from '../../data/blogPosts';
+import { ArrowLeft, Calendar, User, Share2, Linkedin, Twitter, MessageCircle, Link as LinkIcon } from 'lucide-react';
+import blogPosts from '../../data/blogPosts.json';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 
 export function BlogPost() {
   const { slug } = useParams<{ slug: string }>();
-  const [post, setPost] = useState<BlogPostType | null>(null);
-  const [loading, setLoading] = useState(true);
+  const post = blogPosts.find(p => p.slug === slug);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const fetchPost = async () => {
-      try {
-        const q = query(collection(db, 'blog_posts'), where('slug', '==', slug), limit(1));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          setPost(snapshot.docs[0].data() as BlogPostType);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (slug) fetchPost();
   }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-      </div>
-    );
-  }
 
   if (!post) {
     return <Navigate to="/blog" />;
@@ -60,7 +35,7 @@ export function BlogPost() {
           <div className="flex items-center gap-6 text-sm text-zinc-500 border-y border-zinc-100 py-4">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              {new Date((post as any).publishDate || post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
             <div className="flex items-center gap-2">
               <User className="w-4 h-4" />
