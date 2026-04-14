@@ -54,14 +54,19 @@ export function Sidebar() {
                 key={item.name}
                 to={item.path}
                 className={cn(
-                  "flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-foreground text-surface shadow-[0_0_0_1px_var(--color-near-black)]" 
+                  "group flex items-center rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-foreground text-background shadow-[0_0_0_1px_var(--color-near-black)] dark:bg-surface-hover dark:text-foreground"
                     : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
                 )}
               >
-                <Icon className={cn("mr-3 h-4 w-4", isActive ? "text-surface" : "text-foreground-muted")} />
-                {item.name}
+                <Icon
+                  className={cn(
+                    "mr-3 h-4 w-4 shrink-0",
+                    isActive ? "text-background dark:text-foreground" : "text-foreground-muted group-hover:text-foreground"
+                  )}
+                />
+                <span className="truncate">{item.name}</span>
               </Link>
             );
           })}

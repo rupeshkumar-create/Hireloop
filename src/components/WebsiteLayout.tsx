@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggle } from './ui/theme-toggle';
 
 export function WebsiteLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -23,10 +24,10 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <div className="hidden items-center gap-8 text-sm font-medium text-foreground-muted md:flex">
-            <Link to="/#agent-workflow" className="transition-colors hover:text-foreground">How it works</Link>
             <Link to="/blog" className="transition-colors hover:text-foreground">Blog</Link>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
             {user ? (
               <Link to="/dashboard">
                 <Button variant="action" size="sm" className="px-5">Dashboard</Button>
