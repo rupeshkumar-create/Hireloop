@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { messages, response_format, model } = req.body;
     
     // Fallback to a cheap model if none provided
-    const selectedModel = model || 'google/gemini-2.5-flash';
+    const selectedModel = model || 'google/gemini-3-flash-preview';
     
     const response = await openai.chat.completions.create({
       model: selectedModel,

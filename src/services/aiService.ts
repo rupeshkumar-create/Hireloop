@@ -1,6 +1,6 @@
 import { searchRemoteJobs, jobFingerprint } from './serperService';
 
-async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-2.5-flash') {
+async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-3-flash-preview') {
   const response = await fetch('/api/openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -357,7 +357,7 @@ ${resumeText}
 Return ONLY the email body. No subject line.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || '';
   } catch (error) {
     console.error('Error generating cold email:', error);
@@ -382,7 +382,7 @@ ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 Return a JSON array of exactly 5 strings. Respond ONLY with the JSON array.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
 
     if (response.choices?.[0]?.message?.content) {
       let text = response.choices[0].message.content.trim();
@@ -415,7 +415,7 @@ Include:
 Format in clean Markdown. Under 200 words. No fluff.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch (error) {
     console.error('Error generating salary insights:', error);
@@ -449,7 +449,7 @@ ${resumeText}
 Return the tailored resume in clean Markdown format.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || '';
   } catch (error) {
     console.error('Error tailoring resume:', error);
