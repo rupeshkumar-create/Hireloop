@@ -1,6 +1,50 @@
 import { searchRemoteJobs, jobFingerprint } from './serperService';
 
-async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-3-flash-preview') {
+// ---- NEW: AI Live Search Fallback (Perplexity) ----
+async function searchJobsWithAI(
+  careerPaths: string[],
+  minSalary: number | null,
+  missingCount: number,
+  resumeText: string
+): Promise<any[]> {
+  const prompt = `You are a live web-searching AI. Search the internet right now for EXACTLY ${missingCount} active, remote job openings that match these career paths: ${careerPaths.join(', ')}.
+  
+Rules:
+1. The jobs MUST be 100% remote.
+2. They MUST have been posted within the last 7 days.
+3. ${minSalary ? `They MUST have a salary of at least $${minSalary}.` : 'Salary is preferred but optional.'}
+4. Prioritize direct company career pages (Greenhouse, Lever, Workable) over generic job boards.
+5. Return the results as a raw JSON array of objects. Do not include markdown code blocks, just the JSON.
+
+Required JSON format for each object in the array:
+{
+  "title": "Job Title",
+  "company": "Company Name",
+  "location": "Remote",
+  "description": "Brief 2-sentence summary of the role",
+  "applyLink": "https://actual-link-to-apply.com",
+  "salary": "$XXX,XXX",
+  "postedAt": "2 days ago"
+}`;
+
+  try {
+    // OpenRouter Perplexity model with online capabilities
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'perplexity/llama-3.1-sonar-small-128k-online');
+    const content = response.choices?.[0]?.message?.content || '[]';
+    
+    // Safely parse the JSON out of the response (sometimes AI wraps it in markdown)
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    const jsonString = jsonMatch ? jsonMatch[0] : content;
+    
+    const parsed = JSON.parse(jsonString);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('AI Fallback Search failed:', error);
+    return [];
+  }
+}
+
+export async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-3-flash-preview') {
   const response = await fetch('/api/openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -142,7 +186,26 @@ Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
   // ---- Deduplicate: remove jobs this user has already seen ----
   if (seenFingerprints.length > 0) {
     const seenSet = new Set(seenFingerprints);
-    realJobs = realJobs.filter(j => !seenSet.has(jobFingerprint(j.title, j.company)));
+    realJobs = realJobs.filter(job => !seenSet.has(jobFingerprint(job.title, job.company)));
+  }
+
+  // ---- NEW: AI Fallback Search (Perplexity) ----
+  // If Serper didn't find enough fresh, unseen jobs, use Perplexity AI to scour the live web for the rest!
+  if (realJobs.length < limit) {
+    const missingCount = limit - realJobs.length;
+    console.log(`Serper found ${realJobs.length} jobs. Falling back to AI Search to find ${missingCount} more...`);
+    
+    const aiFoundJobs = await searchJobsWithAI(careerPaths, minSalary, missingCount, resumeText);
+    
+    // Merge and deduplicate against existing seen list AND the newly found Serper jobs
+    for (const aiJob of aiFoundJobs) {
+      const fp = jobFingerprint(aiJob.title, aiJob.company);
+      const alreadyInSerper = realJobs.some((rj) => jobFingerprint(rj.title, rj.company) === fp);
+      
+      if (!seenFingerprints.includes(fp) && !alreadyInSerper) {
+        realJobs.push(aiJob);
+      }
+    }
   }
 
   // ---- NEW STEP: Limit Daily Jobs to 'limit' (10 for Pro, 1 for Free) ----
