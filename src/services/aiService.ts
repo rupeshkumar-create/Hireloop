@@ -68,10 +68,41 @@ export async function generateDailyJobs(
   limit: number = 1,
   seenFingerprints: string[] = [] // fingerprints of jobs already shown to this user
 ) {
-  // ---- Step 1: fetch real jobs from Serper ----
+  // ---- Step 0: Generate Optimized Search Queries using Gemini ----
+  const queryPrompt = `You are an expert technical sourcer. Based on the candidate's resume and target career paths, generate 3 highly effective Google Jobs search queries.
+  
+Rules:
+1. ALL queries MUST include the word "remote".
+2. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically (e.g. "salary $100k+").
+3. Use variations of the target titles and core skills found in the resume to maximize results.
+4. Keep them concise, like a human typing into Google.
+
+Target Paths: ${careerPaths.join(', ')}
+Resume Snippet: ${resumeText.substring(0, 1000)}
+
+Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
+
+  let optimizedQueries: string[] = [];
+  try {
+    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], { type: 'json_object' });
+    if (queryResponse.choices?.[0]?.message?.content) {
+      const parsed = JSON.parse(queryResponse.choices[0].message.content);
+      optimizedQueries = Array.isArray(parsed) ? parsed : (parsed.queries || Object.values(parsed)[0] || []);
+    }
+  } catch (error) {
+    console.error('Error generating optimized queries, falling back to basic paths:', error);
+  }
+
+  // Fallback to basic string concatenation if AI fails or returns empty
+  if (!optimizedQueries || optimizedQueries.length === 0) {
+    const salaryPart = minSalary ? ` salary $${minSalary.toLocaleString()}+` : '';
+    optimizedQueries = careerPaths.slice(0, 3).map(path => `remote ${path}${salaryPart}`);
+  }
+
+  // ---- Step 1: fetch real jobs from Serper using optimized queries ----
   let realJobs: Awaited<ReturnType<typeof searchRemoteJobs>> = [];
   try {
-    realJobs = await searchRemoteJobs(careerPaths, minSalary);
+    realJobs = await searchRemoteJobs(optimizedQueries);
   } catch (err) {
     console.warn('Serper unavailable, falling back to AI-generated jobs:', err);
   }

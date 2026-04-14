@@ -53,19 +53,15 @@ export function jobFingerprint(title: string, company: string): string {
  * - Deduplicates within the response by title+company fingerprint.
  */
 export async function searchRemoteJobs(
-  careerPaths: string[],
-  minSalary: number | null
+  queries: string[]
 ): Promise<SerperJob[]> {
   const allJobs: SerperJob[] = [];
   const seen = new Set<string>();
 
-  // Search up to 3 career paths so we have enough fresh results after filtering
-  const pathsToSearch = careerPaths.slice(0, 3);
+  // Ensure we don't spam the API if the array is huge
+  const queriesToSearch = queries.slice(0, 3);
 
-  for (const path of pathsToSearch) {
-    const salaryPart = minSalary ? ` salary $${minSalary.toLocaleString()}+` : '';
-    const query = `remote ${path}${salaryPart}`;
-
+  for (const query of queriesToSearch) {
     try {
       const response = await fetch('/api/serper', {
         method: 'POST',
@@ -118,7 +114,7 @@ export async function searchRemoteJobs(
         });
       }
     } catch (err) {
-      console.error(`Serper search failed for "${path}":`, err);
+      console.error(`Serper search failed for "${query}":`, err);
     }
   }
 
