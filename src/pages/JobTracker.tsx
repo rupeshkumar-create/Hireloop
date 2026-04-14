@@ -12,9 +12,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { saveAs } from 'file-saver';
-import html2pdf from 'html2pdf.js';
+import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 
 interface TrackedJob {
   id: string;
@@ -49,6 +47,7 @@ export function JobTracker() {
   const [editingResume, setEditingResume] = useState(false);
   const [resumeText, setResumeText] = useState('');
   const [resumeInstruction, setResumeInstruction] = useState('');
+  const [previewResumeData, setPreviewResumeData] = useState<{text: string, company: string} | null>(null);
 
   // When expanding a new job, reset edit states
   useEffect(() => {
@@ -184,40 +183,6 @@ export function JobTracker() {
       else setEditingResume(false);
     } catch (e) {
       toast.error('Failed to save changes.');
-    }
-  };
-
-  const downloadPdf = (elementId: string, filename: string) => {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    html2pdf().from(element).save(filename);
-  };
-
-  const downloadDocx = (text: string, filename: string) => {
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: text.split('\\n').map(line => new Paragraph({ children: [new TextRun(line)] }))
-      }]
-    });
-    Packer.toBlob(doc).then(blob => {
-      saveAs(blob, filename);
-    });
-  };
-
-  const downloadResume = (resumeText: string, company: string, format: 'md' | 'pdf' | 'docx') => {
-    if (format === 'md') {
-      const blob = new Blob([resumeText], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Tailored_Resume_${company.replace(/\\s+/g, '_')}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } else if (format === 'docx') {
-      downloadDocx(resumeText, `Tailored_Resume_${company.replace(/\\s+/g, '_')}.docx`);
     }
   };
 
@@ -507,14 +472,8 @@ export function JobTracker() {
                           )}
                           {job.tailoredResume && !editingResume && (
                             <div className="flex gap-2">
-                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'pdf')}>
-                                <Download className="mr-2 h-3 w-3" /> PDF
-                              </Button>
-                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'docx')}>
-                                <Download className="mr-2 h-3 w-3" /> DOCX
-                              </Button>
-                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => downloadResume(job.tailoredResume!, job.company, 'md')}>
-                                <Download className="mr-2 h-3 w-3" /> MD
+                              <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => setPreviewResumeData({text: job.tailoredResume!, company: job.company})}>
+                                <FileText className="mr-2 h-3 w-3" /> Preview & Download
                               </Button>
                             </div>
                           )}
@@ -566,6 +525,12 @@ export function JobTracker() {
           )}
         </div>
       )}
+      <ResumePreviewModal 
+        isOpen={!!previewResumeData}
+        onClose={() => setPreviewResumeData(null)}
+        resumeText={previewResumeData?.text || ''}
+        companyName={previewResumeData?.company || ''}
+      />
     </div>
   );
 }
