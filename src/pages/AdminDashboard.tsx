@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -26,9 +26,21 @@ export function AdminDashboard() {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const getSortableTime = (value: any) => {
+    if (!value) return 0;
+    if (typeof value === 'string' || typeof value === 'number') {
+      const parsed = new Date(value).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value === 'object' && 'seconds' in value) {
+      return value.seconds * 1000;
+    }
+    return 0;
+  };
+
   const formatDate = (value: any) => {
     if (!value) return '-';
-    const rawValue = value.seconds ? value.seconds * 1000 : value;
+    const rawValue = getSortableTime(value);
     const parsed = new Date(rawValue);
     return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
   };
@@ -58,16 +70,14 @@ export function AdminDashboard() {
     if (!isAuthenticated) return;
     
     setLoading(true);
-    // Real-time listener for users collection
-    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Read the full collection and sort client-side so admin can still see
+    // older docs with missing or inconsistently typed createdAt values.
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
       
-      // Secondary client-side sort to handle mixed string/timestamp data
       usersData.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime() : 0;
+        const dateA = getSortableTime(a.createdAt);
+        const dateB = getSortableTime(b.createdAt);
         return dateB - dateA;
       });
 
