@@ -5,7 +5,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2 } from 'lucide-react';
+import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -131,6 +131,33 @@ export function JobTracker() {
     } catch (error) {
       console.error("Error generating asset:", error);
       alert("Failed to generate content. Please try again.");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleGenerateAllAssets = async (job: TrackedJob) => {
+    const loadingKey = `${job.id}-all`;
+    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    
+    try {
+      toast.info('Generating all AI assets...');
+      const [email, resume, questions] = await Promise.all([
+        generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
+        tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
+        generateInterviewQuestions(job.title, job.company, true)
+      ]);
+
+      await updateDoc(doc(db, 'trackedJobs', job.id), {
+        coldEmail: email,
+        tailoredResume: resume,
+        interviewQuestions: questions,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('All AI assets generated successfully!');
+    } catch (error) {
+      console.error("Error generating all assets:", error);
+      toast.error("Failed to generate content. Please try again.");
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
@@ -349,6 +376,23 @@ export function JobTracker() {
                       exit={{ height: 0, opacity: 0 }}
                       className="border-t border-border bg-background/50"
                     >
+                      {profile?.plan?.toLowerCase() === 'pro' && (
+                        <div className="px-5 py-3 flex justify-between items-center border-b border-border/50">
+                          <span className="text-sm font-medium text-foreground flex items-center">
+                            <Sparkles className="h-4 w-4 text-orange-500 mr-2" /> AI Asset Hub
+                          </span>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-xs h-8 bg-surface shadow-sm border-border hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors"
+                            disabled={actionLoading[`${job.id}-all`]}
+                            onClick={() => handleGenerateAllAssets(job)}
+                          >
+                            {actionLoading[`${job.id}-all`] ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                            {actionLoading[`${job.id}-all`] ? 'Generating...' : 'Refresh All AI Assets'}
+                          </Button>
+                        </div>
+                      )}
                       <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Cold Email Section */}
                         <div className="space-y-3 relative">
