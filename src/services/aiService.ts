@@ -491,7 +491,7 @@ User style context: "${context}"
 Rewrite the text according to the instruction. Return ONLY the new text without any conversational filler.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch (error) {
     console.error('Failed to improve text:', error);
@@ -527,7 +527,7 @@ ${resumeText}
 Return ONLY the email body. No subject line.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || '';
   } catch (error) {
     console.error('Error generating cold email:', error);
@@ -552,7 +552,7 @@ ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 Return a JSON array of exactly 5 strings. Respond ONLY with the JSON array.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
 
     if (response.choices?.[0]?.message?.content) {
       let text = response.choices[0].message.content.trim();
@@ -585,7 +585,7 @@ Include:
 Format in clean Markdown. Under 200 words. No fluff.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch (error) {
     console.error('Error generating salary insights:', error);
@@ -628,7 +628,7 @@ ${resumeText}
 Return the tailored resume in clean Markdown format.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
     return response.choices?.[0]?.message?.content || '';
   } catch (error) {
     console.error('Error tailoring resume:', error);

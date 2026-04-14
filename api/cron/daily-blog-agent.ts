@@ -11,7 +11,7 @@ async function callLLM(messages: any[]) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'anthropic/claude-opus-4.6-fast',
       messages
     })
   });
