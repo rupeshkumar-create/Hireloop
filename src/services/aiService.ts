@@ -14,7 +14,7 @@ async function callOpenAI(messages: any[], response_format?: any, model: string 
 }
 
 const ANTI_SLOP_PROMPT = `
-=== AI HUMANIZER ENGINE — ANTI-SLOP FILTER (STRICT) ===
+=== AI HUMANIZER ENGINE - ANTI-SLOP FILTER (STRICT) ===
 
 You are writing on behalf of a real human professional. Every word must sound like it came from a person, not a language model. Apply ALL of the following rules without exception.
 
@@ -26,18 +26,18 @@ Banned phrases: "in today's fast-paced digital landscape", "as an AI language mo
 --- SENTENCE & STRUCTURE RULES ---
 - Write SHORT sentences. 10–15 words max per sentence, ideally.
 - Never start two consecutive sentences with "I".
-- Vary sentence length — mix short punchy lines with medium ones. Never write three long sentences in a row.
+- Vary sentence length - mix short punchy lines with medium ones. Never write three long sentences in a row.
 - Use active voice throughout. "I built X" not "X was built by me."
 - Cut every word that adds no meaning. "In order to" → "to". "Due to the fact that" → "because".
 - No filler intros or outros. Start the output immediately. No "Here is your email:" or "I hope this helps!"
 - No bullet-point padding. Each bullet must carry real, specific information. No vague "collaborated with cross-functional teams."
 
 --- TONE & VOICE RULES ---
-- Sound like a smart, busy professional writing a Slack message — not a cover letter template.
+- Sound like a smart, busy professional writing a Slack message - not a cover letter template.
 - Be direct and confident. Skip hedging language ("I think", "perhaps", "it seems like", "might").
 - Be specific. Replace vague claims with concrete facts: instead of "strong communication skills," write "I've led async standups for a 12-person distributed team."
 - Use contractions naturally: "I've", "I'm", "we're", "it's". Avoid stiff, formal constructions.
-- Personality is allowed — dry wit, confidence, brevity. But never try-hard or cringey.
+- Personality is allowed - dry wit, confidence, brevity. But never try-hard or cringey.
 - If the job or resume has technical details, use them. Don't genericize.
 
 --- FORMATTING RULES ---
@@ -49,7 +49,7 @@ Banned phrases: "in today's fast-paced digital landscape", "as an AI language mo
 
 --- WHAT HUMAN WRITING LOOKS LIKE ---
 Bad (AI slop): "I am writing to express my keen interest in the Senior Engineer role at Acme Corp. I am a passionate, results-driven professional with a robust background in delivering seamless, scalable solutions..."
-Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 years doing exactly this — building the data pipeline at [Company] that processes 2M events/day. Wanted to reach out directly."
+Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 years doing exactly this - building the data pipeline at [Company] that processes 2M events/day. Wanted to reach out directly."
 
 === END OF ANTI-SLOP FILTER ===
 `;
@@ -62,7 +62,7 @@ Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 ye
 // ---------------------------------------------------------------------------
 export async function generateDailyJobs(
   careerPaths: string[],
-  _jobType: string, // always 'remote' — kept for API compatibility
+  _jobType: string, // always 'remote' - kept for API compatibility
   minSalary: number | null,
   resumeText: string,
   limit: number = 1,
@@ -136,7 +136,7 @@ Your tasks:
 1. Score each job (0-100 matchScore) against the candidate's resume and career goals.
 2. Extract 3-5 key requirements per job.
 3. Return only the top ${limit} jobs sorted by matchScore descending.
-4. Keep location and description as-is — this is real data. Do NOT fabricate.
+4. Keep location and description as-is - this is real data. Do NOT fabricate.
 5. If salary is missing, write "Competitive".
 
 Candidate Career Goals: ${careerPaths.join(', ')}
@@ -154,8 +154,8 @@ Return a JSON array of exactly ${limit} objects (or fewer if fewer jobs are avai
 - company (string)
 - location (string)
 - salary (string)
-- description (string) — preserve original description
-- url (string) — use the matching apply link from above
+- description (string) - preserve original description
+- url (string) - use the matching apply link from above
 - requirements (array of 3-5 strings)
 - matchScore (number 0-100)
 - datePosted (string ISO format, e.g. "2026-04-10T00:00:00Z")
@@ -185,7 +185,7 @@ Respond ONLY with the JSON array. No markdown.`;
     }
   }
 
-  // ---- Step 2b: Serper unavailable or returned nothing — AI fallback ----
+  // ---- Step 2b: Serper unavailable or returned nothing - AI fallback ----
   const fallbackPrompt = `You are an expert technical recruiter specializing in REMOTE job opportunities.
 Provide exactly ${limit} highly realistic REMOTE job postings based on current market trends.
 Every job MUST be a fully remote position (work from home / work from anywhere). Never include hybrid or on-site roles.
@@ -206,10 +206,10 @@ STRICT RULES:
 Return a JSON array of EXACTLY ${limit} objects:
 - title (string)
 - company (string)
-- location (string) — must contain "Remote"
+- location (string) - must contain "Remote"
 - salary (string)
 - description (string)
-- url (string) — https://www.google.com/search?q=remote+job+[URL-encoded title]+at+[URL-encoded company]
+- url (string) - https://www.google.com/search?q=remote+job+[URL-encoded title]+at+[URL-encoded company]
 - requirements (array of strings)
 - matchScore (number)
 - datePosted (string ISO format)
@@ -298,11 +298,11 @@ export async function analyzeResume(resumeText: string, careerPaths: string[]): 
 Analyze the following resume in the context of the user's target remote career paths: ${careerPaths.join(', ')}.
 
 Provide:
-1. strengths — what stands out for these roles.
-2. weaknesses — gaps or red flags.
-3. improvements — specific, actionable steps to strengthen the resume for remote roles.
-4. summary — overall effectiveness for remote job applications (2-3 sentences).
-5. remoteReadiness — how prepared this candidate is for remote work specifically.
+1. strengths - what stands out for these roles.
+2. weaknesses - gaps or red flags.
+3. improvements - specific, actionable steps to strengthen the resume for remote roles.
+4. summary - overall effectiveness for remote job applications (2-3 sentences).
+5. remoteReadiness - how prepared this candidate is for remote work specifically.
    Evaluate based on: async communication tools (Slack, Notion, Jira, Linear), self-management evidence, distributed team experience, timezone flexibility, results-driven bullet points.
 
 Resume Text:
@@ -341,7 +341,7 @@ Respond ONLY with the JSON object.`;
 // ---------------------------------------------------------------------------
 export async function extractJobPreferences(resumeText: string): Promise<JobPreferences> {
   const prompt = `You are an expert technical recruiter. Based on the following resume, infer a realistic minimum expected salary (in USD) for this candidate.
-This platform is for REMOTE jobs only — job type is always "remote". Focus only on determining the salary.
+This platform is for REMOTE jobs only - job type is always "remote". Focus only on determining the salary.
 
 Resume Text:
 ${resumeText.substring(0, 3000)}
@@ -382,7 +382,7 @@ Rules:
 - Under 200 words.
 - Highlight the 1-2 most relevant skills from the resume for this specific role.
 - Clearly state you are available to work fully remotely and across time zones.
-- Mention one genuine, specific thing about ${company} that shows real interest (product, mission, or recent news — keep it believable).
+- Mention one genuine, specific thing about ${company} that shows real interest (product, mission, or recent news - keep it believable).
 - End with a direct, low-friction CTA (e.g., "Happy to jump on a 20-min call this week.").
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
@@ -411,7 +411,7 @@ export async function generateInterviewQuestions(jobTitle: string, company: stri
 Use this exact mix:
 - 2 technical/domain-specific questions relevant to the role's core responsibilities
 - 2 behavioral questions (frame them for STAR-method answers)
-- 1 remote-work specific question — e.g. how they handle async communication, stay productive without supervision, manage across time zones, or use remote tools (Slack, Notion, Jira, Loom, GitHub, etc.)
+- 1 remote-work specific question - e.g. how they handle async communication, stay productive without supervision, manage across time zones, or use remote tools (Slack, Notion, Jira, Loom, GitHub, etc.)
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
@@ -443,10 +443,10 @@ export async function generateSalaryInsights(jobTitle: string, location: string)
 Provide realistic salary insights for a REMOTE "${jobTitle}" position.
 
 Include:
-1. **Remote salary range** — low, median, and high (in USD annually).
-2. **On-site equivalent** in "${location}" — for comparison.
-3. **Remote premium/discount** — e.g. "Remote roles for this title pay ~8% more than on-site in ${location} due to reduced overhead."
-4. **3 key salary factors** — e.g. years of experience, specific stack, company size/stage.
+1. **Remote salary range** - low, median, and high (in USD annually).
+2. **On-site equivalent** in "${location}" - for comparison.
+3. **Remote premium/discount** - e.g. "Remote roles for this title pay ~8% more than on-site in ${location} due to reduced overhead."
+4. **3 key salary factors** - e.g. years of experience, specific stack, company size/stage.
 
 Format in clean Markdown. Under 200 words. No fluff.`;
 
@@ -471,7 +471,7 @@ Instructions:
 1. Highlight the most relevant skills and experiences for this specific role.
 2. Inject keywords from the job description to beat ATS filters.
 3. Strengthen bullet points with metrics and impact wherever the original has them.
-4. Add or emphasize remote-readiness signals where truthful — async communication, distributed team experience, self-management, remote tools (Slack, Notion, Jira, GitHub, Zoom, Loom, Figma, Linear, etc.), timezone flexibility.
+4. Add or emphasize remote-readiness signals where truthful - async communication, distributed team experience, self-management, remote tools (Slack, Notion, Jira, GitHub, Zoom, Loom, Figma, Linear, etc.), timezone flexibility.
 5. Do NOT fabricate experience or skills absent from the original resume.
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}

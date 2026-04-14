@@ -102,7 +102,7 @@ export function LandingPage() {
               <span className="text-zinc-400">remote job hunting.</span>
             </h1>
             <p className="text-lg md:text-xl text-zinc-500 mb-4 max-w-2xl mx-auto leading-relaxed">
-              Built exclusively for remote job seekers. Upload your resume and let the agent find, filter, and apply to remote opportunities worldwide — while you focus on what matters.
+              Built exclusively for remote job seekers. Upload your resume and let the agent find, filter, and apply to remote opportunities worldwide - while you focus on what matters.
             </p>
             <p className="text-sm text-zinc-400 mb-10 font-medium border border-zinc-200 inline-block px-4 py-2 bg-zinc-50">
               Not for in-office or on-site roles. 100% remote job opportunities only.
@@ -398,7 +398,7 @@ export function LandingPage() {
           </div>
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">Land your next remote role faster.</h2>
           <p className="text-zinc-500 text-lg mb-10">
-            Hireschema is purpose-built for remote professionals. If you're looking for an office job, this isn't for you. If you want to work from anywhere — deploy your agent now.
+            Hireschema is purpose-built for remote professionals. If you're looking for an office job, this isn't for you. If you want to work from anywhere - deploy your agent now.
           </p>
           <Link to="/login">
             <Button size="lg" className="h-14 px-8 text-base rounded-none shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all bg-zinc-900 text-white hover:bg-zinc-800">
@@ -418,7 +418,7 @@ export function LandingPage() {
               </div>
               <span className="font-bold tracking-tight">Hireschema</span>
             </div>
-            <p className="text-zinc-500 text-sm max-w-xs">The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles — from anywhere in the world.</p>
+            <p className="text-zinc-500 text-sm max-w-xs">The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles - from anywhere in the world.</p>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Product</h4>

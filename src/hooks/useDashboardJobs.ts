@@ -103,7 +103,7 @@ export function useDashboardJobs(user: any, profile: any) {
       );
       setJobs(results);
 
-      // Build updated fingerprint list — append new jobs, cap at MAX_SEEN_FINGERPRINTS
+      // Build updated fingerprint list - append new jobs, cap at MAX_SEEN_FINGERPRINTS
       const newFingerprints = results.map((j: Job) => jobFingerprint(j.title, j.company));
       const updatedSeen = [
         ...new Set([...seenFingerprints, ...newFingerprints])
