@@ -189,7 +189,7 @@ export function Settings() {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 p-4 rounded-xl border border-zinc-200 bg-white">
                     <h4 className="font-semibold text-zinc-900">Monthly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4">$19<span className="text-sm font-normal text-zinc-500">/mo</span></p>
+                    <p className="text-2xl font-bold mt-1 mb-4">$9<span className="text-sm font-normal text-zinc-500">/mo</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd07LOU49HVOMyEEY6D?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
                       className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors font-medium text-sm"
@@ -198,9 +198,9 @@ export function Settings() {
                     </a>
                   </div>
                   <div className="flex-1 p-4 rounded-xl border border-indigo-200 bg-indigo-50/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 20%</div>
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
                     <h4 className="font-semibold text-indigo-900">Yearly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4 text-indigo-900">$180<span className="text-sm font-normal text-indigo-600/70">/yr</span></p>
+                    <p className="text-2xl font-bold mt-1 mb-4 text-indigo-900">$79<span className="text-sm font-normal text-indigo-600/70">/yr</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
                       className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium text-sm"

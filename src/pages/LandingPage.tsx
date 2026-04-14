@@ -370,7 +370,7 @@ export function LandingPage() {
               <div className="absolute top-0 right-0 bg-white text-zinc-900 text-xs font-bold px-3 py-1 rounded-none border-l border-b border-zinc-900">POPULAR</div>
               <h3 className="text-2xl font-bold mb-2">Pro</h3>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold">$19</span>
+                <span className="text-4xl font-bold">$9</span>
                 <span className="text-zinc-400">/month</span>
               </div>
               <p className="text-zinc-400 mb-8 pb-8 border-b border-zinc-800">For serious professionals who want to land offers fast.</p>
