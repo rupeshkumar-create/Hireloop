@@ -54,10 +54,10 @@ export function BlogPost() {
             <Share2 className="w-5 h-5 text-orange-500" /> Share this article
           </h3>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${shareTitle}`, '_blank')}>
+            <Button variant="outline" className="gap-2" onClick={() => window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${shareTitle}&summary=${encodeURIComponent(post.excerpt)}`, '_blank')}>
               <Linkedin className="w-4 h-4" /> LinkedIn
             </Button>
-            <Button variant="outline" className="gap-2" onClick={() => window.open(`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`, '_blank')}>
+            <Button variant="outline" className="gap-2" onClick={() => window.open(`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}%0A%0A${encodeURIComponent(post.excerpt)}`, '_blank')}>
               <Twitter className="w-4 h-4" /> X (Twitter)
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => window.open(`https://reddit.com/submit?url=${shareUrl}&title=${shareTitle}`, '_blank')}>
