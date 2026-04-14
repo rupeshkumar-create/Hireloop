@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - jobTitle: string (optional)
+    //   - jobType: string (optional, in ['remote', 'hybrid', 'onsite', 'any'])
+    //   - minSalary: number (optional)
+    //   - resumeText: string (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (optional)
+    //
+    // Collection: trackedJobs
+    // Document ID: {jobId}
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - title: string (required)
+    //   - company: string (required)
+    //   - location: string (optional)
+    //   - salary: string (optional)
+    //   - status: string (required, in ['saved', 'applied', 'interviewing', 'offered', 'rejected'])
+    //   - url: string (optional)
+    //   - notes: string (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (optional)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             (!('displayName' in data) || data.displayName is string) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('careerPaths' in data) || (data.careerPaths is list && data.careerPaths.size() <= 10)) &&
+             (!('jobType' in data) || data.jobType in ['remote', 'hybrid', 'onsite', 'any']) &&
+             (!('minSalary' in data) || data.minSalary == null || data.minSalary is number) &&
+             (!('resumeText' in data) || (data.resumeText is string && data.resumeText.size() < 100000)) &&
+             data.createdAt is string &&
+             (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    function isValidTrackedJob(data) {
+      return hasRequiredFields(['userId', 'title', 'company', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.company is string && data.company.size() > 0 && data.company.size() < 200 &&
+             (!('location' in data) || (data.location is string && data.location.size() < 200)) &&
+             (!('salary' in data) || (data.salary is string && data.salary.size() < 100)) &&
+             data.status in ['saved', 'applied', 'interviewing', 'offered', 'rejected'] &&
+             (!('url' in data) || (data.url is string && data.url.size() < 2000)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 50000)) &&
+             (!('coldEmail' in data) || (data.coldEmail is string && data.coldEmail.size() < 50000)) &&
+             (!('tailoredResume' in data) || (data.tailoredResume is string && data.tailoredResume.size() < 100000)) &&
+             (!('interviewQuestions' in data) || (data.interviewQuestions is list && data.interviewQuestions.size() <= 20)) &&
+             (!('contactEmail' in data) || (data.contactEmail is string && data.contactEmail.size() < 200)) &&
+             data.createdAt is string &&
+             (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.uid == resource.data.uid &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+    }
+
+    match /trackedJobs/{jobId} {
+      allow read: if isDocOwner() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidTrackedJob(request.resource.data);
+      allow update: if isDocOwner() && isValidTrackedJob(request.resource.data) &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner();
+    }
+  }
+}

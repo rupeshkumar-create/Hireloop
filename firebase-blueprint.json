@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User settings and profile for job searching",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "jobTitle": { "type": "string", "description": "Desired job title" },
+        "jobType": { "type": "string", "enum": ["remote", "hybrid", "onsite", "any"], "description": "Preferred work arrangement" },
+        "minSalary": { "type": "number", "description": "Minimum expected salary" },
+        "resumeText": { "type": "string", "description": "Parsed text of the user's resume" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "TrackedJob": {
+      "title": "TrackedJob",
+      "description": "A job saved or tracked by the user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner of this tracked job" },
+        "title": { "type": "string" },
+        "company": { "type": "string" },
+        "location": { "type": "string" },
+        "salary": { "type": "string" },
+        "status": { "type": "string", "enum": ["saved", "applied", "interviewing", "offered", "rejected"] },
+        "url": { "type": "string" },
+        "notes": { "type": "string" },
+        "coldEmail": { "type": "string" },
+        "tailoredResume": { "type": "string" },
+        "interviewQuestions": { "type": "array", "items": { "type": "string" } },
+        "contactEmail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "company", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and settings"
+    },
+    "/trackedJobs/{jobId}": {
+      "schema": { "$ref": "#/entities/TrackedJob" },
+      "description": "Jobs tracked by users"
+    }
+  }
+}

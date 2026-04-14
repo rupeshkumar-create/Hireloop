@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <pattern id="grid" x="0" y="0" width="54" height="54" patternUnits="userSpaceOnUse">
+      <rect width="54" height="54" fill="none" stroke="#3f3f46" stroke-width="0.5" opacity="0.4"/>
+    </pattern>
+    <pattern id="dots" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="18" cy="18" r="1" fill="#52525b" opacity="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1080" fill="#18181b"/>
+
+  <!-- Geometric grid accent — right half -->
+  <rect x="540" y="0" width="540" height="1080" fill="url(#grid)" opacity="0.6"/>
+  <rect x="540" y="0" width="540" height="1080" fill="url(#dots)" opacity="0.8"/>
+
+  <!-- Vertical divider line -->
+  <rect x="538" y="80" width="1" height="920" fill="#3f3f46" opacity="0.7"/>
+
+  <!-- Geometric accent shapes — right side -->
+  <rect x="620" y="200" width="180" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="300" width="280" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="400" width="200" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="500" width="320" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="600" width="160" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="700" width="240" height="1" fill="#71717a" opacity="0.5"/>
+  <rect x="620" y="800" width="180" height="1" fill="#71717a" opacity="0.5"/>
+
+  <!-- Large stat block — left side -->
+  <text font-family="'Space Grotesk', 'Arial Black', sans-serif" font-weight="700" fill="#ffffff" text-anchor="start">
+    <tspan x="80" y="260" font-size="140">1 in 3</tspan>
+  </text>
+
+  <!-- Subheading line 1 -->
+  <text font-family="'Space Grotesk', 'Arial', sans-serif" font-weight="600" fill="#d4d4d8" text-anchor="start">
+    <tspan x="80" y="360" font-size="52">remote jobs you're</tspan>
+  </text>
+
+  <!-- Subheading line 2 -->
+  <text font-family="'Space Grotesk', 'Arial', sans-serif" font-weight="600" fill="#d4d4d8" text-anchor="start">
+    <tspan x="80" y="428" font-size="52">applying to</tspan>
+  </text>
+
+  <!-- Subheading line 3 — high contrast -->
+  <text font-family="'Space Grotesk', 'Arial', sans-serif" font-weight="700" fill="#ffffff" text-anchor="start">
+    <tspan x="80" y="500" font-size="56">don't exist.</tspan>
+  </text>
+
+  <!-- Divider rule -->
+  <rect x="80" y="540" width="380" height="2" fill="#71717a"/>
+
+  <!-- Supporting data point -->
+  <text font-family="'Inter', 'Arial', sans-serif" font-weight="400" fill="#71717a" text-anchor="start">
+    <tspan x="80" y="590" font-size="26">Remote roles get 2.5× more applicants</tspan>
+  </text>
+  <text font-family="'Inter', 'Arial', sans-serif" font-weight="400" fill="#71717a" text-anchor="start">
+    <tspan x="80" y="626" font-size="26">than in-office roles. Fewer real listings.</tspan>
+  </text>
+  <text font-family="'Inter', 'Arial', sans-serif" font-weight="400" fill="#71717a" text-anchor="start">
+    <tspan x="80" y="662" font-size="26">More competition. Less signal.</tspan>
+  </text>
+
+  <!-- Bottom label -->
+  <rect x="80" y="900" width="220" height="48" fill="#3f3f46"/>
+  <text font-family="'Space Grotesk', 'Arial', sans-serif" font-weight="600" fill="#ffffff" text-anchor="start">
+    <tspan x="100" y="933" font-size="22">Remote Job Search</tspan>
+  </text>
+
+  <!-- hireschema.com watermark -->
+  <text font-family="'Inter', 'Arial', sans-serif" font-weight="400" fill="#71717a" text-anchor="end">
+    <tspan x="1000" y="1020" font-size="22">hireschema.com</tspan>
+  </text>
+</svg>
