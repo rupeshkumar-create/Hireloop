@@ -7,14 +7,14 @@ const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HT
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           {
-            "bg-zinc-900 text-white hover:bg-zinc-800": variant === "default",
-            "bg-orange-500 text-white hover:bg-orange-600": variant === "action",
-            "bg-zinc-100 text-zinc-900 hover:bg-zinc-200": variant === "secondary",
-            "border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-zinc-900": variant === "outline",
-            "hover:bg-zinc-100 hover:text-zinc-900": variant === "ghost",
-            "bg-red-500 text-white hover:bg-red-600": variant === "destructive",
+            "bg-foreground text-surface hover:opacity-90": variant === "default",
+            "bg-orange-500 text-surface hover:bg-orange-600": variant === "action",
+            "bg-surface-hover text-foreground hover:bg-border": variant === "secondary",
+            "border border-border bg-surface hover:bg-surface-hover hover:text-foreground": variant === "outline",
+            "hover:bg-surface-hover hover:text-foreground": variant === "ghost",
+            "bg-red-500 text-surface hover:bg-red-600": variant === "destructive",
             "h-10 px-4 py-2": size === "default",
             "h-9 rounded-md px-3": size === "sm",
             "h-11 rounded-md px-8": size === "lg",

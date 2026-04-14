@@ -27,59 +27,59 @@ export function JobDetailsPanel({
   const { user, profile } = useAuth();
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4 sm:p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/40 shadow-2xl"
+          className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-surface/80 backdrop-blur-2xl border border-border shadow-2xl"
         >
           {/* Close Button */}
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 bg-black/5 hover:bg-black/10 rounded-full backdrop-blur-md transition-colors"
+            className="absolute top-4 right-4 z-10 p-2 bg-foreground/5 hover:bg-foreground/10 rounded-full backdrop-blur-md transition-colors"
           >
-            <X className="h-5 w-5 text-zinc-700" />
+            <X className="h-5 w-5 text-foreground-muted" />
           </button>
 
           <div className="p-6 md:p-8 overflow-y-auto flex-1">
             <div className="flex justify-between items-start mb-1 pr-10">
-              <h2 className="text-3xl font-bold tracking-tight text-zinc-900 font-display">{selectedJob.title}</h2>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground font-display">{selectedJob.title}</h2>
               {selectedJob.matchScore !== undefined && (
                 <Badge variant={selectedJob.matchScore >= 80 ? 'success' : 'secondary'} className="font-semibold shadow-sm">
                   {selectedJob.matchScore}% Match
                 </Badge>
               )}
             </div>
-            <p className="text-xl font-medium text-zinc-600 mb-6">{selectedJob.company}</p>
+            <p className="text-xl font-medium text-foreground-muted mb-6">{selectedJob.company}</p>
             
             <div className="flex gap-3 mb-8">
-              <Button className="flex-1 font-display font-semibold shadow-lg shadow-zinc-900/10" size="lg" onClick={() => window.open(selectedJob.url, '_blank')}>
+              <Button className="flex-1 font-display font-semibold shadow-lg shadow-black/10" size="lg" onClick={() => window.open(selectedJob.url, '_blank')}>
                 Apply Now <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
-              <Button variant="outline" size="lg" className="bg-white/50 backdrop-blur-sm border-zinc-200" onClick={() => saveJob(selectedJob)} title="Save to Tracker">
+              <Button variant="outline" size="lg" className="bg-surface/50 backdrop-blur-sm border-border" onClick={() => saveJob(selectedJob)} title="Save to Tracker">
                 <BookmarkPlus className="h-5 w-5" /> Save Job
               </Button>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-8">
-              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-white/50 backdrop-blur-sm border-zinc-200"><MapPin className="mr-1.5 h-4 w-4" /> {selectedJob.location}</Badge>
-              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-white/50 backdrop-blur-sm border-zinc-200"><DollarSign className="mr-1.5 h-4 w-4" /> {selectedJob.salary || 'Not specified'}</Badge>
+              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-surface/50 backdrop-blur-sm border-border"><MapPin className="mr-1.5 h-4 w-4" /> {selectedJob.location}</Badge>
+              <Badge variant="outline" className="font-medium px-4 py-1.5 bg-surface/50 backdrop-blur-sm border-border"><DollarSign className="mr-1.5 h-4 w-4" /> {selectedJob.salary || 'Not specified'}</Badge>
             </div>
 
             <div className="space-y-8">
-              <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-zinc-100">
-                <h4 className="font-bold text-zinc-900 font-display text-lg mb-4">About the Role</h4>
-                <p className="text-zinc-600 leading-relaxed whitespace-pre-wrap">{selectedJob.description}</p>
+              <div className="bg-surface/50 backdrop-blur-sm p-6 rounded-2xl border border-border">
+                <h4 className="font-bold text-foreground font-display text-lg mb-4">About the Role</h4>
+                <p className="text-foreground-muted leading-relaxed whitespace-pre-wrap">{selectedJob.description}</p>
               </div>
               
               {selectedJob.requirements && selectedJob.requirements.length > 0 && (
-                <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-zinc-100">
-                  <h4 className="font-bold text-zinc-900 font-display text-lg mb-4">Requirements</h4>
+                <div className="bg-surface/50 backdrop-blur-sm p-6 rounded-2xl border border-border">
+                  <h4 className="font-bold text-foreground font-display text-lg mb-4">Requirements</h4>
                   <ul className="space-y-3">
                     {selectedJob.requirements.map((req, i) => (
-                      <li key={i} className="text-zinc-600 flex items-start">
-                        <span className="mr-3 mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400 flex-shrink-0" />
+                      <li key={i} className="text-foreground-muted flex items-start">
+                        <span className="mr-3 mt-2 h-1.5 w-1.5 rounded-full bg-foreground-muted flex-shrink-0" />
                         <span className="leading-relaxed">{req}</span>
                       </li>
                     ))}
@@ -89,20 +89,20 @@ export function JobDetailsPanel({
             </div>
           </div>
 
-          <div className="p-6 md:p-8 bg-zinc-50/80 backdrop-blur-xl border-t border-white/40">
-            <h4 className="font-bold text-zinc-900 font-display mb-4">AI Copilot</h4>
+          <div className="p-6 md:p-8 bg-background/80 backdrop-blur-xl border-t border-border">
+            <h4 className="font-bold text-foreground font-display mb-4">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('email', selectedJob)}>
+              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('email', selectedJob)}>
                 <Mail className="mr-2 h-4 w-4 text-orange-500" /> Cold Email
               </Button>
-              <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('resume', selectedJob)}>
-                <FileText className="mr-2 h-4 w-4 text-zinc-700" /> Tailor Resume
+              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('resume', selectedJob)}>
+                <FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailor Resume
               </Button>
-              <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('interview', selectedJob)}>
-                <MessageSquare className="mr-2 h-4 w-4 text-zinc-700" /> Interview Prep
+              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('interview', selectedJob)}>
+                <MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Prep
               </Button>
-              <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('salary', selectedJob)}>
-                <TrendingUp className="mr-2 h-4 w-4 text-zinc-700" /> Salary Data
+              <Button variant="outline" className="bg-surface/60 hover:bg-surface shadow-sm border-border" onClick={() => handleAiAction('salary', selectedJob)}>
+                <TrendingUp className="mr-2 h-4 w-4 text-foreground-muted" /> Salary Data
               </Button>
             </div>
           </div>
@@ -113,10 +113,10 @@ export function JobDetailsPanel({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="p-6 md:p-8 border-t border-white/40 bg-white max-h-[50vh] overflow-y-auto"
+                className="p-6 md:p-8 border-t border-border bg-surface max-h-[50vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h4 className="font-bold text-zinc-900 font-display flex items-center gap-2 text-lg">
+                  <h4 className="font-bold text-foreground font-display flex items-center gap-2 text-lg">
                     <Sparkles className="h-5 w-5 text-orange-500" />
                     {aiAction === 'email' && 'Cold Email Draft'}
                     {aiAction === 'resume' && 'Tailored Resume'}
@@ -131,9 +131,9 @@ export function JobDetailsPanel({
                 </div>
                 
                 {actionLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-zinc-900" /></div>
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-foreground" /></div>
                 ) : (
-                  <div className="text-zinc-700 bg-zinc-50 p-6 rounded-xl border border-zinc-200 shadow-inner">
+                  <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border shadow-inner">
                     {aiAction === 'interview' && Array.isArray(aiResult) ? (
                       <ul className="list-decimal pl-5 space-y-3">
                         {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
@@ -145,7 +145,7 @@ export function JobDetailsPanel({
                     )}
                     
                     {aiAction === 'email' && (
-                      <div className="mt-8 border-t border-zinc-200 pt-6 space-y-4">
+                      <div className="mt-8 border-t border-border pt-6 space-y-4">
                         <Button 
                           className="w-full shadow-lg" 
                           size="lg"
@@ -175,7 +175,7 @@ export function JobDetailsPanel({
                         >
                           <Mail className="mr-2 h-5 w-5" /> Open in Gmail with Tailored Resume
                         </Button>
-                        <p className="text-sm text-zinc-500 text-center">
+                        <p className="text-sm text-foreground-muted text-center">
                           This will download a tailored resume for you to attach, and then open Gmail with this draft.
                         </p>
                       </div>

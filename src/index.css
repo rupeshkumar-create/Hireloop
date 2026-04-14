@@ -5,12 +5,67 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Anthropic Design System Colors */
+  --color-parchment: #f5f4ed;
+  --color-ivory: #faf9f5;
+  --color-near-black: #141413;
+  --color-terracotta: #c96442;
+  --color-coral: #d97757;
+  --color-error: #b53333;
+  --color-focus: #3898ec;
+  --color-warm-sand: #e8e6dc;
+  --color-dark-surface: #30302e;
+  --color-charcoal-warm: #4d4c48;
+  --color-olive-gray: #5e5d59;
+  --color-stone-gray: #87867f;
+  --color-dark-warm: #3d3d3a;
+  --color-warm-silver: #b0aea5;
+  --color-border-cream: #f0eee6;
+
+  /* Semantic mappings for easy Tailwind use */
+  --color-background: var(--bg-color);
+  --color-surface: var(--surface-color);
+  --color-surface-hover: var(--surface-hover-color);
+  --color-foreground: var(--text-color);
+  --color-foreground-muted: var(--text-muted);
+  --color-border: var(--border-color);
+  --color-border-strong: var(--border-strong-color);
+  --color-primary: var(--color-terracotta);
+  --color-primary-foreground: var(--color-ivory);
+  --color-ring: var(--ring-color);
 }
 
+:root {
+  /* Light Theme */
+  --bg-color: var(--color-parchment);
+  --surface-color: var(--color-ivory);
+  --surface-hover-color: var(--color-warm-sand);
+  --text-color: var(--color-near-black);
+  --text-muted: var(--color-olive-gray);
+  --border-color: var(--color-border-cream);
+  --border-strong-color: var(--color-warm-sand);
+  --ring-color: #d1cfc5;
+}
+
+.dark {
+  /* Dark Theme */
+  --bg-color: var(--color-near-black);
+  --surface-color: var(--color-dark-surface);
+  --surface-hover-color: #3d3d3a;
+  --text-color: var(--color-ivory);
+  --text-muted: var(--color-warm-silver);
+  --border-color: var(--color-dark-surface);
+  --border-strong-color: #4d4c48;
+  --ring-color: #4d4c48;
+}
+
+/* Base resets */
 body {
   font-family: var(--font-sans);
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -20,13 +75,14 @@ h1, h2, h3, h4, h5, h6 {
 /* Markdown Styles */
 .markdown-body {
   font-family: var(--font-sans);
+  color: var(--color-foreground);
 }
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
   font-family: var(--font-display);
   font-weight: 600;
   margin-top: 1.5em;
   margin-bottom: 0.5em;
-  color: #0f172a;
+  color: var(--color-foreground);
 }
 .markdown-body p {
   margin-bottom: 1em;
@@ -39,4 +95,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 .markdown-body strong {
   font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Card & Button defaults derived from DESIGN.md */
+.btn-primary {
+  background-color: var(--color-terracotta);
+  color: var(--color-ivory);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--color-terracotta);
+}
+
+.btn-secondary {
+  background-color: var(--surface-hover-color);
+  color: var(--text-color);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--ring-color);
 }

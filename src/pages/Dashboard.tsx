@@ -66,8 +66,8 @@ export function Dashboard() {
       {/* Top Navigation / Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 font-display">Dashboard</h1>
-          <p className="text-zinc-500 mt-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground font-display">Dashboard</h1>
+          <p className="text-foreground-muted mt-1">
             Welcome back, {user?.displayName?.split(' ')[0] || 'Candidate'}. Here are your latest remote matches.
           </p>
         </div>
@@ -84,13 +84,13 @@ export function Dashboard() {
             </button>
           )}
           
-          <div className="flex p-1 bg-zinc-100/80 backdrop-blur-md rounded-xl border border-zinc-200/50 shadow-sm">
+          <div className="flex p-1 bg-surface-hover/80 backdrop-blur-md rounded-xl border border-border/50 shadow-sm">
             <button
               onClick={() => setActiveTab('overview')}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === 'overview' 
-                  ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-black/5' 
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
+                  ? 'bg-surface text-foreground shadow-sm ring-1 ring-ring' 
+                  : 'text-foreground-muted hover:text-foreground hover:bg-border/50'
               }`}
             >
               <LayoutDashboard className="h-4 w-4" />
@@ -100,8 +100,8 @@ export function Dashboard() {
               onClick={() => setActiveTab('matches')}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === 'matches' 
-                  ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-black/5' 
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
+                  ? 'bg-surface text-foreground shadow-sm ring-1 ring-ring' 
+                  : 'text-foreground-muted hover:text-foreground hover:bg-border/50'
               }`}
             >
               <List className="h-4 w-4" />

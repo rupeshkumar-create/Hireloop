@@ -17,7 +17,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-50">Loading...</div>;
+    return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
   }
   
   return user ? <>{children}</> : <Navigate to="/login" />;
@@ -25,9 +25,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-white font-sans text-slate-900">
+    <div className="flex h-screen bg-surface font-sans text-foreground">
       <Sidebar />
-      <main className="flex-1 overflow-hidden p-8 bg-white">
+      <main className="flex-1 overflow-hidden p-8 bg-surface">
         {children}
       </main>
     </div>

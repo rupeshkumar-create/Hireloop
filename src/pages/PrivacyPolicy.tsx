@@ -4,15 +4,15 @@ import { Briefcase, ArrowLeft } from 'lucide-react';
 
 export function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans">
-      <nav className="border-b border-zinc-200 bg-white/80 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm">
+    <div className="min-h-screen bg-surface text-foreground font-sans">
+      <nav className="border-b border-border bg-surface/80 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-4">
-          <Link to="/" className="flex items-center justify-center rounded-none bg-zinc-900 shadow-md h-8 w-8">
-            <Briefcase className="h-4 w-4 text-white" />
+          <Link to="/" className="flex items-center justify-center rounded-none bg-foreground shadow-md h-8 w-8">
+            <Briefcase className="h-4 w-4 text-surface" />
           </Link>
           <span className="font-bold text-xl tracking-tight">Hireschema</span>
           <div className="flex-1"></div>
-          <Link to="/" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-2">
+          <Link to="/" className="text-sm font-medium text-foreground-muted hover:text-foreground flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" /> Back to Home
           </Link>
         </div>

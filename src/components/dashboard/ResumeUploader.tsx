@@ -19,27 +19,27 @@ export function ResumeUploader({ updateProfile, profile, onSuccess }: ResumeUplo
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-zinc-50 p-6 rounded-full"
+        className="bg-background p-6 rounded-full"
       >
-        <FileText className="h-16 w-16 text-zinc-400" />
+        <FileText className="h-16 w-16 text-foreground-muted" />
       </motion.div>
       <div>
-        <h2 className="text-3xl font-bold text-zinc-900 font-display mb-2">Welcome to Hireschema</h2>
-        <p className="text-zinc-500 text-lg">You just need to upload your resume once to get started. We'll automatically analyze it and find the best matches.</p>
+        <h2 className="text-3xl font-bold text-foreground font-display mb-2">Welcome to Hireschema</h2>
+        <p className="text-foreground-muted text-lg">You just need to upload your resume once to get started. We'll automatically analyze it and find the best matches.</p>
       </div>
       
-      <Card className="w-full mt-8 border-dashed border-2 border-zinc-200">
+      <Card className="w-full mt-8 border-dashed border-2 border-border">
         <CardContent className="pt-6 pb-8 flex flex-col items-center justify-center">
           {analyzingResume ? (
             <div className="flex flex-col items-center space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin text-zinc-900" />
-              <p className="text-zinc-600 font-medium">Analyzing your resume...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+              <p className="text-foreground-muted font-medium">Analyzing your resume...</p>
             </div>
           ) : (
             <>
-              <Upload className="h-10 w-10 text-zinc-400 mb-4" />
-              <h3 className="text-lg font-semibold text-zinc-900 mb-1">Upload Resume</h3>
-              <p className="text-sm text-zinc-500 mb-6">PDF, DOCX, or TXT (Max 5MB)</p>
+              <Upload className="h-10 w-10 text-foreground-muted mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-1">Upload Resume</h3>
+              <p className="text-sm text-foreground-muted mb-6">PDF, DOCX, or TXT (Max 5MB)</p>
               <div className="relative">
                 <input
                   type="file"

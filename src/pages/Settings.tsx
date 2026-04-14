@@ -155,8 +155,8 @@ export function Settings() {
     <div className="h-full overflow-y-auto pb-12 pr-4">
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Settings</h1>
-          <p className="text-zinc-500 mt-1">Manage your job search preferences and resume.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Settings</h1>
+          <p className="text-foreground-muted mt-1">Manage your job search preferences and resume.</p>
         </div>
 
         <Card>
@@ -165,45 +165,45 @@ export function Settings() {
             <CardDescription>Manage your subscription and upgrade to Pro.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div className="p-4 rounded-xl border border-border bg-background flex items-center justify-between">
               <div>
-                <p className="font-semibold text-zinc-900">Current Plan: <span className="uppercase text-orange-500">{profile?.plan || 'Free'}</span></p>
-                <p className="text-sm text-zinc-500 mt-1">
+                <p className="font-semibold text-foreground">Current Plan: <span className="uppercase text-orange-500">{profile?.plan || 'Free'}</span></p>
+                <p className="text-sm text-foreground-muted mt-1">
                   {profile?.plan === 'pro' 
                     ? 'You have access to all premium features including 10 daily AI job matches.' 
                     : 'Upgrade to Pro for 10 daily AI job matches, 1-Click Cold Emails, and Interview Prep.'}
                 </p>
               </div>
               {profile?.plan === 'pro' ? (
-                <div className="flex items-center text-zinc-900 font-medium">
+                <div className="flex items-center text-foreground font-medium">
                   <CheckCircle2 className="mr-2 h-5 w-5" /> Active
                 </div>
               ) : (
-                <CreditCard className="h-6 w-6 text-zinc-400" />
+                <CreditCard className="h-6 w-6 text-foreground-muted" />
               )}
             </div>
 
             {profile?.plan !== 'pro' && (
-              <div className="space-y-3 pt-4 border-t border-zinc-100">
-                <label className="text-sm font-medium text-zinc-700">Choose a Plan</label>
+              <div className="space-y-3 pt-4 border-t border-border">
+                <label className="text-sm font-medium text-foreground-muted">Choose a Plan</label>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 p-4 rounded-xl border border-zinc-200 bg-white">
-                    <h4 className="font-semibold text-zinc-900">Monthly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4">$9<span className="text-sm font-normal text-zinc-500">/mo</span></p>
+                  <div className="flex-1 p-4 rounded-xl border border-border bg-surface">
+                    <h4 className="font-semibold text-foreground">Monthly Pro</h4>
+                    <p className="text-2xl font-bold mt-1 mb-4">$9<span className="text-sm font-normal text-foreground-muted">/mo</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd07LOU49HVOMyEEY6D?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors font-medium text-sm"
+                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-foreground text-surface rounded-md hover:opacity-90 transition-colors font-medium text-sm"
                     >
                       Subscribe Monthly
                     </a>
                   </div>
                   <div className="flex-1 p-4 rounded-xl border border-orange-200 bg-orange-50/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
+                    <div className="absolute top-0 right-0 bg-orange-500 text-surface text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
                     <h4 className="font-semibold text-orange-900">Yearly Pro</h4>
                     <p className="text-2xl font-bold mt-1 mb-4 text-orange-900">$79<span className="text-sm font-normal text-orange-500/70">/yr</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
+                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-orange-500 text-surface rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
                     >
                       Subscribe Yearly
                     </a>
@@ -221,18 +221,18 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <label className="text-sm font-medium text-zinc-700">Career Paths / Desired Titles</label>
+              <label className="text-sm font-medium text-foreground-muted">Career Paths / Desired Titles</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formData.careerPaths.map(path => (
-                  <div key={path} className="flex items-center bg-zinc-100 text-zinc-800 px-3 py-1.5 rounded-md text-sm border border-zinc-200">
+                  <div key={path} className="flex items-center bg-surface-hover text-foreground px-3 py-1.5 rounded-md text-sm border border-border">
                     {path}
-                    <button onClick={() => handleRemovePath(path)} className="ml-2 text-zinc-400 hover:text-zinc-700">
+                    <button onClick={() => handleRemovePath(path)} className="ml-2 text-foreground-muted hover:text-foreground-muted">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
                 {formData.careerPaths.length === 0 && (
-                  <span className="text-sm text-zinc-500 italic">No career paths added. Upload your resume to auto-generate!</span>
+                  <span className="text-sm text-foreground-muted italic">No career paths added. Upload your resume to auto-generate!</span>
                 )}
               </div>
               
@@ -250,14 +250,14 @@ export function Settings() {
               </div>
 
               <div>
-                <p className="text-xs font-medium text-zinc-500 mb-2 uppercase tracking-wider">Suggestions</p>
+                <p className="text-xs font-medium text-foreground-muted mb-2 uppercase tracking-wider">Suggestions</p>
                 <div className="flex flex-wrap gap-2">
                   {PREDEFINED_PATHS.filter(p => !formData.careerPaths.includes(p)).map(path => (
                     <button
                       key={path}
                       onClick={() => handleAddPath(path)}
                       disabled={formData.careerPaths.length >= 10}
-                      className="text-xs bg-white border border-zinc-200 text-zinc-600 px-2.5 py-1 rounded-full hover:border-zinc-400 hover:text-zinc-900 transition-colors disabled:opacity-50"
+                      className="text-xs bg-surface border border-border text-foreground-muted px-2.5 py-1 rounded-full hover:border-border-strong hover:text-foreground transition-colors disabled:opacity-50"
                     >
                       + {path}
                     </button>
@@ -266,12 +266,12 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Work Type</label>
+                <label className="text-sm font-medium text-foreground-muted">Work Type</label>
                 <select 
                   name="jobType" 
-                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2"
+                  className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
                   value={formData.jobType}
                   onChange={handleChange}
                 >
@@ -282,7 +282,7 @@ export function Settings() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Minimum Salary (USD)</label>
+                <label className="text-sm font-medium text-foreground-muted">Minimum Salary (USD)</label>
                 <Input 
                   name="minSalary" 
                   type="number" 
@@ -293,10 +293,10 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+            <div className="pt-4 border-t border-border flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-zinc-700 block">Daily Job Alerts</label>
-                <p className="text-xs text-zinc-500 mt-0.5">Receive an email every day with your top AI-curated job matches.</p>
+                <label className="text-sm font-medium text-foreground-muted block">Daily Job Alerts</label>
+                <p className="text-xs text-foreground-muted mt-0.5">Receive an email every day with your top AI-curated job matches.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input 
@@ -306,17 +306,17 @@ export function Settings() {
                   checked={formData.receiveDailyAlerts}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
+                <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border-strong after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
               </label>
             </div>
 
-            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+            <div className="pt-4 border-t border-border flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-zinc-700 block flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-zinc-900" />
+                <label className="text-sm font-medium text-foreground-muted block flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-foreground" />
                   AI Humanizer (Anti-Slop Filter)
                 </label>
-                <p className="text-xs text-zinc-500 mt-0.5 max-w-[80%]">
+                <p className="text-xs text-foreground-muted mt-0.5 max-w-[80%]">
                   Prevents the AI from using robotic buzzwords like "delve", "robust", or "tapestry" in your emails and tailored resumes. Keeps your writing concise and professional.
                 </p>
               </div>
@@ -328,7 +328,7 @@ export function Settings() {
                   checked={formData.antiSlopEnabled}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
+                <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border-strong after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
               </label>
             </div>
           </CardContent>
@@ -352,7 +352,7 @@ export function Settings() {
                   disabled={analyzing}
                 />
               </Button>
-              <span className="text-xs text-zinc-500">Supports .pdf, .docx, .txt. Max 5MB. Uploading will auto-generate career paths.</span>
+              <span className="text-xs text-foreground-muted">Supports .pdf, .docx, .txt. Max 5MB. Uploading will auto-generate career paths.</span>
             </div>
             <Textarea 
               name="resumeText" 
@@ -362,7 +362,7 @@ export function Settings() {
               onChange={handleChange}
             />
           </CardContent>
-          <CardFooter className="flex justify-end border-t border-zinc-100 pt-6">
+          <CardFooter className="flex justify-end border-t border-border pt-6">
             <Button onClick={handleSave} disabled={saving || analyzing}>
               {saving ? 'Saving...' : (
                 <>

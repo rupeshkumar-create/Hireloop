@@ -205,14 +205,14 @@ export function JobTracker() {
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Job Tracker</h1>
-          <p className="text-zinc-500 mt-1">Manage and track your job applications.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Job Tracker</h1>
+          <p className="text-foreground-muted mt-1">Manage and track your job applications.</p>
         </div>
-        <div className="flex bg-zinc-100 p-1 rounded-lg border border-zinc-200">
+        <div className="flex bg-surface-hover p-1 rounded-lg border border-border">
           <Button 
             variant={viewMode === 'board' ? 'default' : 'ghost'} 
             size="sm" 
-            className={`h-8 px-3 ${viewMode === 'board' ? 'shadow-sm' : 'text-zinc-500'}`}
+            className={`h-8 px-3 ${viewMode === 'board' ? 'shadow-sm' : 'text-foreground-muted'}`}
             onClick={() => setViewMode('board')}
           >
             <LayoutGrid className="h-4 w-4 mr-2" /> Board
@@ -220,7 +220,7 @@ export function JobTracker() {
           <Button 
             variant={viewMode === 'list' ? 'default' : 'ghost'} 
             size="sm" 
-            className={`h-8 px-3 ${viewMode === 'list' ? 'shadow-sm' : 'text-zinc-500'}`}
+            className={`h-8 px-3 ${viewMode === 'list' ? 'shadow-sm' : 'text-foreground-muted'}`}
             onClick={() => setViewMode('list')}
           >
             <List className="h-4 w-4 mr-2" /> History List
@@ -232,8 +232,8 @@ export function JobTracker() {
         <Tooltip.Provider delayDuration={200}>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
             {STATUSES.map(status => (
-              <div key={status} className="bg-zinc-50/50 rounded-xl p-4 border border-zinc-200 h-[calc(100vh-180px)] flex flex-col">
-                <h3 className="font-medium text-zinc-900 capitalize mb-4 flex items-center justify-between">
+              <div key={status} className="bg-background/50 rounded-xl p-4 border border-border h-[calc(100vh-180px)] flex flex-col">
+                <h3 className="font-medium text-foreground capitalize mb-4 flex items-center justify-between">
                   {status}
                   <Badge variant="secondary" className="font-normal">{jobs.filter(j => j.status === status).length}</Badge>
                 </h3>
@@ -249,20 +249,20 @@ export function JobTracker() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Card className="cursor-pointer hover:border-zinc-400 transition-colors">
+                        <Card className="cursor-pointer hover:border-border-strong transition-colors">
                           <CardContent className="p-4">
-                            <h4 className="font-medium text-sm text-zinc-900 leading-tight mb-1">{job.title}</h4>
-                            <p className="text-xs text-zinc-600 mb-3">{job.company}</p>
+                            <h4 className="font-medium text-sm text-foreground leading-tight mb-1">{job.title}</h4>
+                            <p className="text-xs text-foreground-muted mb-3">{job.company}</p>
                             
                             <div className="flex flex-wrap gap-1 mb-3">
                               {job.location && <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal"><MapPin className="mr-1 h-2 w-2" />{job.location}</Badge>}
                             </div>
 
-                            <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-100">
+                            <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
                               <Tooltip.Root>
                                 <Tooltip.Trigger asChild>
                                   <select 
-                                    className="text-xs border-none bg-transparent text-zinc-500 cursor-pointer focus:ring-0 p-0 font-medium"
+                                    className="text-xs border-none bg-transparent text-foreground-muted cursor-pointer focus:ring-0 p-0 font-medium"
                                     value={job.status}
                                     onChange={(e) => updateStatus(job.id, e.target.value)}
                                   >
@@ -270,21 +270,21 @@ export function JobTracker() {
                                   </select>
                                 </Tooltip.Trigger>
                                 <Tooltip.Portal>
-                                  <Tooltip.Content className="bg-zinc-900 text-white text-xs rounded py-1.5 px-2.5 shadow-md z-50" sideOffset={5}>
+                                  <Tooltip.Content className="bg-foreground text-surface text-xs rounded py-1.5 px-2.5 shadow-md z-50" sideOffset={5}>
                                     <div className="font-medium mb-1">Status: {job.status.charAt(0).toUpperCase() + job.status.slice(1)}</div>
-                                    <div className="text-zinc-300">Updated {formatDistanceToNow(new Date(job.updatedAt || job.createdAt), { addSuffix: true })}</div>
-                                    <Tooltip.Arrow className="fill-zinc-900" />
+                                    <div className="text-foreground-muted">Updated {formatDistanceToNow(new Date(job.updatedAt || job.createdAt), { addSuffix: true })}</div>
+                                    <Tooltip.Arrow className="fill-foreground" />
                                   </Tooltip.Content>
                                 </Tooltip.Portal>
                               </Tooltip.Root>
                               
                               <div className="flex gap-1">
                                 {job.url && (
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-900" onClick={() => window.open(job.url, '_blank')}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-foreground" onClick={() => window.open(job.url, '_blank')}>
                                     <ExternalLink className="h-3 w-3" />
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeJob(job.id)}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-red-600 hover:bg-red-50" onClick={() => removeJob(job.id)}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
@@ -302,22 +302,22 @@ export function JobTracker() {
       ) : (
         <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-8">
           {jobs.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500">No jobs tracked yet.</div>
+            <div className="text-center py-12 text-foreground-muted">No jobs tracked yet.</div>
           ) : (
             jobs.map(job => (
-              <Card key={job.id} className="overflow-hidden border-zinc-200">
+              <Card key={job.id} className="overflow-hidden border-border">
                 <div 
-                  className="p-5 flex items-center justify-between cursor-pointer hover:bg-zinc-50 transition-colors"
+                  className="p-5 flex items-center justify-between cursor-pointer hover:bg-background transition-colors"
                   onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                 >
                   <div className="flex-1 grid grid-cols-4 gap-4 items-center">
                     <div className="col-span-2">
-                      <h3 className="font-semibold text-zinc-900">{job.title}</h3>
-                      <p className="text-sm text-zinc-500">{job.company} {job.location && `• ${job.location}`}</p>
+                      <h3 className="font-semibold text-foreground">{job.title}</h3>
+                      <p className="text-sm text-foreground-muted">{job.company} {job.location && `• ${job.location}`}</p>
                     </div>
                     <div>
                       <select 
-                        className="text-sm border border-zinc-200 rounded-md bg-white text-zinc-700 px-2 py-1 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                        className="text-sm border border-border rounded-md bg-surface text-foreground-muted px-2 py-1 focus:ring-2 focus:ring-foreground focus:outline-none"
                         value={job.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { e.stopPropagation(); updateStatus(job.id, e.target.value); }}
@@ -325,17 +325,17 @@ export function JobTracker() {
                         {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                       </select>
                     </div>
-                    <div className="text-right text-sm text-zinc-400">
+                    <div className="text-right text-sm text-foreground-muted">
                       {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
                     </div>
                   </div>
                   <div className="ml-4 flex items-center gap-2">
                     {job.url && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900" onClick={(e) => { e.stopPropagation(); window.open(job.url, '_blank'); }}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted hover:text-foreground" onClick={(e) => { e.stopPropagation(); window.open(job.url, '_blank'); }}>
                         <ExternalLink className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted hover:text-foreground">
                       {expandedJobId === job.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -347,19 +347,19 @@ export function JobTracker() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="border-t border-zinc-100 bg-zinc-50/50"
+                      className="border-t border-border bg-background/50"
                     >
                       <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Cold Email Section */}
                         <div className="space-y-3 relative">
                           {profile?.plan !== 'pro' && (
-                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
-                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                            <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
+                              <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm text-zinc-900 flex items-center"><Mail className="mr-2 h-4 w-4 text-zinc-500" /> Cold Email</h4>
+                            <h4 className="font-medium text-sm text-foreground flex items-center"><Mail className="mr-2 h-4 w-4 text-foreground-muted" /> Cold Email</h4>
                             <div className="flex gap-2">
                               {job.coldEmail && !editingEmail && (
                                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingEmail(true)}>Edit</Button>
@@ -374,7 +374,7 @@ export function JobTracker() {
                           {editingEmail ? (
                             <div className="space-y-2">
                               <textarea 
-                                className="w-full h-48 text-xs p-3 border border-zinc-200 rounded-md focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                                className="w-full h-48 text-xs p-3 border border-border rounded-md focus:ring-2 focus:ring-foreground focus:outline-none"
                                 value={emailText}
                                 onChange={(e) => setEmailText(e.target.value)}
                               />
@@ -386,7 +386,7 @@ export function JobTracker() {
                                   value={emailInstruction}
                                   onChange={(e) => setEmailInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
+                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-surface" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
                                   {actionLoading[`${job.id}-email-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>
@@ -396,17 +396,17 @@ export function JobTracker() {
                               </div>
                             </div>
                           ) : job.coldEmail ? (
-                            <div className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                            <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto whitespace-pre-wrap">
                               {job.coldEmail}
                             </div>
                           ) : (
-                            <div className="text-xs text-zinc-400 italic">No cold email generated yet.</div>
+                            <div className="text-xs text-foreground-muted italic">No cold email generated yet.</div>
                           )}
                           <div className="flex gap-2 items-center">
                             <input 
                               type="email" 
                               placeholder="Contact Email (Optional)" 
-                              className="flex-1 text-xs border border-zinc-200 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                              className="flex-1 text-xs border border-border rounded-md px-2 py-1.5 focus:ring-2 focus:ring-foreground focus:outline-none"
                               value={job.contactEmail || ''}
                               onChange={(e) => updateContactEmail(job.id, e.target.value)}
                             />
@@ -421,13 +421,13 @@ export function JobTracker() {
                         {/* Tailored Resume Section */}
                         <div className="space-y-3 relative">
                           {profile?.plan !== 'pro' && (
-                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
-                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                            <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
+                              <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm text-zinc-900 flex items-center"><FileText className="mr-2 h-4 w-4 text-zinc-500" /> Tailored Resume</h4>
+                            <h4 className="font-medium text-sm text-foreground flex items-center"><FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailored Resume</h4>
                             <div className="flex gap-2">
                               {job.tailoredResume && !editingResume && (
                                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingResume(true)}>Edit</Button>
@@ -442,7 +442,7 @@ export function JobTracker() {
                           {editingResume ? (
                             <div className="space-y-2">
                               <textarea 
-                                className="w-full h-48 text-xs p-3 border border-zinc-200 rounded-md focus:ring-2 focus:ring-zinc-900 focus:outline-none font-mono"
+                                className="w-full h-48 text-xs p-3 border border-border rounded-md focus:ring-2 focus:ring-foreground focus:outline-none font-mono"
                                 value={resumeText}
                                 onChange={(e) => setResumeText(e.target.value)}
                               />
@@ -454,7 +454,7 @@ export function JobTracker() {
                                   value={resumeInstruction}
                                   onChange={(e) => setResumeInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
+                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-surface" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
                                   {actionLoading[`${job.id}-resume-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>
@@ -464,11 +464,11 @@ export function JobTracker() {
                               </div>
                             </div>
                           ) : job.tailoredResume ? (
-                            <div id={`resume-${job.id}`} className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
+                            <div id={`resume-${job.id}`} className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
                               <ReactMarkdown>{job.tailoredResume}</ReactMarkdown>
                             </div>
                           ) : (
-                            <div className="text-xs text-zinc-400 italic">No tailored resume generated yet.</div>
+                            <div className="text-xs text-foreground-muted italic">No tailored resume generated yet.</div>
                           )}
                           {job.tailoredResume && !editingResume && (
                             <div className="flex gap-2">
@@ -482,13 +482,13 @@ export function JobTracker() {
                         {/* Interview Prep Section */}
                         <div className="space-y-3 relative">
                           {profile?.plan !== 'pro' && (
-                            <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-zinc-200">
-                              <p className="text-sm font-medium text-zinc-900 mb-2">Pro Feature</p>
+                            <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
+                              <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm text-zinc-900 flex items-center"><MessageSquare className="mr-2 h-4 w-4 text-zinc-500" /> Interview Q&A</h4>
+                            <h4 className="font-medium text-sm text-foreground flex items-center"><MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Q&A</h4>
                             {!job.interviewQuestions && (
                               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'interview')} disabled={actionLoading[`${job.id}-interview`]}>
                                 {actionLoading[`${job.id}-interview`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
@@ -496,7 +496,7 @@ export function JobTracker() {
                             )}
                           </div>
                           {job.interviewQuestions ? (
-                            <div className="bg-white border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 max-h-48 overflow-y-auto">
+                            <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto">
                               {Array.isArray(job.interviewQuestions) ? (
                                 <ul className="list-decimal pl-4 space-y-2">
                                   {job.interviewQuestions.map((q, i) => <li key={i}>{q}</li>)}
@@ -508,7 +508,7 @@ export function JobTracker() {
                               )}
                             </div>
                           ) : (
-                            <div className="text-xs text-zinc-400 italic">No interview questions generated yet.</div>
+                            <div className="text-xs text-foreground-muted italic">No interview questions generated yet.</div>
                           )}
                         </div>
                       </div>

@@ -36,8 +36,8 @@ export function MatchesTab({
     <div className="flex-1 flex flex-col overflow-hidden w-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-display">Your Daily Matches</h1>
-          <p className="text-zinc-500 text-sm mt-1">Curated jobs based on your preferences and resume.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground font-display">Your Daily Matches</h1>
+          <p className="text-foreground-muted text-sm mt-1">Curated jobs based on your preferences and resume.</p>
         </div>
       </div>
 
@@ -63,11 +63,11 @@ export function MatchesTab({
           />
         </div>
         <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-zinc-400" />
+          <ArrowUpDown className="h-4 w-4 text-foreground-muted" />
           <select 
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-9 text-sm border border-zinc-200 rounded-md px-3 bg-white text-zinc-700 outline-none focus:ring-2 focus:ring-zinc-900"
+            className="h-9 text-sm border border-border rounded-md px-3 bg-surface text-foreground-muted outline-none focus:ring-2 focus:ring-foreground"
           >
             <option value="matchScore">Match Score</option>
             <option value="datePosted">Newest First</option>
@@ -79,11 +79,11 @@ export function MatchesTab({
       <div className="flex-1 overflow-y-auto pr-2 space-y-3 pb-8">
         {loadingJobs ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin text-zinc-900" />
-            <p className="text-zinc-500 font-medium animate-pulse">Scouring the web for the best opportunities...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+            <p className="text-foreground-muted font-medium animate-pulse">Scouring the web for the best opportunities...</p>
           </div>
         ) : jobs.length === 0 ? (
-          <div className="text-center py-12 text-zinc-500">No jobs found matching your filters.</div>
+          <div className="text-center py-12 text-foreground-muted">No jobs found matching your filters.</div>
         ) : (
           <AnimatePresence>
             {jobs.map((job, idx) => (
@@ -94,14 +94,14 @@ export function MatchesTab({
                 transition={{ duration: 0.2, delay: idx * 0.05 }}
               >
                 <Card 
-                  className={`cursor-pointer transition-all hover:border-zinc-400 ${selectedJob === job ? 'border-zinc-900 ring-1 ring-zinc-900 shadow-md' : 'border-zinc-200 shadow-sm'}`}
+                  className={`cursor-pointer transition-all hover:border-border-strong ${selectedJob === job ? 'border-border-strong ring-1 ring-foreground shadow-md' : 'border-border shadow-sm'}`}
                   onClick={() => { setSelectedJob(job); setAiAction(null); }}
                 >
                   <CardContent className="p-5">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-zinc-900 font-display text-lg">{job.title}</h3>
-                        <p className="text-zinc-600 font-medium">{job.company}</p>
+                        <h3 className="font-bold text-foreground font-display text-lg">{job.title}</h3>
+                        <p className="text-foreground-muted font-medium">{job.company}</p>
                       </div>
                       {job.matchScore !== undefined && (
                         <Badge variant={job.matchScore >= 80 ? 'success' : 'secondary'} className="ml-2 font-semibold">
@@ -109,11 +109,11 @@ export function MatchesTab({
                         </Badge>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-4 mt-4 text-sm text-zinc-500">
-                      <div className="flex items-center"><MapPin className="mr-1.5 h-4 w-4 text-zinc-400" /> {job.location}</div>
-                      <div className="flex items-center"><DollarSign className="mr-1.5 h-4 w-4 text-zinc-400" /> {job.salary}</div>
+                    <div className="flex flex-wrap gap-4 mt-4 text-sm text-foreground-muted">
+                      <div className="flex items-center"><MapPin className="mr-1.5 h-4 w-4 text-foreground-muted" /> {job.location}</div>
+                      <div className="flex items-center"><DollarSign className="mr-1.5 h-4 w-4 text-foreground-muted" /> {job.salary}</div>
                       {job.datePosted && (
-                        <div className="flex items-center"><Calendar className="mr-1.5 h-4 w-4 text-zinc-400" /> {new Date(job.datePosted).toLocaleDateString()}</div>
+                        <div className="flex items-center"><Calendar className="mr-1.5 h-4 w-4 text-foreground-muted" /> {new Date(job.datePosted).toLocaleDateString()}</div>
                       )}
                     </div>
                   </CardContent>

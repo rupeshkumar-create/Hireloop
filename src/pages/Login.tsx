@@ -15,25 +15,25 @@ export function Login() {
   }, [user, navigate]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-10 shadow-sm border border-zinc-200">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-8 rounded-2xl bg-surface p-10 shadow-sm border border-border">
         <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-zinc-900 mb-6">
-            <Briefcase className="h-8 w-8 text-white" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-foreground mb-6">
+            <Briefcase className="h-8 w-8 text-surface" />
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">Hireschema</h2>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground">Hireschema</h2>
+          <p className="mt-2 text-sm text-foreground-muted">
             The modern platform for mid to high-level job seekers.
           </p>
         </div>
 
         <div className="space-y-6 pt-4">
-          <div className="rounded-lg bg-zinc-50 p-5 border border-zinc-100">
-            <ul className="text-sm text-zinc-600 space-y-3">
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mr-2"></span> Curated daily job feed</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mr-2"></span> Personalized cold emails</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mr-2"></span> Resume tailoring</li>
-              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mr-2"></span> Kanban job tracking</li>
+          <div className="rounded-lg bg-background p-5 border border-border">
+            <ul className="text-sm text-foreground-muted space-y-3">
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Curated daily job feed</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Personalized cold emails</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Resume tailoring</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-foreground-muted mr-2"></span> Kanban job tracking</li>
             </ul>
           </div>
 
