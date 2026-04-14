@@ -169,12 +169,12 @@ export function Settings() {
               <div>
                 <p className="font-semibold text-foreground">Current Plan: <span className="uppercase text-orange-500">{profile?.plan || 'Free'}</span></p>
                 <p className="text-sm text-foreground-muted mt-1">
-                  {profile?.plan === 'pro' 
+                  {profile?.plan?.toLowerCase() === 'pro' 
                     ? 'You have access to all premium features including 10 daily AI job matches.' 
                     : 'Upgrade to Pro for 10 daily AI job matches, 1-Click Cold Emails, and Interview Prep.'}
                 </p>
               </div>
-              {profile?.plan === 'pro' ? (
+              {profile?.plan?.toLowerCase() === 'pro' ? (
                 <div className="flex items-center text-foreground font-medium">
                   <CheckCircle2 className="mr-2 h-5 w-5" /> Active
                 </div>
@@ -183,7 +183,7 @@ export function Settings() {
               )}
             </div>
 
-            {profile?.plan !== 'pro' && (
+            {profile?.plan?.toLowerCase() !== 'pro' && (
               <div className="space-y-3 pt-4 border-t border-border">
                 <label className="text-sm font-medium text-foreground-muted">Choose a Plan</label>
                 <div className="flex flex-col sm:flex-row gap-4">

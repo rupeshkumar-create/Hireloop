@@ -352,7 +352,7 @@ export function JobTracker() {
                       <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Cold Email Section */}
                         <div className="space-y-3 relative">
-                          {profile?.plan !== 'pro' && (
+                          {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
@@ -420,7 +420,7 @@ export function JobTracker() {
 
                         {/* Tailored Resume Section */}
                         <div className="space-y-3 relative">
-                          {profile?.plan !== 'pro' && (
+                          {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
@@ -481,7 +481,7 @@ export function JobTracker() {
 
                         {/* Interview Prep Section */}
                         <div className="space-y-3 relative">
-                          {profile?.plan !== 'pro' && (
+                          {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
                               <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>

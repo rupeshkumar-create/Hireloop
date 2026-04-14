@@ -156,7 +156,7 @@ export function AdminDashboard() {
                     <td className="px-6 py-4 font-medium text-foreground">{u.email}</td>
                     <td className="px-6 py-4 text-foreground-muted">{u.displayName || '-'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${u.plan === 'pro' ? 'bg-orange-100 text-orange-700' : 'bg-surface-hover text-foreground-muted'}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${u.plan?.toLowerCase() === 'pro' ? 'bg-orange-100 text-orange-700' : 'bg-surface-hover text-foreground-muted'}`}>
                         {u.plan || 'free'}
                       </span>
                     </td>
@@ -172,7 +172,7 @@ export function AdminDashboard() {
                       }}>Enter Dashboard</Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         setSelectedUser(u);
-                        setNewPlan(u.plan === 'pro' ? 'free' : 'pro');
+                        setNewPlan(u.plan?.toLowerCase() === 'pro' ? 'free' : 'pro');
                       }}>Change Plan</Button>
                     </td>
                   </tr>

@@ -27,6 +27,10 @@ async function callLLM(messages: any[]) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).end('Unauthorized');
+  }
+
   const GITHUB_TOKEN = process.env.GITHUB_PAT;
   const REPO_OWNER = 'Rupesh7128';
   const REPO_NAME = 'Hireschema';

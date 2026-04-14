@@ -26,7 +26,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/login" />;
 }
 
-const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
+const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'];
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
