@@ -1,24 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 export function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-surface text-foreground font-sans">
-      <nav className="border-b border-border bg-surface/80 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-4">
-          <Link to="/" className="flex items-center justify-center rounded-none bg-foreground shadow-md h-8 w-8">
-            <Briefcase className="h-4 w-4 text-surface" />
-          </Link>
-          <span className="font-bold text-xl tracking-tight">Hireschema</span>
-          <div className="flex-1"></div>
-          <Link to="/" className="text-sm font-medium text-foreground-muted hover:text-foreground flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" /> Back to Home
-          </Link>
-        </div>
-      </nav>
-
-      <main className="max-w-3xl mx-auto px-6 pt-32 pb-24 prose prose-zinc">
+    <div className="py-12 max-w-4xl mx-auto">
+      <div className="bg-surface rounded-2xl shadow-sm border border-border p-8 md:p-12 prose prose-zinc max-w-none">
+        <Link to="/" className="inline-flex items-center text-zinc-500 hover:text-zinc-900 mb-8 transition-colors no-underline">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+        </Link>
         <h1>Privacy Policy</h1>
         <p>Last updated: {new Date().toLocaleDateString()}</p>
         
@@ -51,7 +41,7 @@ export function PrivacyPolicy() {
 
         <h2>6. Contact Us</h2>
         <p>If you have any questions about this privacy policy or our privacy practices, please contact us at support@hireschema.com.</p>
-      </main>
+      </div>
     </div>
   );
 }

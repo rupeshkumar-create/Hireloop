@@ -43,7 +43,7 @@ service cloud.firestore {
     
     // Super Admin Check
     function isSuperAdmin() {
-      return isAuthenticated() && (
+      return isAuthenticated() && request.auth.token.email != null && (
         request.auth.token.email.lower() == 'rupesh7126@gmail.com' ||
         request.auth.token.email.lower() == 'kv3244@gmail.com'
       );
@@ -101,7 +101,7 @@ service cloud.firestore {
     // Rules
     match /users/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow create: if (isOwner(userId) && isValidUser(request.resource.data)) || isSuperAdmin();
       allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
                     request.resource.data.uid == resource.data.uid &&
                     request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
@@ -110,7 +110,7 @@ service cloud.firestore {
 
     match /trackedJobs/{jobId} {
       allow read: if isDocOwner() || (isAuthenticated() && request.resource.data.userId == request.auth.uid) || isSuperAdmin();
-      allow create: if isAuthenticated() && isValidTrackedJob(request.resource.data);
+      allow create: if (isAuthenticated() && isValidTrackedJob(request.resource.data)) || isSuperAdmin();
       allow update: if (isDocOwner() && isValidTrackedJob(request.resource.data) &&
                     request.resource.data.userId == resource.data.userId &&
                     request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();

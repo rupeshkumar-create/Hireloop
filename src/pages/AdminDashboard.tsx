@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,8 +10,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 
 export function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, impersonateUser } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
   const [passwordInput, setPasswordInput] = useState('');
   
   const [users, setUsers] = useState<any[]>([]);
@@ -75,10 +76,10 @@ export function AdminDashboard() {
 
       // 2. Log the action
       await addDoc(collection(db, 'admin_logs'), {
-        adminUid: user?.uid,
-        adminEmail: user?.email,
-        targetUserId: selectedUser.id,
-        targetUserEmail: selectedUser.email,
+        adminUid: user?.uid || 'unknown_uid',
+        adminEmail: user?.email || 'unknown_email',
+        targetUserId: selectedUser.id || 'unknown_target_id',
+        targetUserEmail: selectedUser.email || 'unknown_target_email',
         oldPlan: selectedUser.plan || 'free',
         newPlan: newPlan,
         reason: reason,
@@ -150,6 +151,7 @@ export function AdminDashboard() {
                   <th className="px-6 py-3">Name</th>
                   <th className="px-6 py-3">Plan</th>
                   <th className="px-6 py-3">Joined</th>
+                  <th className="px-6 py-3">Last Active</th>
                   <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -164,7 +166,15 @@ export function AdminDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-foreground-muted">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-foreground-muted">
+                      {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => {
+                        impersonateUser(u.id, u.email);
+                        toast.success(`Impersonating ${u.email}`);
+                        navigate('/dashboard');
+                      }}>Enter Dashboard</Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         setSelectedUser(u);
                         setNewPlan(u.plan === 'pro' ? 'free' : 'pro');

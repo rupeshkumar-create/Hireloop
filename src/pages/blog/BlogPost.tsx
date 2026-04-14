@@ -22,8 +22,8 @@ export function BlogPost() {
   const shareTitle = encodeURIComponent(post.title);
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-12">
-      <div className="max-w-3xl mx-auto px-6">
+    <div className="py-12 max-w-4xl mx-auto">
+      <div className="bg-surface rounded-2xl shadow-sm border border-border p-8 md:p-12">
         <Link to="/blog" className="inline-flex items-center text-zinc-500 hover:text-zinc-900 mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Blog
         </Link>

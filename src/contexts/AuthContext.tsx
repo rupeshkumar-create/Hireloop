@@ -28,6 +28,7 @@ export interface UserProfile {
   lastJobFetchTime?: string;
   createdAt: string;
   updatedAt?: string;
+  lastActiveAt?: string;
   learningProfile?: LearningProfile;
 }
 
@@ -38,25 +39,61 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+  impersonateUser: (uid: string, email: string) => void;
+  stopImpersonating: () => void;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [realUser, setRealUser] = useState<User | null>(null);
+  const [realProfile, setRealProfile] = useState<UserProfile | null>(null);
+  
+  const [impersonatedUid, setImpersonatedUid] = useState<string | null>(sessionStorage.getItem('impersonated_uid'));
+  const [impersonatedEmail, setImpersonatedEmail] = useState<string | null>(sessionStorage.getItem('impersonated_email'));
+  const [impersonatedProfile, setImpersonatedProfile] = useState<UserProfile | null>(null);
+  
   const [loading, setLoading] = useState(true);
+
+  // Effective user/profile to expose
+  const isImpersonating = !!impersonatedUid;
+  
+  const user = isImpersonating && realUser ? { ...realUser, uid: impersonatedUid, email: impersonatedEmail } as User : realUser;
+  const profile = isImpersonating ? impersonatedProfile : realProfile;
+
+  const impersonateUser = (uid: string, email: string) => {
+    sessionStorage.setItem('impersonated_uid', uid);
+    sessionStorage.setItem('impersonated_email', email);
+    setImpersonatedUid(uid);
+    setImpersonatedEmail(email);
+  };
+
+  const stopImpersonating = () => {
+    sessionStorage.removeItem('impersonated_uid');
+    sessionStorage.removeItem('impersonated_email');
+    setImpersonatedUid(null);
+    setImpersonatedEmail(null);
+    setImpersonatedProfile(null);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+      setRealUser(currentUser);
       if (currentUser) {
-        // Listen to profile changes
+        // Listen to real profile changes
         const unsubscribeProfile = onSnapshot(
           doc(db, 'users', currentUser.uid),
           (docSnap) => {
             if (docSnap.exists()) {
-              setProfile(docSnap.data() as UserProfile);
+              setRealProfile(docSnap.data() as UserProfile);
+              // Update lastActiveAt every time they load the app
+              if (
+                !docSnap.data().lastActiveAt || 
+                new Date().getTime() - new Date(docSnap.data().lastActiveAt).getTime() > 1000 * 60 * 60
+              ) {
+                setDoc(doc(db, 'users', currentUser.uid), { lastActiveAt: new Date().toISOString() }, { merge: true });
+              }
             } else {
               // Create initial profile
               const newProfile: UserProfile = {
@@ -68,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 receiveDailyAlerts: true,
                 antiSlopEnabled: true,
                 createdAt: new Date().toISOString(),
+                lastActiveAt: new Date().toISOString(),
               };
               setDoc(doc(db, 'users', currentUser.uid), newProfile)
                 .then(() => {
@@ -79,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .catch(e => 
                   handleFirestoreError(e, OperationType.CREATE, `users/${currentUser.uid}`)
                 );
-              setProfile(newProfile);
+              setRealProfile(newProfile);
             }
             setLoading(false);
           },
@@ -90,13 +128,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         return () => unsubscribeProfile();
       } else {
-        setProfile(null);
+        setRealProfile(null);
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  // Listen to impersonated profile if active
+  useEffect(() => {
+    if (isImpersonating && impersonatedUid) {
+      const unsubscribeImp = onSnapshot(
+        doc(db, 'users', impersonatedUid),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setImpersonatedProfile(docSnap.data() as UserProfile);
+          } else {
+            setImpersonatedProfile(null);
+          }
+        }
+      );
+      return () => unsubscribeImp();
+    }
+  }, [isImpersonating, impersonatedUid]);
 
   const signInWithGoogle = async () => {
     try {
@@ -129,7 +184,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout, updateProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      signInWithGoogle, 
+      logout, 
+      updateProfile,
+      impersonateUser,
+      stopImpersonating,
+      isImpersonating
+    }}>
       {children}
     </AuthContext.Provider>
   );

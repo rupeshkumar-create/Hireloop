@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
+import { WebsiteLayout } from './components/WebsiteLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { JobTracker } from './pages/JobTracker';
@@ -61,10 +62,10 @@ export default function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<WebsiteLayout><LandingPage /></WebsiteLayout>} />
           <Route path="/login" element={<Login />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<WebsiteLayout><PrivacyPolicy /></WebsiteLayout>} />
+          <Route path="/terms" element={<WebsiteLayout><TermsOfService /></WebsiteLayout>} />
           <Route path="/dashboard" element={
             <PrivateRoute>
               <AppLayout>
@@ -101,14 +102,14 @@ export default function App() {
             </AdminRoute>
           } />
           <Route path="/blog" element={
-            <AppLayout>
+            <WebsiteLayout>
               <BlogIndex />
-            </AppLayout>
+            </WebsiteLayout>
           } />
           <Route path="/blog/:slug" element={
-            <AppLayout>
+            <WebsiteLayout>
               <BlogPost />
-            </AppLayout>
+            </WebsiteLayout>
           } />
         </Routes>
       </Router>

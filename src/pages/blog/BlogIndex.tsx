@@ -8,7 +8,7 @@ export function BlogIndex() {
   const sortedPosts = [...blogPosts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="min-h-screen bg-zinc-50 pt-24 pb-12">
+    <div className="py-12">
       <div className="max-w-4xl mx-auto px-6">
         <div className="mb-12 text-center">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 mb-4 font-display">

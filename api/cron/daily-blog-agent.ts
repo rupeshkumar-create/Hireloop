@@ -36,19 +36,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const existingSlugs = blogPosts.map((p: any) => p.slug).join(', ');
 
     // 2. Generate the new post via OpenRouter
-    const prompt = `You are an elite Pragmatic SEO expert and content strategist for 'Hireschema', an AI remote job search platform.
-Generate ONE highly optimized, humanized, anti-AI slop blog post based on current trending topics in remote work or AI job hunting.
+    const prompt = `You are an elite blog writer in 2026 specializing in LLM-optimized, human-first content.
+Your task is to write a blog that:
+1. Ranks in AI search systems (ChatGPT, Claude, Perplexity)
+2. Feels deeply human and impossible to detect as AI-written
+3. Avoids all forms of AI-generated "slop"
 
-Rules:
-1. Anti-AI Slop: Do NOT use words like "In today's fast-paced world", "delve into", "tapestry", "crucial", or "unlock". Write like a cynical Silicon Valley recruiter.
-2. Geo-optimized: Mention global remote hubs (US, EU, LatAm).
-3. Internal Linking: Naturally weave in markdown links to the homepage [Hireschema](/) and mention related topics (Available slugs to link to: ${existingSlugs}).
-4. You MUST return ONLY a valid JSON object. No markdown code blocks, no intro text, no outro text. Just the raw JSON.
+---
 
+## PART 1: REMOVE AI SLOP (STRICT RULES)
+You MUST follow these rules:
+- No generic filler phrases: (avoid: "In today's fast-paced world", "In conclusion", "It's important to note")
+- No repetitive sentence structures
+- No predictable patterns: (avoid always listing 3–5 bullet points in every section)
+- No over-explaining obvious concepts
+- No robotic transitions: (avoid: "Additionally", "Moreover", "Furthermore")
+- No keyword stuffing
+- No fake enthusiasm or hype tone
+- No vague statements: Every claim must be specific, grounded, or example-backed
+- DO NOT use em dashes (—). Use hyphens (-) or rephrase.
+
+---
+
+## PART 2: HUMANIZATION LAYER (MANDATORY)
+Write like a real person with:
+- Natural imperfections in flow (slight variation in sentence length)
+- Occasional opinionated statements
+- Subtle personality (dry humor, sharp clarity, or contrarian takes)
+- Real-world framing: (talk like someone who has actually done the thing)
+- Use conversational phrasing: (e.g., "Here's where it gets interesting", "Most people get this wrong")
+- Avoid sounding like a teacher or textbook
+- Add "thinking patterns": Show reasoning, not just conclusions
+
+---
+
+## PART 3: LLM OPTIMIZATION (CRITICAL)
+Structure the content so AI systems can extract it:
+- 1. Clear Topic Framing: A specific, unambiguous title, defined audience, and clear problem solved. (e.g., "How Recruiters Can Use AI Tools to Reduce Hiring Time by 40%")
+- 2. Structured Headings: H1 -> Main topic, H2 -> Core sections, H3 -> Sub-points.
+- 3. Direct Answer Blocks (VERY IMPORTANT): Include a TL;DR section, Definition block, and Step-by-step summaries right at the top.
+- 4. Chunkable Content: Use bullet points, numbered lists, and short paragraphs (2-4 lines max).
+- 5. Entity-Rich Content (CRITICAL): Include specific People, Tools, Companies, and Concepts (e.g., "Tools like ChatGPT, Claude, and Perplexity").
+- 6. Context + Depth: Answer What, Why, How, When, and Alternatives. Include Examples, Use cases, and Comparisons.
+- 7. FAQ Section (AI Goldmine): Add 5-10 questions at the end (What is X? How does X work? Alternatives to X?).
+- 8. Internal + External Linking: Include Markdown links to the homepage [Hireschema](/) and other relevant slugs: ${existingSlugs}.
+- Write at least 3 "quote-worthy" lines
+
+---
+
+## PART 4: DEPTH & ORIGINALITY
+- Add at least 2 unique insights or perspectives
+- Include real or realistic examples
+- Include trade-offs (pros vs cons)
+- Avoid surface-level explanations
+- MUST be around 2000 characters in length.
+
+---
+
+## PART 5: STYLE CONSTRAINTS
+- Tone: smart, slightly informal, grounded
+- Avoid buzzwords unless necessary
+- Write like you're explaining to an intelligent friend
+
+---
+
+## OUTPUT FORMAT
+You MUST return ONLY a valid JSON object. No markdown code blocks, no intro text, no outro text. Just the raw JSON.
 Format required:
 {
   "slug": "unique-seo-friendly-slug-with-dashes",
-  "title": "Punchy, Clickable Title",
+  "title": "Punchy, Clickable, LLM-Optimized Title",
   "excerpt": "2 sentence meta description",
   "content": "# Markdown Content Goes Here\\n\\nKeep paragraphs short."
 }`;

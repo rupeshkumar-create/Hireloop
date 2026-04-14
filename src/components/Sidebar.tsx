@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 export function Sidebar() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, isImpersonating, stopImpersonating } = useAuth();
   const location = useLocation();
 
   const navItems = [
@@ -24,6 +24,23 @@ export function Sidebar() {
         <span className="text-lg font-semibold tracking-tight text-foreground">Hireschema</span>
       </div>
       
+      {isImpersonating && (
+        <div className="bg-orange-500 text-white p-3 m-3 rounded-md text-xs text-center font-medium shadow-sm">
+          <p className="mb-2">Impersonating: {profile?.email}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full bg-white text-orange-600 border-none hover:bg-orange-50"
+            onClick={() => {
+              stopImpersonating();
+              window.location.href = '/kingdomofkumar';
+            }}
+          >
+            Stop Impersonating
+          </Button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto py-6">
         <nav className="space-y-1 px-4">
           {navItems.map((item) => {
