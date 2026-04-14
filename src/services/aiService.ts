@@ -104,9 +104,10 @@ Rules:
 3. Append ATS site operators to find direct company listings. Use this exact string at the end of every query: (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:jobs.ashbyhq.com)
 4. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically.
 5. Apply strict filters to exclude jobs older than 7 days if your boolean string permits.
+6. EXPLICITLY TARGET these platforms in your boolean strings when possible: linkedin.com, indeed.com, flexjobs.com, weworkremotely.com, remote.co, builtin.com, wellfound.com, remoteok.com, weworkremotely.com, authenticjobs.com.
 
 Example Output format:
-"remote" AND ("Frontend" OR "Full Stack") AND "TypeScript" AND "React" (site:greenhouse.io OR site:lever.co OR site:workable.com)
+"remote" AND ("Frontend" OR "Full Stack") AND "TypeScript" AND "React" (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:weworkremotely.com OR site:remote.co)
 
 Target Paths: ${careerPaths.join(', ')}
 Resume Snippet: ${resumeText.substring(0, 1000)}
@@ -142,6 +143,13 @@ Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
   if (seenFingerprints.length > 0) {
     const seenSet = new Set(seenFingerprints);
     realJobs = realJobs.filter(j => !seenSet.has(jobFingerprint(j.title, j.company)));
+  }
+
+  // ---- NEW STEP: Limit Daily Jobs to 'limit' (10 for Pro, 1 for Free) ----
+  // Any extra jobs found are simply not processed today, saving them to be potentially found tomorrow 
+  // since their fingerprints are not added to the seen list yet.
+  if (realJobs.length > limit) {
+    realJobs = realJobs.slice(0, limit);
   }
 
   // ---- Step 2a: real jobs found → use OpenAI to score & format ----

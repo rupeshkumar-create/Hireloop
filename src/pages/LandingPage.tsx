@@ -57,7 +57,7 @@ export function LandingPage() {
             <span className="font-bold text-xl tracking-tight">Hireschema</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500">
-            <a href="#pricing" className="hover:text-zinc-900 transition-colors">Pricing</a>
+            <a href="#agent-workflow" className="hover:text-zinc-900 transition-colors">How it works</a>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:block">
@@ -331,61 +331,6 @@ export function LandingPage() {
               </div>
             </motion.div>
 
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-24 md:py-32">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Simple, transparent pricing</h2>
-            <p className="text-zinc-500 text-lg">Start for free, upgrade when you need more power.</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Tier */}
-            <div className="bg-white p-8 md:p-10 rounded-none border border-zinc-300 shadow-sm">
-              <h3 className="text-2xl font-bold mb-2">Basic</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold">$0</span>
-                <span className="text-zinc-500">/forever</span>
-              </div>
-              <p className="text-zinc-500 mb-8 pb-8 border-b border-zinc-200">Perfect for casual job seekers getting started.</p>
-              <ul className="space-y-4 mb-8">
-                {['1 daily AI job match', 'Basic resume tailoring', 'Standard Kanban board', 'Community support'].map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3 text-zinc-700">
-                    <CheckCircle2 className="w-5 h-5 text-zinc-900" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/login">
-                <Button className="w-full h-12 rounded-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all" variant="outline">Get Started Free</Button>
-              </Link>
-            </div>
-
-            {/* Pro Tier */}
-            <div className="bg-zinc-900 text-white p-8 md:p-10 rounded-none border border-zinc-900 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-white text-zinc-900 text-xs font-bold px-3 py-1 rounded-none border-l border-b border-zinc-900">POPULAR</div>
-              <h3 className="text-2xl font-bold mb-2">Pro</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold">$9</span>
-                <span className="text-zinc-400">/month</span>
-              </div>
-              <p className="text-zinc-400 mb-8 pb-8 border-b border-zinc-800">For serious professionals who want to land offers fast.</p>
-              <ul className="space-y-4 mb-8">
-                {['10 daily AI job matches', 'Advanced resume tailoring', '1-Click Cold Emails', 'Interview Q&A Generation', 'Salary Insights'].map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3 text-zinc-300">
-                    <CheckCircle2 className="w-5 h-5 text-white" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/login">
-                <Button className="w-full h-12 rounded-none shadow-md bg-white text-zinc-900 hover:bg-zinc-200 hover:shadow-lg hover:-translate-y-0.5 transition-all">Upgrade to Pro</Button>
-              </Link>
-            </div>
           </div>
         </div>
       </section>
