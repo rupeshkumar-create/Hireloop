@@ -1,4 +1,4 @@
-import { searchRemoteJobs, jobFingerprint, isAtsLink } from './serperService';
+import { searchRemoteJobs, jobFingerprint } from './serperService';
 
 // ---- NEW: AI Live Search Fallback (Perplexity) ----
 async function searchJobsWithAI(
@@ -13,7 +13,7 @@ Rules:
 1. The jobs MUST be 100% remote.
 2. They MUST have been posted within the last 7 days.
 3. ${minSalary ? `They MUST have a salary of at least $${minSalary}.` : 'Salary is preferred but optional.'}
-4. The applyLink MUST be a direct ATS link (e.g., greenhouse.io, lever.co, workable.com, myworkdayjobs.com, ashbyhq.com). Do NOT return generic job board links or Google search links.
+4. The applyLink MUST be a direct link to the job posting (ATS, company career page, or specialized remote job board). Do NOT return generic Google search links.
 5. Return the results as a raw JSON array of objects. Do not include markdown code blocks, just the JSON.
 
 Required JSON format for each object in the array:
@@ -205,10 +205,10 @@ Return a JSON array of exactly 3 strings. Respond ONLY with the JSON array.`;
       const fp = jobFingerprint(aiJob.title, aiJob.company);
       const alreadyInSerper = realJobs.some((rj) => jobFingerprint(rj.title, rj.company) === fp);
       
-      // Strict ATS check for AI generated links as well
-      const isAts = isAtsLink(aiJob.applyLink || '');
+      // Reject if it's a generic google search URL
+      const isDirectLink = aiJob.applyLink && !aiJob.applyLink.includes('google.com/search');
 
-      if (!seenFingerprints.includes(fp) && !alreadyInSerper && isAts) {
+      if (!seenFingerprints.includes(fp) && !alreadyInSerper && isDirectLink) {
         realJobs.push(aiJob);
       }
     }
@@ -313,7 +313,7 @@ Return a JSON array of EXACTLY ${limit} objects:
 - location (string) - must contain "Remote"
 - salary (string)
 - description (string)
-- url (string) - A direct ATS link to the job (e.g. https://boards.greenhouse.io/company/jobid)
+- url (string) - A direct link to the job posting. Do NOT return Google search links.
 - requirements (array of strings)
 - matchScore (number)
 - datePosted (string ISO format)

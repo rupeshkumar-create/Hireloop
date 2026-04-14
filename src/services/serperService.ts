@@ -10,20 +10,6 @@ export interface SerperJob {
   postedAt: string;
 }
 
-export const ATS_DOMAINS = [
-  'greenhouse.io', 'lever.co', 'workable.com', 'ashbyhq.com', 
-  'myworkdayjobs.com', 'bamboohr.com', 'jobvite.com', 'icims.com',
-  'smartrecruiters.com', 'recruitee.com', 'rippling.com', 'paylocity.com',
-  'breezy.hr', 'applytojob.com', 'jobs.workable.com', 'jobs.eu.lever.co',
-  'boards.greenhouse.io', 'boards.eu.greenhouse.io', 'career-pages.workable.com'
-];
-
-export function isAtsLink(url: string): boolean {
-  if (!url) return false;
-  const lowerUrl = url.toLowerCase();
-  return ATS_DOMAINS.some(domain => lowerUrl.includes(domain));
-}
-
 /**
  * Parses Serper's "X days ago" / "X weeks ago" strings into a number of days.
  * Returns 0 for "today", "just posted", "X hours ago".
@@ -121,8 +107,8 @@ export async function searchRemoteJobs(
 
         const finalLink = directApplyLink || job.apply_link || job.link;
         
-        // Strict ATS link check
-        if (!finalLink || !isAtsLink(finalLink)) {
+        // Ensure there is a valid direct link
+        if (!finalLink || finalLink.includes('google.com/search')) {
           continue;
         }
 
