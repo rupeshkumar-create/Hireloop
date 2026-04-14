@@ -23,13 +23,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (getApps().length > 0) {
       const db = getFirestore();
       
-      // Note: In production with >10 users, Vercel's 10s execution limit will timeout.
-      // This logic should ideally push events to a Pub/Sub queue.
-      // For this implementation, we will process a small batch.
+      // Note: For Vercel Cron on hobby tier (10s limit), this will timeout if there are many users.
+      // We will process a small batch sequentially.
       
       const usersRef = db.collection('users');
-      // Fetch users who haven't explicitly disabled alerts
-      const snapshot = await usersRef.limit(20).get(); 
+      // Fetch up to 5 users who haven't explicitly disabled alerts
+      const snapshot = await usersRef.limit(5).get(); 
       
       const today = new Date().toISOString().split('T')[0];
 
@@ -38,8 +37,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (userData.receiveDailyAlerts === false) continue;
         if (!userData.careerPaths || userData.careerPaths.length === 0) continue;
 
-        // Note: For Vercel Cron on hobby tier (10s limit), this will timeout if there are many users.
-        // We log the generation step here.
+        // In a real serverless setup, you can either:
+        // 1. Process them sequentially (what we do here, but limited to ~5 users to avoid 10s timeout)
+        // 2. Dispatch a background task to Inngest/Upstash/Google Cloud Tasks to process thousands of users.
+        
         console.log(`[Cron] Would generate jobs for user ${userData.email} and save to daily_matches/${today}`);
       }
       
