@@ -205,9 +205,9 @@ export function LandingPage() {
                     <span className="text-zinc-500 text-xs ml-2">agent_runtime.sh</span>
                   </div>
                   <div className="text-zinc-400 space-y-2 flex-1 overflow-hidden">
-                    <p><TypewriterText text="> Initializing web search protocols..." delay={200} /></p>
-                    <p><TypewriterText text="> Query: (Senior Frontend OR Full Stack) AND Remote" delay={1200} /></p>
-                    <p><TypewriterText text="> Scraping 14 live job boards..." delay={2200} /></p>
+                    <p><TypewriterText text="> Initializing Deep Web Sourcing protocols..." delay={200} /></p>
+                    <p><TypewriterText text='> Generating Boolean: "remote" AND "React" AND "TypeScript" (site:greenhouse.io OR site:lever.co)' delay={1200} /></p>
+                    <p><TypewriterText text="> Bypassing job boards. Scraping direct ATS listings..." delay={2200} /></p>
                     <p><TypewriterText text="> Found 1,420 raw matches." delay={3000} /></p>
                     <p><TypewriterText text="> Applying semantic filters (Salary > $120k)..." delay={3800} /></p>
                     <motion.div 
@@ -222,14 +222,14 @@ export function LandingPage() {
               </div>
               <div>
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-zinc-900 text-white font-mono font-bold mb-6 shadow-lg border border-zinc-900">02</div>
-                <h3 className="text-3xl font-bold mb-4">Live Web Grounding</h3>
+                <h3 className="text-3xl font-bold mb-4">Deep Web Sourcing</h3>
                 <p className="text-lg text-zinc-500 leading-relaxed mb-6">
-                  While you sleep, the agent hunts exclusively remote roles — no hybrid, no on-site. It surfaces only verified, active remote positions matched to your profile, posted within the last 48 hours.
+                  The AI acts as an elite executive sourcer. It deeply analyzes your specific tech stack and generates highly optimized Boolean search queries. Instead of scraping noisy job boards, it scours the internet and directly searches Applicant Tracking Systems (Greenhouse, Lever, Workable) to find hidden remote gems perfectly matched to your resume.
                 </p>
                 <ul className="space-y-3 text-zinc-600 font-medium">
-                  <li className="flex items-center gap-2"><Globe className="h-5 w-5 text-zinc-900" /> Remote-only filter, always enforced</li>
-                  <li className="flex items-center gap-2"><Terminal className="h-5 w-5 text-zinc-900" /> Filters by your exact salary expectations</li>
-                  <li className="flex items-center gap-2"><Star className="h-5 w-5 text-zinc-900" /> Scores matches against your resume</li>
+                  <li className="flex items-center gap-2"><Globe className="h-5 w-5 text-zinc-900" /> Bypasses noisy job boards to find direct listings</li>
+                  <li className="flex items-center gap-2"><Terminal className="h-5 w-5 text-zinc-900" /> Generates complex Boolean ATS queries based on your skills</li>
+                  <li className="flex items-center gap-2"><Star className="h-5 w-5 text-zinc-900" /> Scores and ranks the hidden matches against your resume</li>
                 </ul>
               </div>
             </motion.div>

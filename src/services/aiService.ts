@@ -69,13 +69,18 @@ export async function generateDailyJobs(
   seenFingerprints: string[] = [] // fingerprints of jobs already shown to this user
 ) {
   // ---- Step 0: Generate Optimized Search Queries using Gemini ----
-  const queryPrompt = `You are an expert technical sourcer. Based on the candidate's resume and target career paths, generate 3 highly effective Google Jobs search queries.
+  const queryPrompt = `You are an elite Executive Technical Sourcer. Your goal is to find highly relevant, hidden remote jobs for this candidate by bypassing generic job boards and searching ATS (Applicant Tracking System) platforms directly.
   
+Based on the candidate's resume and target career paths, generate 3 highly optimized Boolean search queries for Google.
+
 Rules:
-1. ALL queries MUST include the word "remote".
-2. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically (e.g. "salary $100k+").
-3. Use variations of the target titles and core skills found in the resume to maximize results.
-4. Keep them concise, like a human typing into Google.
+1. Every query MUST include the word "remote".
+2. Extract the 2-3 most important technical skills or domain expertise from the resume and include them in the query (e.g., "React" AND "TypeScript").
+3. Append ATS site operators to find direct company listings. Use this exact string at the end of every query: (site:greenhouse.io OR site:lever.co OR site:workable.com OR site:jobs.ashbyhq.com)
+4. If a minimum salary is provided (${minSalary ? '$' + minSalary : 'none'}), try to append it logically.
+
+Example Output format:
+"remote" AND ("Frontend" OR "Full Stack") AND "TypeScript" AND "React" (site:greenhouse.io OR site:lever.co OR site:workable.com)
 
 Target Paths: ${careerPaths.join(', ')}
 Resume Snippet: ${resumeText.substring(0, 1000)}
