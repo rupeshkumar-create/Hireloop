@@ -382,11 +382,11 @@ export function JobTracker() {
                                 <input 
                                   type="text" 
                                   placeholder="e.g. Make it shorter and more aggressive" 
-                                  className="flex-1 text-xs border border-indigo-200 bg-indigo-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  className="flex-1 text-xs border border-orange-200 bg-orange-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500"
                                   value={emailInstruction}
                                   onChange={(e) => setEmailInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
+                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
                                   {actionLoading[`${job.id}-email-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>
@@ -450,11 +450,11 @@ export function JobTracker() {
                                 <input 
                                   type="text" 
                                   placeholder="e.g. Focus more on Leadership skills" 
-                                  className="flex-1 text-xs border border-indigo-200 bg-indigo-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  className="flex-1 text-xs border border-orange-200 bg-orange-50/30 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500"
                                   value={resumeInstruction}
                                   onChange={(e) => setResumeInstruction(e.target.value)}
                                 />
-                                <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
+                                <Button size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
                                   {actionLoading[`${job.id}-resume-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
                                 </Button>
                               </div>

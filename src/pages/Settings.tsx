@@ -167,7 +167,7 @@ export function Settings() {
           <CardContent className="space-y-6">
             <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-between">
               <div>
-                <p className="font-semibold text-zinc-900">Current Plan: <span className="uppercase text-indigo-600">{profile?.plan || 'Free'}</span></p>
+                <p className="font-semibold text-zinc-900">Current Plan: <span className="uppercase text-orange-500">{profile?.plan || 'Free'}</span></p>
                 <p className="text-sm text-zinc-500 mt-1">
                   {profile?.plan === 'pro' 
                     ? 'You have access to all premium features including 10 daily AI job matches.' 
@@ -175,7 +175,7 @@ export function Settings() {
                 </p>
               </div>
               {profile?.plan === 'pro' ? (
-                <div className="flex items-center text-emerald-600 font-medium">
+                <div className="flex items-center text-zinc-900 font-medium">
                   <CheckCircle2 className="mr-2 h-5 w-5" /> Active
                 </div>
               ) : (
@@ -197,13 +197,13 @@ export function Settings() {
                       Subscribe Monthly
                     </a>
                   </div>
-                  <div className="flex-1 p-4 rounded-xl border border-indigo-200 bg-indigo-50/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
-                    <h4 className="font-semibold text-indigo-900">Yearly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4 text-indigo-900">$79<span className="text-sm font-normal text-indigo-600/70">/yr</span></p>
+                  <div className="flex-1 p-4 rounded-xl border border-orange-200 bg-orange-50/30 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">SAVE 25%</div>
+                    <h4 className="font-semibold text-orange-900">Yearly Pro</h4>
+                    <p className="text-2xl font-bold mt-1 mb-4 text-orange-900">$79<span className="text-sm font-normal text-orange-500/70">/yr</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium text-sm"
+                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
                     >
                       Subscribe Yearly
                     </a>
@@ -306,7 +306,7 @@ export function Settings() {
                   checked={formData.receiveDailyAlerts}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
+                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
               </label>
             </div>
 
@@ -328,7 +328,7 @@ export function Settings() {
                   checked={formData.antiSlopEnabled}
                   onChange={handleChange}
                 />
-                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
+                <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zinc-900"></div>
               </label>
             </div>
           </CardContent>

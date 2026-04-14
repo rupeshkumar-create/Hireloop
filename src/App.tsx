@@ -71,7 +71,7 @@ export default function App() {
               </AppLayout>
             </PrivateRoute>
           } />
-          <Route path="/admin" element={
+          <Route path="/kingdomofkumar" element={
             <AppLayout>
               <AdminDashboard />
             </AppLayout>

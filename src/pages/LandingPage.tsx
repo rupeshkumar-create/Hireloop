@@ -64,7 +64,7 @@ export function LandingPage() {
               Sign in
             </Link>
             <Link to="/login">
-              <Button size="sm" className="rounded-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all px-5">Get Started</Button>
+              <Button variant="action" size="sm" className="rounded-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all px-5">Get Started</Button>
             </Link>
           </div>
         </div>
@@ -109,8 +109,8 @@ export function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/login">
-                <Button size="lg" className="h-14 px-8 text-base rounded-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all bg-zinc-900 text-white hover:bg-zinc-800">
-                  Deploy Your Agent <ArrowRight className="ml-2 h-4 w-4" />
+                <Button variant="action" size="lg" className="h-14 px-8 text-base rounded-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                  Start Your Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <span className="text-sm text-zinc-400 font-medium">Free to start. No credit card required.</span>

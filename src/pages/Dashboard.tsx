@@ -77,7 +77,7 @@ export function Dashboard() {
             <button 
               onClick={() => fetchJobs(true)} 
               disabled={loadingJobs}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-sm font-medium transition-colors"
             >
               <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
               {loadingJobs ? 'Scanning...' : 'Refresh Matches'}

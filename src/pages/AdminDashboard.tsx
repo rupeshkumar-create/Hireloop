@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminDashboard() {
   const { user } = useAuth();
@@ -149,7 +150,7 @@ export function AdminDashboard() {
                     <td className="px-6 py-4 font-medium text-zinc-900">{u.email}</td>
                     <td className="px-6 py-4 text-zinc-500">{u.displayName || '-'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${u.plan === 'pro' ? 'bg-indigo-100 text-indigo-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${u.plan === 'pro' ? 'bg-orange-100 text-orange-700' : 'bg-zinc-100 text-zinc-600'}`}>
                         {u.plan || 'free'}
                       </span>
                     </td>
@@ -169,46 +170,53 @@ export function AdminDashboard() {
       </div>
 
       {/* Change Plan Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl border border-zinc-200">
-            <h3 className="text-lg font-bold mb-4 text-zinc-900">Change Plan: {selectedUser.email}</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">New Plan</label>
-                <select 
-                  className="w-full border border-zinc-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
-                  value={newPlan}
-                  onChange={(e) => setNewPlan(e.target.value as 'free' | 'pro')}
-                >
-                  <option value="free">Free</option>
-                  <option value="pro">Pro</option>
-                </select>
+      <AnimatePresence>
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white/80 backdrop-blur-2xl w-full max-w-md rounded-3xl p-6 shadow-2xl border border-white/40"
+            >
+              <h3 className="text-lg font-bold mb-4 text-zinc-900">Change Plan: {selectedUser.email}</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">New Plan</label>
+                  <select 
+                    className="w-full border border-zinc-200 bg-white/50 backdrop-blur-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none"
+                    value={newPlan}
+                    onChange={(e) => setNewPlan(e.target.value as 'free' | 'pro')}
+                  >
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Reason for Change (Required)</label>
+                  <textarea 
+                    required
+                    className="w-full border border-zinc-200 bg-white/50 backdrop-blur-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none text-sm"
+                    rows={3}
+                    placeholder="e.g. Paid via manual wire transfer, Refunded, VIP user"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Reason for Change (Required)</label>
-                <textarea 
-                  required
-                  className="w-full border border-zinc-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:outline-none text-sm"
-                  rows={3}
-                  placeholder="e.g. Paid via manual wire transfer, Refunded, VIP user"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
+              <div className="flex justify-end gap-3 mt-6">
+                <Button variant="ghost" onClick={() => setSelectedUser(null)}>Cancel</Button>
+                <Button variant="action" onClick={handleChangePlan} disabled={saving || !reason.trim()}>
+                  {saving ? 'Saving...' : 'Confirm Change'}
+                </Button>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="ghost" onClick={() => setSelectedUser(null)}>Cancel</Button>
-              <Button onClick={handleChangePlan} disabled={saving || !reason.trim()}>
-                {saving ? 'Saving...' : 'Confirm Change'}
-              </Button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -93,16 +93,16 @@ export function JobDetailsPanel({
             <h4 className="font-bold text-zinc-900 font-display mb-4">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('email', selectedJob)}>
-                <Mail className="mr-2 h-4 w-4 text-indigo-500" /> Cold Email
+                <Mail className="mr-2 h-4 w-4 text-orange-500" /> Cold Email
               </Button>
               <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('resume', selectedJob)}>
-                <FileText className="mr-2 h-4 w-4 text-emerald-500" /> Tailor Resume
+                <FileText className="mr-2 h-4 w-4 text-zinc-700" /> Tailor Resume
               </Button>
               <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('interview', selectedJob)}>
-                <MessageSquare className="mr-2 h-4 w-4 text-amber-500" /> Interview Prep
+                <MessageSquare className="mr-2 h-4 w-4 text-zinc-700" /> Interview Prep
               </Button>
               <Button variant="outline" className="bg-white/60 hover:bg-white shadow-sm border-zinc-200" onClick={() => handleAiAction('salary', selectedJob)}>
-                <TrendingUp className="mr-2 h-4 w-4 text-rose-500" /> Salary Data
+                <TrendingUp className="mr-2 h-4 w-4 text-zinc-700" /> Salary Data
               </Button>
             </div>
           </div>
@@ -117,7 +117,7 @@ export function JobDetailsPanel({
               >
                 <div className="flex items-center justify-between mb-6">
                   <h4 className="font-bold text-zinc-900 font-display flex items-center gap-2 text-lg">
-                    <Sparkles className="h-5 w-5 text-indigo-500" />
+                    <Sparkles className="h-5 w-5 text-orange-500" />
                     {aiAction === 'email' && 'Cold Email Draft'}
                     {aiAction === 'resume' && 'Tailored Resume'}
                     {aiAction === 'interview' && 'Interview Questions'}

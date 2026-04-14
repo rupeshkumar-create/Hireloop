@@ -57,17 +57,17 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
           <p className="text-zinc-600">{profile.resumeAnalysis.summary}</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-emerald-200 bg-emerald-50/50">
+            <Card className="border-zinc-200 bg-white">
               <CardHeader className="pb-2">
-                <CardTitle className="text-emerald-800 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" /> Strengths
+                <CardTitle className="text-zinc-800 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-orange-500" /> Strengths
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.strengths.map((strength: string, i: number) => (
-                    <li key={i} className="text-sm text-emerald-900 flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                    <li key={i} className="text-sm text-zinc-700 flex items-start">
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
                       <span className="leading-relaxed">{strength}</span>
                     </li>
                   ))}
@@ -75,17 +75,17 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
               </CardContent>
             </Card>
 
-            <Card className="border-amber-200 bg-amber-50/50">
+            <Card className="border-zinc-200 bg-white">
               <CardHeader className="pb-2">
-                <CardTitle className="text-amber-800 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" /> Areas for Improvement
+                <CardTitle className="text-zinc-800 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-orange-500" /> Areas for Improvement
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.improvements.map((improvement: string, i: number) => (
-                    <li key={i} className="text-sm text-amber-900 flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                    <li key={i} className="text-sm text-zinc-700 flex items-start">
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
                       <span className="leading-relaxed">{improvement}</span>
                     </li>
                   ))}
@@ -96,19 +96,19 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
 
           {/* Remote Readiness Card */}
           {profile.resumeAnalysis.remoteReadiness && (
-            <Card className="border-blue-200 bg-blue-50/50">
+            <Card className="border-zinc-200 bg-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-blue-800 flex items-center gap-2">
-                    <Globe className="h-5 w-5" /> Remote Readiness
+                  <CardTitle className="text-zinc-800 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-orange-500" /> Remote Readiness
                   </CardTitle>
-                  <span className="text-2xl font-bold text-blue-900">
+                  <span className="text-2xl font-bold text-zinc-900">
                     {profile.resumeAnalysis.remoteReadiness.score}/100
                   </span>
                 </div>
-                <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                <div className="w-full bg-zinc-100 rounded-full h-2 mt-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    className="bg-orange-500 h-2 rounded-full transition-all"
                     style={{ width: `${profile.resumeAnalysis.remoteReadiness.score}%` }}
                   />
                 </div>
@@ -116,8 +116,8 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
               <CardContent>
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.remoteReadiness.tips.map((tip: string, i: number) => (
-                    <li key={i} className="text-sm text-blue-900 flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                    <li key={i} className="text-sm text-zinc-700 flex items-start">
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
                       <span className="leading-relaxed">{tip}</span>
                     </li>
                   ))}

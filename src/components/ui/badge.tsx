@@ -13,7 +13,7 @@ const Badge = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
             "border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-200": variant === "secondary",
             "text-zinc-950 border-zinc-200": variant === "outline",
             "border-transparent bg-red-100 text-red-900 hover:bg-red-200": variant === "destructive",
-            "border-transparent bg-emerald-100 text-emerald-900 hover:bg-emerald-200": variant === "success",
+            "border-transparent bg-orange-100 text-orange-900 hover:bg-orange-200": variant === "success",
           },
           className
         )}

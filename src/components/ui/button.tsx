@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive', size?: 'default' | 'sm' | 'lg' | 'icon' }>(
+const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive' | 'action', size?: 'default' | 'sm' | 'lg' | 'icon' }>(
   ({ className, variant = "default", size = "default", ...props }, ref) => {
     return (
       <button
@@ -10,6 +10,7 @@ const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HT
           "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           {
             "bg-zinc-900 text-white hover:bg-zinc-800": variant === "default",
+            "bg-orange-500 text-white hover:bg-orange-600": variant === "action",
             "bg-zinc-100 text-zinc-900 hover:bg-zinc-200": variant === "secondary",
             "border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-zinc-900": variant === "outline",
             "hover:bg-zinc-100 hover:text-zinc-900": variant === "ghost",
