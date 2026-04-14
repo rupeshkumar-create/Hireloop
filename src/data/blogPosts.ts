@@ -1,0 +1,34 @@
+export interface BlogPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  date: string;
+  author: string;
+}
+
+export const blogPosts: BlogPost[] = [
+  {
+    slug: 'how-to-find-hidden-remote-jobs-2026',
+    title: 'How to Find Hidden Remote Jobs in 2026',
+    excerpt: 'The landscape of remote work has changed. Here is how to bypass the noise of generic job boards and find the roles companies actually want to fill.',
+    date: '2026-04-14',
+    author: 'Hireschema Team',
+    content: `
+# How to Find Hidden Remote Jobs in 2026
+
+The remote job market has never been more competitive. With thousands of applicants spamming the "Easy Apply" button on LinkedIn and Indeed, standing out is nearly impossible.
+
+## The Problem with Job Boards
+Most generic job boards are filled with "ghost jobs"—postings that companies leave up to collect resumes, but have no intention of hiring for right now. 
+
+## The Solution: Direct ATS Sourcing
+Instead of searching on job boards, you need to search the Applicant Tracking Systems (ATS) directly. Companies use platforms like Greenhouse, Lever, and Workable to manage their actual, active hiring pipelines.
+
+By using advanced Boolean search strings on Google (like \`site:greenhouse.io\`), you can completely bypass the job board aggregators and find the raw, active listings.
+
+## Enter Hireschema
+At Hireschema, our AI Agent does this automatically. It reads your resume, extracts your core competencies, and scours the internet for the exact ATS listings that match your profile.
+    `
+  }
+];

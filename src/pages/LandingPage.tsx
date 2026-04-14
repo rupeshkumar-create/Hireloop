@@ -56,8 +56,9 @@ export function LandingPage() {
             </div>
             <span className="font-bold text-xl tracking-tight">Hireschema</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-foreground-muted">
-            <a href="#agent-workflow" className="hover:text-foreground transition-colors">How it works</a>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500">
+            <a href="#agent-workflow" className="hover:text-zinc-900 transition-colors">How it works</a>
+            <Link to="/blog" className="hover:text-zinc-900 transition-colors">Blog</Link>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login" className="text-sm font-medium text-foreground-muted hover:text-foreground transition-colors hidden sm:block">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -41,21 +41,21 @@ export function AdminDashboard() {
   useEffect(() => {
     if (!isAuthenticated) return;
     
-    const fetchUsers = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'users'));
-        const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        // Sort by newest first
-        usersData.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-        setUsers(usersData);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        toast.error('Failed to load users');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
+    setLoading(true);
+    // Real-time listener for users collection
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      setUsers(usersData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users. Check permissions.');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [isAuthenticated]);
 
   const handleChangePlan = async () => {
