@@ -46,9 +46,9 @@ export function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-foreground font-sans selection:bg-border overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-border overflow-x-hidden">
       {/* Navigation */}
-      <nav className="border-b border-border bg-surface/80 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm">
+      <nav className="border-b border-border bg-surface/90 backdrop-blur-xl fixed top-0 w-full z-50 shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-none bg-foreground shadow-md">
@@ -72,8 +72,11 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex flex-col justify-center pt-20 pb-20 overflow-hidden">
+        {/* Smooth gradient from header (surface) to background */}
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-surface to-transparent z-0 pointer-events-none"></div>
+
         {/* Abstract Background Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] z-0 pointer-events-none"></div>
         
         {/* Floating Abstract Shapes */}
         <motion.div 
