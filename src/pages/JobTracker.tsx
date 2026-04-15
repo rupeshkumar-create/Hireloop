@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
+import { applyLearningEvent } from '../services/learningSignals';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 import { PageShell } from '../components/ui/page-shell';
 
@@ -33,6 +34,15 @@ interface TrackedJob {
   tailoredResume?: string;
   interviewQuestions?: string | string[];
   contactEmail?: string;
+}
+
+function toLearningEventJob(job: TrackedJob) {
+  return {
+    title: job.title,
+    company: job.company,
+    description: job.notes,
+    requirements: [],
+  };
 }
 
 const STATUSES = ['saved', 'applied', 'interviewing', 'offered', 'rejected'];
@@ -101,8 +111,24 @@ export function JobTracker() {
   }, [user]);
 
   const updateStatus = async (jobId: string, newStatus: string) => {
+    const job = jobs.find((item) => item.id === jobId);
+    if (!job) return;
+
     try {
       await updateDoc(doc(db, 'trackedJobs', jobId), { status: newStatus, updatedAt: new Date().toISOString() });
+
+      if (newStatus === 'applied' && job.status !== 'applied' && profile && updateProfile) {
+        try {
+          const nextSignals = applyLearningEvent(
+            profile.learningSignals,
+            'applied',
+            toLearningEventJob(job)
+          );
+          await updateProfile({ learningSignals: nextSignals });
+        } catch (learningError) {
+          console.error('Failed to record applied-job learning event:', learningError);
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `trackedJobs/${jobId}`);
     }
@@ -302,6 +328,23 @@ export function JobTracker() {
     }
   };
 
+  const openTrackedJobLink = async (job: TrackedJob) => {
+    if (profile && updateProfile) {
+      try {
+        const nextSignals = applyLearningEvent(
+          profile.learningSignals,
+          'clicked',
+          toLearningEventJob(job)
+        );
+        await updateProfile({ learningSignals: nextSignals });
+      } catch (learningError) {
+        console.error('Failed to record clicked-job learning event:', learningError);
+      }
+    }
+
+    window.open(job.url, '_blank');
+  };
+
   const sendEmail = (job: TrackedJob) => {
     if (!hasValidText(job.coldEmail)) return;
     const mailBody = encodeURIComponent(`${job.coldEmail || ''}\n\nJob URL: ${job.url}\n\n[Please see my resume attached]`);
@@ -396,7 +439,7 @@ export function JobTracker() {
                               
                               <div className="flex gap-1">
                                 {job.url && (
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-foreground" onClick={() => window.open(job.url, '_blank')}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-foreground" onClick={() => openTrackedJobLink(job)}>
                                     <ExternalLink className="h-3 w-3" />
                                   </Button>
                                 )}
@@ -447,7 +490,7 @@ export function JobTracker() {
                   </div>
                   <div className="ml-4 flex items-center gap-2">
                     {job.url && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted hover:text-foreground" onClick={(e) => { e.stopPropagation(); window.open(job.url, '_blank'); }}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted hover:text-foreground" onClick={(e) => { e.stopPropagation(); openTrackedJobLink(job); }}>
                         <ExternalLink className="h-4 w-4" />
                       </Button>
                     )}

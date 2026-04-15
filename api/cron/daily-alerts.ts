@@ -1,55 +1,98 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAdminDb } from '../_lib/firebaseAdmin';
+import { requireCronSecret } from '../_lib/cronAuth';
+import {
+  getCronRunDateIST,
+  isActiveCronUser,
+  queueCronRun,
+} from '../../src/services/cronEngine';
 
-if (!getApps().length && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-  try {
-    initializeApp({
-      credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY))
-    });
-  } catch (error) {
-    console.error("Firebase admin init error", error);
+const DISPATCH_BATCH_SIZE = 10;
+
+function getRequestBaseUrl(req: VercelRequest): string {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto || 'https';
+  const host = req.headers.host || process.env.VERCEL_URL;
+
+  if (!host) {
+    throw new Error('Missing request host');
   }
+
+  return `${protocol}://${host}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).end('Unauthorized');
+  if (!requireCronSecret(req, res)) {
+    return;
   }
 
   try {
-    console.log("Running daily alerts cron at 8:00 AM IST");
-    
-    if (getApps().length > 0) {
-      const db = getFirestore();
-      
-      // Note: For Vercel Cron on hobby tier (10s limit), this will timeout if there are many users.
-      // We will process a small batch sequentially.
-      
-      const usersRef = db.collection('users');
-      // Fetch up to 5 users who haven't explicitly disabled alerts
-      const snapshot = await usersRef.limit(5).get(); 
-      
-      const today = new Date().toISOString().split('T')[0];
+    const db = getAdminDb();
+    const runDate = getCronRunDateIST();
+    const baseUrl = getRequestBaseUrl(req);
+    const snapshot = await db.collection('users').limit(DISPATCH_BATCH_SIZE).get();
 
-      for (const userDoc of snapshot.docs) {
-        const userData = userDoc.data();
-        if (userData.receiveDailyAlerts === false) continue;
-        if (!userData.careerPaths || userData.careerPaths.length === 0) continue;
+    let queued = 0;
+    let skipped = 0;
+    let duplicates = 0;
 
-        // In a real serverless setup, you can either:
-        // 1. Process them sequentially (what we do here, but limited to ~5 users to avoid 10s timeout)
-        // 2. Dispatch a background task to Inngest/Upstash/Google Cloud Tasks to process thousands of users.
-        
-        console.log(`[Cron] Would generate jobs for user ${userData.email} and save to daily_matches/${today}`);
+    for (const userDoc of snapshot.docs) {
+      const profile = userDoc.data();
+      if (!isActiveCronUser(profile)) {
+        skipped += 1;
+        continue;
       }
-      
-      console.log("Cron processed successfully.");
+
+      const queueResult = await queueCronRun(
+        {
+          userId: userDoc.id,
+          runDate,
+          plan: profile.plan,
+          email: profile.email,
+        },
+        {
+          createRun: async ({ runId, ...record }) => {
+            const ref = db.collection('cronRuns').doc(runId);
+            const existing = await ref.get();
+            if (existing.exists) {
+              return false;
+            }
+
+            await ref.set({
+              ...record,
+              status: 'queued',
+              dispatchSource: 'daily-alerts',
+              createdAt: new Date().toISOString(),
+            });
+
+            return true;
+          },
+        }
+      );
+
+      if (queueResult.status === 'duplicate') {
+        duplicates += 1;
+        continue;
+      }
+
+      queued += 1;
+
+      await fetch(`${baseUrl}/api/cron/process-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.INTERNAL_CRON_SECRET || process.env.CRON_SECRET}`,
+        },
+        body: JSON.stringify({
+          userId: userDoc.id,
+          runDate,
+        }),
+      });
     }
-    
-    return res.status(200).send('Cron executed');
-  } catch (error: any) {
-    console.error('Cron error:', error);
-    return res.status(500).send(error.message);
+
+    return res.status(200).json({ queued, skipped, duplicates, runDate });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({ error: message });
   }
 }

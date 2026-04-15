@@ -1,9 +1,130 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { suggestCareerPaths } from '../services/aiService';
+import {
+  normalizeResumeText,
+  type NormalizedUserPreferences,
+  normalizeUserPreferences,
+  syncLegacyPreferenceFields,
+} from '../services/validator';
+
+interface ProcessResumeTextOptions {
+  onSuccess?: () => void;
+  successMessage?: string;
+  showSuccessToast?: boolean;
+  careerPathsOverride?: string[];
+  preferencesOverride?: NormalizedUserPreferences;
+}
 
 export function useResumeParser(updateProfile: (data: any) => Promise<void>, profile: any) {
   const [analyzingResume, setAnalyzingResume] = useState(false);
+
+  const processResumeText = async (
+    rawText: string,
+    options?: ProcessResumeTextOptions
+  ): Promise<boolean> => {
+    setAnalyzingResume(true);
+
+    try {
+      const resumeRaw = rawText;
+      const resumeCleaned = normalizeResumeText(resumeRaw);
+
+      if (!resumeCleaned) {
+        toast.error('The provided resume text did not contain readable content.');
+        return false;
+      }
+
+      let paths = options?.careerPathsOverride ?? profile?.careerPaths ?? [];
+      let analysis = profile?.resumeAnalysis;
+      let structuredProfile = profile?.structuredProfile;
+      let resumeSummary = profile?.resumeSummary || '';
+
+      toast.info("Analyzing resume for structured profile and preferences...");
+      const {
+        analyzeResume,
+        extractJobPreferences,
+        extractResume,
+        summarizeResume,
+      } = await import('../services/aiService');
+
+      const extractedPreferences = await extractJobPreferences(resumeCleaned);
+      const normalizedPreferences =
+        options?.preferencesOverride ??
+        normalizeUserPreferences({
+          remoteOnly:
+            extractedPreferences?.jobType === 'remote' ||
+            profile?.preferences?.remoteOnly,
+          salaryFloor:
+            extractedPreferences?.minSalary ??
+            profile?.preferences?.salaryFloor ??
+            null,
+          locations: extractedPreferences?.location
+            ? [extractedPreferences.location]
+            : profile?.preferences?.locations || [],
+        });
+      const legacyPreferenceFields =
+        syncLegacyPreferenceFields(normalizedPreferences);
+      toast.success("Job preferences automatically configured!");
+
+      const extractedStructuredProfile = await extractResume(resumeCleaned);
+      if (extractedStructuredProfile) {
+        structuredProfile = extractedStructuredProfile;
+        toast.success("Structured resume profile created!");
+      }
+
+      const extractedResumeSummary = await summarizeResume(resumeCleaned);
+      if (extractedResumeSummary) {
+        resumeSummary = extractedResumeSummary;
+      }
+
+      if (!options?.careerPathsOverride || options.careerPathsOverride.length === 0) {
+        const suggestedPaths = await suggestCareerPaths(
+          resumeCleaned,
+          profile?.antiSlopEnabled !== false
+        );
+        if (suggestedPaths && suggestedPaths.length > 0) {
+          paths = suggestedPaths;
+          toast.success("Career paths automatically detected!");
+        }
+      }
+
+      const resumeAnalysis = await analyzeResume(resumeCleaned, paths);
+      if (resumeAnalysis) {
+        analysis = resumeAnalysis;
+        toast.success("Resume analysis complete!");
+      }
+
+      await updateProfile({
+        resumeRaw,
+        resumeCleaned,
+        resumeSummary,
+        structuredProfile,
+        preferences: normalizedPreferences,
+        resumeText: resumeCleaned,
+        careerPaths: paths,
+        resumeAnalysis: analysis,
+        jobType: legacyPreferenceFields.jobType,
+        minSalary: legacyPreferenceFields.minSalary,
+        location: legacyPreferenceFields.location,
+      });
+
+      if (options?.showSuccessToast !== false) {
+        toast.success(options?.successMessage || "Resume processed successfully!");
+      }
+      options?.onSuccess?.();
+      return true;
+    } catch (error: any) {
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to analyze your resume.', { duration: 6000 });
+      } else {
+        console.error("Error saving resume to Firestore:", error);
+        toast.error(`Failed to save resume: ${error.message || 'Unknown error'}`);
+      }
+      return false;
+    } finally {
+      setAnalyzingResume(false);
+    }
+  };
 
   const handleFileUpload = async (file: File | undefined, onSuccess: () => void) => {
     if (!file) return;
@@ -51,58 +172,11 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       return;
     }
 
-    try {
-      let paths = profile?.careerPaths || [];
-      let analysis = profile?.resumeAnalysis;
-      let jobType = profile?.jobType || 'remote';
-      let minSalary = profile?.minSalary || null;
-
-      if (text.trim()) {
-        toast.info("Analyzing resume for career paths and preferences...");
-        const suggestedPaths = await suggestCareerPaths(text, profile?.antiSlopEnabled !== false);
-        if (suggestedPaths && suggestedPaths.length > 0) {
-          paths = suggestedPaths;
-          toast.success("Career paths automatically detected!");
-        }
-        
-        const { analyzeResume, extractJobPreferences } = await import('../services/aiService');
-        
-        // Extract Job Preferences (Type & Salary)
-        const preferences = await extractJobPreferences(text);
-        if (preferences) {
-          jobType = preferences.jobType;
-          minSalary = preferences.minSalary;
-          toast.success("Job preferences automatically configured!");
-        }
-
-        // Analyze Resume
-        const resumeAnalysis = await analyzeResume(text, paths);
-        if (resumeAnalysis) {
-          analysis = resumeAnalysis;
-          toast.success("Resume analysis complete!");
-        }
-      }
-
-      await updateProfile({
-        resumeText: text,
-        careerPaths: paths,
-        resumeAnalysis: analysis,
-        jobType,
-        minSalary,
-      });
-      toast.success("Resume uploaded successfully!");
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      if (error.message === 'AI_QUOTA_EXCEEDED') {
-        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to analyze your resume.', { duration: 6000 });
-      } else {
-        console.error("Error saving resume to Firestore:", error);
-        toast.error(`Failed to save resume: ${error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setAnalyzingResume(false);
-    }
+    await processResumeText(text, {
+      onSuccess,
+      successMessage: 'Resume uploaded successfully!',
+    });
   };
 
-  return { analyzingResume, handleFileUpload };
+  return { analyzingResume, handleFileUpload, processResumeText };
 }

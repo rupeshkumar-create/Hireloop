@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 interface JobDetailsPanelProps {
   selectedJob: Job;
   saveJob: (j: Job) => void;
+  dismissJob: (j: Job) => void;
+  trackJobClick: (j: Job) => void;
   handleAiAction: (a: AiActionType, j: Job) => void;
   aiAction: AiActionType;
   aiResult: string | string[];
@@ -23,7 +25,7 @@ interface JobDetailsPanelProps {
 }
 
 export function JobDetailsPanel({
-  selectedJob, saveJob, handleAiAction, aiAction, aiResult, actionLoading, downloadResume, onClose
+  selectedJob, saveJob, dismissJob, trackJobClick, handleAiAction, aiAction, aiResult, actionLoading, downloadResume, onClose
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
   return (
@@ -54,11 +56,22 @@ export function JobDetailsPanel({
             <p className="text-xl font-medium text-foreground-muted mb-6">{selectedJob.company}</p>
             
             <div className="flex gap-3 mb-8">
-              <Button variant="action" className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]" size="lg" onClick={() => window.open(selectedJob.url, '_blank')}>
+              <Button variant="action" className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]" size="lg" onClick={() => trackJobClick(selectedJob)}>
                 Apply Now <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
               <Button variant="outline" size="lg" className="border-border bg-surface" onClick={() => saveJob(selectedJob)} title="Save to Tracker">
                 <BookmarkPlus className="h-5 w-5" /> Save Job
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="text-foreground-muted"
+                onClick={() => {
+                  dismissJob(selectedJob);
+                  onClose();
+                }}
+              >
+                Not for me
               </Button>
             </div>
 

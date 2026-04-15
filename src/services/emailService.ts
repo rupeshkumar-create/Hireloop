@@ -33,10 +33,8 @@ export const sendSignupEmail = async (userEmail: string, userName: string) => {
   });
 };
 
-export const sendDailyJobAlertsEmail = async (userEmail: string, jobs: any[]) => {
-  if (!jobs || jobs.length === 0) return null;
-
-  return await sendResendEmail({
+export function buildDailyJobAlertsEmailPayload(userEmail: string, jobs: any[]) {
+  return {
     from: 'Hireschema Alerts <alerts@hireschema.com>',
     to: [userEmail],
     subject: `Your Daily Job Matches - ${jobs.length} New Roles`,
@@ -53,5 +51,11 @@ export const sendDailyJobAlertsEmail = async (userEmail: string, jobs: any[]) =>
         </ul>
       </div>
     `,
-  });
+  };
+}
+
+export const sendDailyJobAlertsEmail = async (userEmail: string, jobs: any[]) => {
+  if (!jobs || jobs.length === 0) return null;
+
+  return await sendResendEmail(buildDailyJobAlertsEmailPayload(userEmail, jobs));
 };

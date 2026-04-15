@@ -1,14 +1,29 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 import { sendSignupEmail } from '../services/emailService';
 
 import { ResumeAnalysis } from '../services/aiService';
+import type { LearningSignals } from '../services/learningSignals';
 
 export interface LearningProfile {
   jobPreferences?: string;
   writingStyle?: string;
+}
+
+export interface StructuredProfile {
+  skills: string[];
+  techStack: string[];
+  seniority: string;
+  roles: string[];
+  industries: string[];
+}
+
+export interface UserPreferences {
+  remoteOnly: boolean;
+  salaryFloor: number | null;
+  locations: string[];
 }
 
 export interface UserProfile {
@@ -21,6 +36,11 @@ export interface UserProfile {
   location?: string;
   minSalary?: number | null;
   resumeText?: string;
+  resumeRaw?: string;
+  resumeCleaned?: string;
+  resumeSummary?: string;
+  structuredProfile?: StructuredProfile;
+  preferences?: UserPreferences;
   resumeAnalysis?: ResumeAnalysis;
   plan?: 'free' | 'pro';
   receiveDailyAlerts?: boolean;
@@ -31,6 +51,7 @@ export interface UserProfile {
   updatedAt?: string;
   lastActiveAt?: string;
   learningProfile?: LearningProfile;
+  learningSignals?: LearningSignals;
 }
 
 interface AuthContextType {

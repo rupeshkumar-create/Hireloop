@@ -1,5 +1,32 @@
 import { SerperJob, SearchRemoteJobsStats, searchRemoteJobs, jobFingerprint } from './serperService';
-import { searchJobicy } from './jobicyService';
+import {
+  validateAssetForgeEmail,
+  validateGeneratedEmail,
+  validateJobScoringOutput,
+  validateJobValidationBatchOutput,
+  validateJobsBeforeAI,
+  validateQueryGenerationOutput,
+  validateStructuredProfile,
+  validateTailoredResumeOutput,
+  type GuardrailJobInput,
+  type GuardrailUserContext,
+  type JobValidationBatchResult,
+} from './validator';
+import { registerGuardrailTask, runWithGuardrails } from './systemEngine';
+import {
+  fetchRecruiterFromApollo,
+  type RecruiterContact,
+} from './apolloService';
+import {
+  rewriteScoutQueriesWithLearning,
+  type ScoutLearningContext,
+} from './learningSignals';
+import {
+  buildRejectionCodeCounts,
+  mapRejectedJobsWithCodes,
+  splitJobsBySeenFingerprints,
+} from './dailyJobsEngine';
+import type { DailyJobsDebugResult, GhostModeJob } from '../types/adminGhostMode';
 
 interface RankedJob {
   title: string;
@@ -28,12 +55,50 @@ interface RankedJob {
 }
 
 export interface GenerateDailyJobsResult {
-  jobs: RankedJob[];
+  jobs: GhostModeJob[];
   requestedLimit: number;
   usedBackfill: boolean;
   totalValidatedJobs: number;
   unseenCount: number;
   seenCount: number;
+}
+
+interface JobScoringTaskInput {
+  jobsToScore: SerperJob[];
+  careerPaths: string[];
+  resumeText: string;
+}
+
+interface EmailGenerationInput {
+  jobTitle: string;
+  company: string;
+  antiSlopEnabled: boolean;
+  writingStyleContext: string;
+  resumeText?: string;
+  resumeSummary?: string;
+  recruiter?: RecruiterContact;
+}
+
+interface ScoutContext {
+  careerPaths: string[];
+  resumeText: string;
+  resumeSummary?: string;
+  jobType?: string;
+  structuredProfile?: {
+    skills: string[];
+    techStack: string[];
+    seniority: string;
+    roles: string[];
+    industries: string[];
+  };
+  preferences?: {
+    remoteOnly: boolean;
+    salaryFloor: number | null;
+    locations: string[];
+  };
+  learningContext?: string;
+  learningSignals?: ScoutLearningContext;
+  location?: string;
 }
 
 function parseJsonArray(content: string): any[] {
@@ -95,6 +160,23 @@ function normalizeQueries(rawValue: unknown): string[] {
   }
 
   return [];
+}
+
+export function normalizeGeneratedQueries(queries: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const query of queries) {
+    const trimmed = query.trim().replace(/\s+/g, ' ');
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(trimmed);
+    if (normalized.length === 10) break;
+  }
+
+  return normalized;
 }
 
 function buildDeterministicQueries(careerPaths: string[], resumeText: string, minSalary: number | null, jobType: string, location: string): string[] {
@@ -185,6 +267,10 @@ function mergeDedupJobs(existingJobs: SerperJob[], incomingJobs: SerperJob[]): S
   return merged;
 }
 
+export function dedupeJobsByFingerprint(jobs: SerperJob[]): SerperJob[] {
+  return mergeDedupJobs([], jobs);
+}
+
 function getFreshnessScore(daysOld: number): number {
   return daysOld === 0 ? 100 : Math.max(20, 80 - daysOld * 10);
 }
@@ -216,6 +302,26 @@ function toIsoDate(postedAt: string, daysOld: number | undefined): string {
 
   const safeDaysOld = typeof daysOld === 'number' ? daysOld : 0;
   return new Date(Date.now() - safeDaysOld * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function toGuardrailJob(job: SerperJob): GuardrailJobInput {
+  const normalizedLocation = job.location.toLowerCase();
+  const descriptionText = job.description.toLowerCase();
+  const isRemote =
+    normalizedLocation.includes('remote') ||
+    descriptionText.includes('remote') ||
+    descriptionText.includes('work from home');
+
+  return {
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    description: job.description,
+    url: job.applyLink,
+    postedAt: toIsoDate(job.postedAt, job.daysOld),
+    isRemote,
+    salary: job.salary,
+  };
 }
 
 function normalizeRankedJob(rawJob: any, sourceJob: SerperJob): RankedJob {
@@ -255,6 +361,20 @@ function normalizeRankedJob(rawJob: any, sourceJob: SerperJob): RankedJob {
     hotSignals: Array.isArray(rawJob.hotSignals) ? rawJob.hotSignals.filter((value: unknown): value is string => typeof value === 'string') : [],
     isHotJob: hotJobScore >= 70,
     requiresRelocation: sourceJob.requiresRelocation === true,
+  };
+}
+
+function toGhostModeJob(job: SerperJob): GhostModeJob {
+  return {
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    salary: job.salary || 'Competitive',
+    description: job.description,
+    url: job.applyLink,
+    requirements: [],
+    datePosted: toIsoDate(job.postedAt, job.daysOld),
+    requiresRelocation: job.requiresRelocation === true,
   };
 }
 
@@ -344,6 +464,130 @@ function mergeSearchStats(base: SearchRemoteJobsStats, next: SearchRemoteJobsSta
   };
 }
 
+function buildFallbackScoutQueries(
+  context: ScoutContext,
+  minSalary: number | null,
+  jobType: string,
+  location: string
+): string[] {
+  return normalizeGeneratedQueries([
+    ...buildDeterministicQueries(
+      context.careerPaths,
+      context.resumeText,
+      minSalary,
+      jobType,
+      location
+    ),
+    ...buildExpansionQueries(
+      context.careerPaths,
+      context.resumeText,
+      jobType,
+      location
+    ),
+    ...buildBoardQueries(
+      context.careerPaths,
+      context.resumeText,
+      jobType,
+      location
+    ),
+  ]);
+}
+
+async function buildQueries(context: ScoutContext): Promise<string[]> {
+  const jobType = context.jobType || (context.preferences?.remoteOnly ? 'remote' : 'both');
+  const minSalary = context.preferences?.salaryFloor ?? null;
+  const location = context.preferences?.locations?.[0] || context.location || '';
+  const isRemote = jobType === 'remote' || jobType === 'both';
+  const isOnsite = jobType === 'onsite' || jobType === 'both';
+  const locationClause =
+    isOnsite && location
+      ? `If generating an on-site or hybrid query, MUST include the location: "${location}"`
+      : '';
+  const remoteClause = isRemote
+    ? 'MUST include "remote" if generating a remote query'
+    : 'MUST NOT include "remote"';
+
+  const prompt = `You are Scout, the job search query generator.
+
+Your job is NOT to generate broad queries.
+Your job is to find REAL, ACTIVE job postings.
+
+Hidden User Preferences learned from past behavior: ${context.learningContext || ''}
+
+# STRICT RULES
+- Job Type Preference: ${jobType}
+- ${remoteClause}
+- ${locationClause}
+- MUST include:
+  1 job title
+  2 core skills
+- MUST include ATS domains ONLY:
+(site:greenhouse.io OR site:lever.co OR site:ashbyhq.com OR site:workable.com OR site:jobs.workday.com)
+- MUST avoid:
+  linkedin.com
+  indeed.com
+  naukri.com
+
+# GOAL
+Generate exactly 10 HIGH-PRECISION queries:
+- narrow
+- specific
+- high signal
+
+Resume Summary:
+${context.resumeSummary || ''}
+
+Structured Profile:
+${JSON.stringify(context.structuredProfile || {}, null, 2)}
+
+Resume:
+${context.resumeText.substring(0, 1200)}
+
+Career Paths:
+${context.careerPaths.join(', ')}
+
+Return ONLY a JSON array of exactly 10 query strings.`;
+
+  try {
+    const queryResponse = await callOpenAI(
+      [{ role: 'user', content: prompt }],
+      undefined,
+      'openai/gpt-4o-mini'
+    );
+    if (queryResponse.choices?.[0]?.message?.content) {
+      const aiQueries = normalizeGeneratedQueries(
+        normalizeQueries(parseJsonArray(queryResponse.choices[0].message.content))
+      );
+      if (aiQueries.length === 10) {
+        return aiQueries;
+      }
+    }
+  } catch (error) {
+    console.error('Error generating scout queries:', error);
+  }
+
+  return buildFallbackScoutQueries(context, minSalary, jobType, location);
+}
+
+async function harvestJobs(
+  queries: string[],
+  options: {
+    jobType: string;
+    userLocation: string;
+    minSalary: number | null;
+  }
+) {
+  return searchRemoteJobs(queries, {
+    allowedDomains: ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'],
+    allowCompanyCareerPages: false,
+    maxDaysOld: 7,
+    maxQueries: 10,
+    maxJobs: 40,
+    jobType: options.jobType,
+    userLocation: options.userLocation,
+  });
+}
+
 async function scoreAndRankJobs(
   jobs: SerperJob[],
   careerPaths: string[],
@@ -406,9 +650,19 @@ Return ONLY a JSON array with one object per job in the same order:
 ]`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'anthropic/claude-3.5-sonnet');
-    const content = response.choices?.[0]?.message?.content || '[]';
-    const parsedScores = parseJsonArray(content);
+    const parsedScores = await runWithGuardrails(
+      'job_scoring',
+      async (input: JobScoringTaskInput) => {
+        const response = await callOpenAI(
+          [{ role: 'user', content: scoringPrompt }],
+          undefined,
+          'google/gemini-3.1-pro'
+        );
+        const content = response.choices?.[0]?.message?.content || '[]';
+        return parseJsonArray(content);
+      },
+      { jobsToScore, careerPaths, resumeText }
+    );
 
     return jobsToScore
       .map((job, index) => normalizeRankedJob(parsedScores[index] || {}, job))
@@ -477,6 +731,63 @@ Good (human): "Saw the Senior Engineer opening at Acme. I've spent the last 3 ye
 === END OF ANTI-SLOP FILTER ===
 `;
 
+registerGuardrailTask<
+  { expectedCount: number },
+  JobValidationBatchResult<GuardrailJobInput>
+>('validation', {
+  validateOutput: (output, input) =>
+    validateJobValidationBatchOutput(output, { expectedCount: input.expectedCount }),
+});
+
+registerGuardrailTask<ScoutContext, string[]>('query_generation', {
+  validateOutput: (output) =>
+    validateQueryGenerationOutput(output, { expectedCount: 10 }),
+});
+
+registerGuardrailTask<JobScoringTaskInput, any[]>('job_scoring', {
+  validateOutput: (output, input) =>
+    validateJobScoringOutput(output, { jobCount: input.jobsToScore.length }),
+});
+
+registerGuardrailTask<
+  EmailGenerationInput,
+  string
+>('email_generation', {
+  validateOutput: (output, input) =>
+    validateAssetForgeEmail(output, {
+      company: input.company,
+      jobTitle: input.jobTitle,
+    }),
+  selfFix: async (output, input, validation) =>
+    improveTextWithAI(
+      output,
+      `Fix this email. Reason: ${validation.reason}. Keep it under 120 words. Include ${input.company}. Include ${input.jobTitle}. Remove generic language.`,
+      input.writingStyleContext
+    ),
+});
+
+registerGuardrailTask<
+  {
+    jobTitle: string;
+    jobDescription: string;
+    resumeText: string;
+    antiSlopEnabled: boolean;
+    writingStyleContext: string;
+  },
+  string
+>('resume_tailoring', {
+  validateOutput: (output, input) =>
+    validateTailoredResumeOutput(output, {
+      jobDescription: input.jobDescription,
+    }),
+  selfFix: async (output, input, validation) =>
+    improveTextWithAI(
+      output,
+      `Fix this tailored resume. Reason: ${validation.reason}. Keep all claims grounded in the original resume and align more clearly with the job description keywords.`,
+      input.writingStyleContext
+    ),
+});
+
 // ---------------------------------------------------------------------------
 // Agent 1: Daily Job Generation
 // Real jobs sourced from Serper (Google Jobs), validated and then ranked.
@@ -502,198 +813,110 @@ Respond ONLY with the updated context string.`;
   }
 }
 
-export async function generateDailyJobs(
+export function toGenerateDailyJobsResult(
+  debug: DailyJobsDebugResult,
+  requestedLimit: number
+): GenerateDailyJobsResult {
+  return {
+    jobs: debug.finalJobs,
+    requestedLimit,
+    usedBackfill: debug.usedBackfill,
+    totalValidatedJobs: debug.validatedCount,
+    unseenCount: debug.unseenCount,
+    seenCount: debug.seenCount,
+  };
+}
+
+export async function generateDailyJobsDebug(
   careerPaths: string[],
-  jobType: string, 
+  jobType: string,
   minSalary: number | null,
   resumeText: string,
   limit: number = 1,
-  seenFingerprints: string[] = [], 
+  seenFingerprints: string[] = [],
   learningContext: string = '',
-  location: string = ''
-): Promise<GenerateDailyJobsResult> {
-  const isRemote = jobType === 'remote' || jobType === 'both';
-  const isOnsite = jobType === 'onsite' || jobType === 'both';
-  
-  const locationClause = isOnsite && location ? `If generating an on-site or hybrid query, MUST include the location: "${location}"` : '';
-  const remoteClause = isRemote ? 'MUST include "remote" if generating a remote query' : 'MUST NOT include "remote"';
-  
-  const queryPrompt = `
-You are a top 0.1% technical recruiter.
+  location: string = '',
+  learningSignals?: ScoutLearningContext
+): Promise<DailyJobsDebugResult> {
+  const scoutContext: ScoutContext = {
+    careerPaths,
+    resumeText,
+    jobType,
+    preferences: {
+      remoteOnly: jobType === 'remote',
+      salaryFloor: minSalary,
+      locations: location ? [location] : [],
+    },
+    learningContext,
+    learningSignals,
+    location,
+  };
 
-Your job is NOT to generate broad queries.
-Your job is to find REAL, ACTIVE job postings.
+  const generatedQueries = await runWithGuardrails(
+    'query_generation',
+    buildQueries,
+    scoutContext
+  );
+  const queries = normalizeGeneratedQueries(
+    rewriteScoutQueriesWithLearning(generatedQueries, scoutContext.learningSignals)
+  );
+  console.log('Scout Queries:', queries);
 
-Hidden User Preferences learned from past behavior: ${learningContext}
+  const { jobs: harvestedJobs, stats: harvestedStats } = await harvestJobs(queries, {
+    jobType,
+    userLocation: location,
+    minSalary,
+  });
+  console.log('Harvester Raw Jobs:', harvestedJobs.length);
 
-# STRICT RULES
+  const dedupedJobs = dedupeJobsByFingerprint(harvestedJobs);
+  console.log('After Dedupe:', dedupedJobs.length);
 
-- Job Type Preference: ${jobType}
-- ${remoteClause}
-- ${locationClause}
-- MUST include:
-  1 job title
-  2 core skills
-- MUST include ATS domains ONLY:
+  const guardrailJobs = dedupedJobs.map(toGuardrailJob);
+  const guardrailUser: GuardrailUserContext = {
+    preferences: {
+      remoteOnly: jobType === 'remote',
+      salaryFloor: minSalary,
+      locations: location ? [location] : [],
+    },
+  };
 
-(site:greenhouse.io OR site:lever.co OR site:ashbyhq.com OR site:workable.com OR site:jobs.workday.com)
+  const jobValidation = await runWithGuardrails(
+    'validation',
+    async () => validateJobsBeforeAI(guardrailJobs, guardrailUser, 7),
+    { expectedCount: guardrailJobs.length }
+  );
 
-- MUST avoid:
-  linkedin.com
-  indeed.com
-  naukri.com
+  const acceptedFingerprints = new Set(
+    jobValidation.accepted.map((job) => jobFingerprint(job.title, job.company))
+  );
 
-# GOAL
+  const acceptedRawJobs = dedupedJobs.filter((job) =>
+    acceptedFingerprints.has(jobFingerprint(job.title, job.company))
+  );
+  console.log('After Validation:', acceptedRawJobs.length);
+  console.log('Rejected Before AI:', jobValidation.rejected.length);
 
-Generate 5 HIGH-PRECISION queries:
-- narrow
-- specific
-- high signal
-- If Job Type is 'both', make half the queries remote and half on-site for ${location}.
+  const acceptedJobs = acceptedRawJobs.map(toGhostModeJob);
+  const rejectedJobs = mapRejectedJobsWithCodes(
+    jobValidation.rejected.map(({ job, validation }) => ({
+      job: toGhostModeJob({
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.description,
+        applyLink: job.url,
+        salary: job.salary || '',
+        postedAt: job.postedAt,
+      }),
+      validation,
+    }))
+  );
 
-Resume:
-${resumeText.substring(0, 1000)}
-
-Career Paths:
-${careerPaths.join(', ')}
-
-Return JSON array of 5 queries
-`;
-
-  let optimizedQueries: string[] = [];
-  try {
-    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], undefined, 'openai/gpt-4o-mini');
-    if (queryResponse.choices?.[0]?.message?.content) {
-      optimizedQueries = normalizeQueries(parseJsonArray(queryResponse.choices[0].message.content));
-    }
-  } catch (error) {
-    console.error('Error generating optimized queries:', error);
-  }
-
-  if (!optimizedQueries || optimizedQueries.length === 0) {
-    optimizedQueries = buildDeterministicQueries(careerPaths, resumeText, minSalary, jobType, location);
-  }
-  optimizedQueries = optimizedQueries.slice(0, 5);
-  console.log('Queries:', optimizedQueries);
-
-  const atsDomains = ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'];
-  const proBoardDomains = ['linkedin.com', 'indeed.com', 'glassdoor.com', 'ziprecruiter.com'];
-  const isPro = limit > 1;
-  const proMaxDaysOld = isPro ? 14 : 7;
-  const aggregatedStats = createEmptySearchStats();
-  let realJobs: SerperJob[] = [];
-
-  // --- JOBICY API INTEGRATION ---
-  if (isRemote) {
-    try {
-      const skills = extractSkills(resumeText);
-      const topSkill = skills.length > 0 ? skills[0] : null;
-      
-      // Send individual words/short-phrases instead of entire career path titles
-      // to increase hit rate on Jobicy's tag matching
-      const jobicyTags = [
-        ...careerPaths.map(p => p.split(' ')[0]), // "Software Engineer" -> "Software"
-        topSkill
-      ].filter(Boolean);
-
-      // Unique tags only
-      const uniqueTags = Array.from(new Set(jobicyTags)) as string[];
-      
-      const jobicyJobs = await searchJobicy(uniqueTags, location);
-      realJobs = mergeDedupJobs(realJobs, jobicyJobs);
-      console.log(`Jobicy returned ${jobicyJobs.length} jobs.`);
-    } catch (err) {
-      console.warn('Jobicy unavailable:', err);
-    }
-  }
-
-  if (realJobs.length < limit * 2) {
-    try {
-      const strictStage = await searchRemoteJobs(optimizedQueries, {
-        allowedDomains: atsDomains,
-        allowCompanyCareerPages: false,
-        maxDaysOld: 7,
-        maxQueries: Math.max(5, optimizedQueries.length),
-        jobType,
-        userLocation: location
-      });
-      realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
-      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, strictStage.stats));
-    } catch (err) {
-      console.warn('Serper unavailable during primary search:', err);
-    }
-    console.log('Serper Jobs After Strict Stage:', realJobs.length);
-
-    const extraQueries = buildExpansionQueries(careerPaths, resumeText, jobType, location).filter(
-      (query) => !optimizedQueries.includes(query)
-    );
-
-    if (realJobs.length < limit && extraQueries.length > 0) {
-      try {
-        const broaderStage = await searchRemoteJobs(extraQueries, {
-          allowedDomains: atsDomains,
-          allowCompanyCareerPages: false,
-          maxDaysOld: 7,
-          maxQueries: Math.min(15, extraQueries.length),
-          jobType,
-          userLocation: location
-        });
-        realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
-        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, broaderStage.stats));
-      } catch (err) {
-        console.warn('Serper unavailable during expanded ATS search:', err);
-      }
-    }
-
-    if (realJobs.length < limit) {
-      const trustedCareerQueries = Array.from(new Set([...optimizedQueries, ...extraQueries]));
-      try {
-        const trustedCareerStage = await searchRemoteJobs(trustedCareerQueries, {
-          allowedDomains: atsDomains,
-          allowCompanyCareerPages: true,
-          maxDaysOld: proMaxDaysOld,
-          maxQueries: Math.min(20, trustedCareerQueries.length),
-          jobType,
-          userLocation: location
-        });
-        realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
-        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
-      } catch (err) {
-        console.warn('Serper unavailable during trusted career-page search:', err);
-      }
-    }
-
-    if (realJobs.length < limit && isPro) {
-      const boardQueries = buildBoardQueries(careerPaths, resumeText, jobType, location).filter(
-        (query) => !optimizedQueries.includes(query)
-      );
-      if (boardQueries.length > 0) {
-        try {
-          const boardStage = await searchRemoteJobs(boardQueries, {
-            allowedDomains: [...atsDomains, ...proBoardDomains],
-            blockedDomains: ['google.com'],
-            skipNetworkFetchForDomains: proBoardDomains,
-            allowCompanyCareerPages: true,
-            maxDaysOld: proMaxDaysOld,
-            maxQueries: Math.min(20, boardQueries.length),
-            jobType,
-            userLocation: location
-          });
-          realJobs = mergeDedupJobs(realJobs, boardStage.jobs);
-          Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, boardStage.stats));
-        } catch (err) {
-          console.warn('Serper unavailable during Pro board fill:', err);
-        }
-      }
-    }
-  }
-
-  const filteredJobs = mergeDedupJobs([], realJobs);
-  console.log('After Validation:', filteredJobs.length);
-
-  const seenSet = new Set(seenFingerprints);
-  const unseenJobs = filteredJobs.filter((job) => !seenSet.has(jobFingerprint(job.title, job.company)));
-  const seenJobs = filteredJobs.filter((job) => seenSet.has(jobFingerprint(job.title, job.company)));
+  const { unseenJobs, seenJobs } = splitJobsBySeenFingerprints(
+    acceptedRawJobs,
+    seenFingerprints
+  );
   console.log('After Seen Filter:', unseenJobs.length);
 
   const unseenRankedJobs = await scoreAndRankJobs(unseenJobs, careerPaths, resumeText, limit);
@@ -711,8 +934,8 @@ Return JSON array of 5 queries
     usedBackfill = backfillRankedJobs.length > 0;
   }
 
-  console.log('Job retrieval stats:', aggregatedStats);
-  console.log('Validated jobs:', filteredJobs.length);
+  console.log('Job retrieval stats:', harvestedStats);
+  console.log('Validated jobs:', acceptedRawJobs.length);
   console.log('Unseen jobs:', unseenJobs.length);
   console.log('Seen jobs:', seenJobs.length);
   console.log('Used Pro backfill:', usedBackfill);
@@ -720,13 +943,44 @@ Return JSON array of 5 queries
   console.log('Top Final Scores:', finalJobs.map((job) => ({ title: job.title, finalScore: job.finalScore })));
 
   return {
-    jobs: finalJobs,
-    requestedLimit: limit,
-    usedBackfill,
-    totalValidatedJobs: filteredJobs.length,
+    queries,
+    harvestedCount: harvestedJobs.length,
+    dedupedCount: dedupedJobs.length,
+    validatedCount: acceptedRawJobs.length,
     unseenCount: unseenJobs.length,
     seenCount: seenJobs.length,
+    usedBackfill,
+    acceptedJobs,
+    rejectedJobs,
+    rejectionCodeCounts: buildRejectionCodeCounts(rejectedJobs),
+    finalJobs,
   };
+}
+
+export async function generateDailyJobs(
+  careerPaths: string[],
+  jobType: string,
+  minSalary: number | null,
+  resumeText: string,
+  limit: number = 1,
+  seenFingerprints: string[] = [],
+  learningContext: string = '',
+  location: string = '',
+  learningSignals?: ScoutLearningContext
+): Promise<GenerateDailyJobsResult> {
+  const debug = await generateDailyJobsDebug(
+    careerPaths,
+    jobType,
+    minSalary,
+    resumeText,
+    limit,
+    seenFingerprints,
+    learningContext,
+    location,
+    learningSignals
+  );
+
+  return toGenerateDailyJobsResult(debug, limit);
 }
 
 // ---------------------------------------------------------------------------
@@ -781,6 +1035,14 @@ export interface JobPreferences {
   jobType: 'remote' | 'hybrid' | 'onsite' | 'both';
   minSalary: number | null;
   location?: string;
+}
+
+export interface ExtractedResumeProfile {
+  skills: string[];
+  techStack: string[];
+  seniority: string;
+  roles: string[];
+  industries: string[];
 }
 
 export async function analyzeResume(resumeText: string, careerPaths: string[]): Promise<ResumeAnalysis | null> {
@@ -864,6 +1126,86 @@ Respond ONLY with the JSON object.`;
   return { jobType: 'both' as const, minSalary: null, location: '' };
 }
 
+export async function extractResume(
+  resumeText: string
+): Promise<ExtractedResumeProfile | null> {
+  const prompt = `Extract a structured candidate profile from this resume.
+
+Return a JSON object:
+{
+  "skills": [],
+  "techStack": [],
+  "seniority": "",
+  "roles": [],
+  "industries": []
+}
+
+Rules:
+- Use only information present in the resume.
+- Do not invent experience.
+- Deduplicate repeated concepts.
+- Keep arrays concise.
+
+Resume:
+${resumeText.substring(0, 6000)}`;
+
+  try {
+    const response = await callOpenAI(
+      [{ role: 'user', content: prompt }],
+      { type: 'json_object' },
+      'openai/gpt-5.4-pro'
+    );
+
+    const content = response.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const parsed = JSON.parse(content);
+    const validation = validateStructuredProfile(parsed);
+    if (!validation.passed) {
+      throw new Error(validation.reason || 'Invalid structured profile');
+    }
+
+    return {
+      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+      techStack: Array.isArray(parsed.techStack) ? parsed.techStack : [],
+      seniority: typeof parsed.seniority === 'string' ? parsed.seniority : '',
+      roles: Array.isArray(parsed.roles) ? parsed.roles : [],
+      industries: Array.isArray(parsed.industries) ? parsed.industries : [],
+    };
+  } catch (error) {
+    console.error('Error extracting structured resume:', error);
+    if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;
+    return null;
+  }
+}
+
+export async function summarizeResume(
+  resumeText: string
+): Promise<string> {
+  const prompt = `Summarize this resume in 80 words or fewer.
+
+Rules:
+- Keep it factual.
+- Mention seniority, strongest skills, and role direction.
+- Do not invent information.
+
+Resume:
+${resumeText.substring(0, 6000)}`;
+
+  try {
+    const response = await callOpenAI(
+      [{ role: 'user', content: prompt }],
+      undefined,
+      'google/gemini-3.1-pro'
+    );
+    return response.choices?.[0]?.message?.content?.trim() || '';
+  } catch (error) {
+    console.error('Error summarizing resume:', error);
+    if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;
+    return '';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Agent 5: Cold Email Generation
 // Personalized cold email that highlights remote work availability.
@@ -881,11 +1223,127 @@ User style context: "${context}"
 Rewrite the text according to the instruction. Return ONLY the new text without any conversational filler.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI(
+      [{ role: 'user', content: prompt }],
+      undefined,
+      'anthropic/claude-opus-4.6'
+    );
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch (error) {
     console.error('Failed to improve text:', error);
     return originalText;
+  }
+}
+
+export interface OutreachJobContext {
+  title: string;
+  company: string;
+  description?: string;
+  location?: string;
+  url?: string;
+}
+
+export interface AssetForgeEmailInput {
+  job: OutreachJobContext;
+  recruiter: RecruiterContact;
+  resumeSummary: string;
+  antiSlopEnabled?: boolean;
+  writingStyleContext?: string;
+}
+
+export interface AssetForgeEmailResult {
+  status: 'generated' | 'skipped';
+  reason?: 'recruiter_not_found' | 'apollo_error';
+  recruiter?: RecruiterContact;
+  email?: string;
+}
+
+export function buildAssetForgeSkipResult(
+  reason: 'recruiter_not_found' | 'apollo_error'
+): AssetForgeEmailResult {
+  return {
+    status: 'skipped',
+    reason,
+  };
+}
+
+async function generateAssetForgeEmail(
+  input: AssetForgeEmailInput
+): Promise<string> {
+  return runWithGuardrails(
+    'email_generation',
+    async () => {
+      const prompt = `You are an expert career coach specializing in concise recruiter outreach.
+Write a cold email to ${input.recruiter.name} at ${input.job.company} about the ${input.job.title} role.
+
+Rules:
+- Mention ${input.job.company}
+- Mention ${input.job.title}
+- Under 120 words
+- Ground the message in this resume summary only
+- Do not invent background or recruiter facts
+
+${input.antiSlopEnabled !== false ? ANTI_SLOP_PROMPT : ''}
+
+Resume Summary:
+${input.resumeSummary}
+
+Return ONLY the email body.`;
+
+      const response = await callOpenAI(
+        [{ role: 'user', content: prompt }],
+        undefined,
+        'anthropic/claude-opus-4.6'
+      );
+      const content = response.choices?.[0]?.message?.content || '';
+      if (!content.trim()) {
+        throw new Error('Empty cold email generated');
+      }
+      return content.trim();
+    },
+    {
+      company: input.job.company,
+      jobTitle: input.job.title,
+      resumeSummary: input.resumeSummary,
+      recruiter: input.recruiter,
+      antiSlopEnabled: input.antiSlopEnabled !== false,
+      writingStyleContext: input.writingStyleContext || '',
+    }
+  );
+}
+
+export async function generateAssetForgeEmailForJob(input: {
+  job: OutreachJobContext;
+  resumeSummary: string;
+  antiSlopEnabled?: boolean;
+  writingStyleContext?: string;
+}): Promise<AssetForgeEmailResult> {
+  try {
+    const recruiter = await fetchRecruiterFromApollo({
+      company: input.job.company,
+      jobTitle: input.job.title,
+    });
+
+    if (!recruiter) {
+      return buildAssetForgeSkipResult('recruiter_not_found');
+    }
+
+    const email = await generateAssetForgeEmail({
+      job: input.job,
+      recruiter,
+      resumeSummary: input.resumeSummary,
+      antiSlopEnabled: input.antiSlopEnabled,
+      writingStyleContext: input.writingStyleContext,
+    });
+
+    return {
+      status: 'generated',
+      recruiter,
+      email,
+    };
+  } catch (error) {
+    console.error('Asset Forge email generation failed:', error);
+    return buildAssetForgeSkipResult('apollo_error');
   }
 }
 
@@ -896,14 +1354,17 @@ export async function generateColdEmail(
   antiSlopEnabled: boolean = true,
   writingStyleContext: string = ''
 ) {
-  const prompt = `You are an expert career coach specializing in remote job applications.
+  return runWithGuardrails(
+    'email_generation',
+    async () => {
+      const prompt = `You are an expert career coach specializing in remote job applications.
 Write a highly personalized, professional, and concise cold email to a hiring manager or recruiter at ${company} for the ${jobTitle} (Remote) position.
 
 User's specific writing style preferences learned from past edits: ${writingStyleContext}
 Strictly adhere to these stylistic preferences.
 
 Rules:
-- Under 200 words.
+- Under 120 words.
 - Highlight the 1-2 most relevant skills from the resume for this specific role.
 - Clearly state you are available to work fully remotely and across time zones.
 - Mention one genuine, specific thing about ${company} that shows real interest (product, mission, or recent news - keep it believable).
@@ -916,17 +1377,25 @@ ${resumeText}
 
 Return ONLY the email body. No subject line.`;
 
-  try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
-    const content = response.choices?.[0]?.message?.content || '';
-    if (!content.trim()) {
-      throw new Error('Empty cold email generated');
+      const response = await callOpenAI(
+        [{ role: 'user', content: prompt }],
+        undefined,
+        'anthropic/claude-opus-4.6'
+      );
+      const content = response.choices?.[0]?.message?.content || '';
+      if (!content.trim()) {
+        throw new Error('Empty cold email generated');
+      }
+      return content.trim();
+    },
+    {
+      jobTitle,
+      company,
+      resumeText,
+      antiSlopEnabled,
+      writingStyleContext,
     }
-    return content;
-  } catch (error) {
-    console.error('Error generating cold email:', error);
-    throw error instanceof Error ? error : new Error('Failed to generate cold email');
-  }
+  );
 }
 
 export async function extractRecruiterEmail(jobDescription: string, companyName: string): Promise<string> {
@@ -1028,7 +1497,10 @@ export async function tailorResume(
   antiSlopEnabled: boolean = true,
   writingStyleContext: string = ''
 ) {
-  const prompt = `You are an expert resume writer and technical recruiter.
+  return runWithGuardrails(
+    'resume_tailoring',
+    async () => {
+      const prompt = `You are an expert resume writer and technical recruiter.
 Tailor the following resume for a ${jobTitle} position.
 
 User's specific writing style preferences: ${writingStyleContext}
@@ -1059,15 +1531,23 @@ ${resumeText}
 
 Return ONLY the tailored resume in clean Markdown format.`;
 
-  try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
-    const content = response.choices?.[0]?.message?.content || '';
-    if (!content.trim()) {
-      throw new Error('Empty tailored resume generated');
+      const response = await callOpenAI(
+        [{ role: 'user', content: prompt }],
+        undefined,
+        'anthropic/claude-opus-4.6'
+      );
+      const content = response.choices?.[0]?.message?.content || '';
+      if (!content.trim()) {
+        throw new Error('Empty tailored resume generated');
+      }
+      return content.trim();
+    },
+    {
+      jobTitle,
+      jobDescription,
+      resumeText,
+      antiSlopEnabled,
+      writingStyleContext,
     }
-    return content;
-  } catch (error) {
-    console.error('Error tailoring resume:', error);
-    throw error instanceof Error ? error : new Error('Failed to tailor resume');
-  }
+  );
 }

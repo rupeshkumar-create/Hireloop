@@ -21,7 +21,7 @@ export function Dashboard() {
 
   const {
     filteredAndSortedJobs, loadingJobs,
-    stats, statsLoading, fetchJobs, saveJob,
+    stats, statsLoading, fetchJobs, saveJob, dismissJob, trackJobClick,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
@@ -119,6 +119,7 @@ export function Dashboard() {
               className="flex min-h-0 flex-1 flex-col"
             >
               <MatchesTab 
+                plan={profile?.plan}
                 jobs={filteredAndSortedJobs}
                 loadingJobs={loadingJobs}
                 fetchJobs={fetchJobs}
@@ -128,6 +129,7 @@ export function Dashboard() {
                 sortBy={sortBy} setSortBy={setSortBy}
                 selectedJob={selectedJob} setSelectedJob={setSelectedJob}
                 setAiAction={setAiAction}
+                dismissJob={dismissJob}
               />
             </motion.div>
           )}
@@ -137,6 +139,8 @@ export function Dashboard() {
               <JobDetailsPanel 
                 selectedJob={selectedJob}
                 saveJob={saveJob}
+                dismissJob={dismissJob}
+                trackJobClick={trackJobClick}
                 handleAiAction={handleAiAction}
                 aiAction={aiAction}
                 aiResult={aiResult}

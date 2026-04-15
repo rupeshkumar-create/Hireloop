@@ -18,6 +18,7 @@ export interface SearchRemoteJobsOptions {
   skipNetworkFetchForDomains?: string[];
   allowCompanyCareerPages?: boolean;
   maxQueries?: number;
+  maxJobs?: number;
   maxDaysOld?: number;
   jobType?: string;
   userLocation?: string;
@@ -233,7 +234,7 @@ export async function searchRemoteJobs(
   const maxDaysOld = options.maxDaysOld ?? 7;
 
   // Ensure we don't spam the API if the array is huge
-  const queriesToSearch = queries.slice(0, options.maxQueries ?? 3);
+  const queriesToSearch = queries.slice(0, options.maxQueries ?? 10);
 
   for (const query of queriesToSearch) {
     try {
@@ -344,6 +345,14 @@ export async function searchRemoteJobs(
           continue;
         }
         allJobs.push(candidateJob);
+
+        if (allJobs.length >= (options.maxJobs ?? 40)) {
+          break;
+        }
+      }
+
+      if (allJobs.length >= (options.maxJobs ?? 40)) {
+        break;
       }
     } catch (err) {
       console.error(`Serper search failed for "${query}":`, err);

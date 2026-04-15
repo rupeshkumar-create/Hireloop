@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/daily-alerts",
       "schedule": "30 2 * * *"
-    },
-    {
-      "path": "/api/cron/daily-blog-agent",
-      "schedule": "0 10 * * *"
     }
   ],
   "rewrites": [

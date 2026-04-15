@@ -6,6 +6,12 @@ import { Job, SortOption } from '../types/dashboard';
 import { generateDailyJobs, generateColdEmail, tailorResume, generateInterviewQuestions, updateLearningProfile } from '../services/aiService';
 import { jobFingerprint } from '../services/serperService';
 import { sendDailyJobAlertsEmail } from '../services/emailService';
+import {
+  applyLearningEvent,
+  type LearningEventJob,
+  type LearningSignals,
+} from '../services/learningSignals';
+import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 
 // Max fingerprints to store per user (~10/day × 30 days = 300)
 const MAX_SEEN_FINGERPRINTS = 300;
@@ -27,6 +33,7 @@ function getMostRecent8AMIST(): Date {
 export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [dismissedFingerprints, setDismissedFingerprints] = useState<string[]>([]);
   
   const [stats, setStats] = useState({ saved: 0, applied: 0, interviewing: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
@@ -47,7 +54,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   useEffect(() => {
     if (profile?.dailyJobs && jobs.length === 0 && !loadingJobs) {
       // If they just upgraded to pro but only have 1 job cached, automatically refresh
-      const expectedLimit = profile?.plan?.toLowerCase() === 'pro' ? 10 : 1;
+      const expectedLimit = getDailyMatchLimit(profile?.plan);
       if (profile.dailyJobs.length < expectedLimit) {
         fetchJobs(true); // force refresh
       } else {
@@ -89,7 +96,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     
     // If not forcing, and we already fetched after the most recent 8 AM IST, just use cached jobs
     // Free stays at 1/day. Pro targets 10/day, with staged retrieval filling as much real inventory as possible.
-    const limit = profile?.plan?.toLowerCase() === 'pro' ? 10 : 1;
+    const limit = getDailyMatchLimit(profile?.plan);
     if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length >= limit) {
       setJobs(profile.dailyJobs);
       return;
@@ -108,7 +115,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         limit,
         seenFingerprints,
         profile.learningProfile?.jobPreferences || '',
-        profile.location || ''
+        profile.location || '',
+        profile.learningSignals
       );
       const results = result.jobs;
       setJobs(results);
@@ -162,6 +170,22 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
+  const persistLearningSignals = async (signals: LearningSignals) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid), { learningSignals: signals }, { merge: true });
+  };
+
+  const recordLearningEvent = async (
+    eventType: 'saved' | 'dismissed' | 'applied' | 'clicked',
+    job: LearningEventJob
+  ) => {
+    const nextSignals = applyLearningEvent(profile?.learningSignals, eventType, job);
+    await persistLearningSignals(nextSignals);
+    if (updateProfile) {
+      await updateProfile({ learningSignals: nextSignals });
+    }
+  };
+
   const saveJob = async (job: Job) => {
     if (!user) return;
     try {
@@ -177,11 +201,23 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         createdAt: new Date().toISOString(),
         aiAssets: null // Will be populated if Pro
       });
+
+      try {
+        await recordLearningEvent('saved', {
+          title: job.title,
+          company: job.company,
+          description: job.description,
+          requirements: job.requirements,
+        });
+      } catch (learningError) {
+        console.error('Failed to record saved-job learning event:', learningError);
+      }
+
       toast.success('Job saved to tracker!');
       fetchStats();
 
       // Pro features: Auto-generate AI assets & trigger self-learning
-      if (profile?.plan?.toLowerCase() === 'pro' && profile?.resumeText) {
+      if (isProPlan(profile?.plan) && profile?.resumeText) {
         toast.info('Generating AI assets in the background...');
         Promise.allSettled([
           generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),
@@ -221,14 +257,49 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
+  const dismissJob = async (job: Job) => {
+    const fingerprint = jobFingerprint(job.title, job.company);
+    setDismissedFingerprints((current) =>
+      current.includes(fingerprint) ? current : [...current, fingerprint]
+    );
+
+    try {
+      await recordLearningEvent('dismissed', {
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+      });
+    } catch (learningError) {
+      console.error('Failed to record dismissed-job learning event:', learningError);
+    }
+  };
+
+  const trackJobClick = async (job: Job) => {
+    try {
+      await recordLearningEvent('clicked', {
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+      });
+    } catch (learningError) {
+      console.error('Failed to record clicked-job learning event:', learningError);
+    }
+
+    window.open(job.url, '_blank');
+  };
+
   // Memoize filtered and sorted jobs for performance
   const filteredAndSortedJobs = useMemo(() => {
     return jobs
       .filter((job) => {
+        const fingerprint = jobFingerprint(job.title, job.company);
+        const notDismissed = !dismissedFingerprints.includes(fingerprint);
         const matchCompany = job.company.toLowerCase().includes(filterCompany.toLowerCase());
         const matchLocation = job.location.toLowerCase().includes(filterLocation.toLowerCase());
         const matchSalary = job.salary.toLowerCase().includes(filterSalary.toLowerCase());
-        return matchCompany && matchLocation && matchSalary;
+        return notDismissed && matchCompany && matchLocation && matchSalary;
       })
       .sort((a, b) => {
         if (sortBy === 'matchScore') return (b.matchScore || 0) - (a.matchScore || 0);
@@ -240,7 +311,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
         return 0;
       });
-  }, [jobs, filterCompany, filterLocation, filterSalary, sortBy]);
+  }, [jobs, dismissedFingerprints, filterCompany, filterLocation, filterSalary, sortBy]);
 
   return {
     jobs,
@@ -251,6 +322,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     fetchJobs,
     lastFetchTime: profile?.lastJobFetchTime,
     saveJob,
+    dismissJob,
+    trackJobClick,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,

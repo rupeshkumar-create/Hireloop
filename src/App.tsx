@@ -8,8 +8,6 @@ import { Dashboard } from './pages/Dashboard';
 import { JobTracker } from './pages/JobTracker';
 import { Settings } from './pages/Settings';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { BlogIndex } from './pages/blog/BlogIndex';
-import { BlogPost } from './pages/blog/BlogPost';
 import { Onboarding } from './pages/Onboarding';
 import { LandingPage } from './pages/LandingPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -103,16 +101,6 @@ export default function App() {
                 <AdminDashboard />
               </AppLayout>
             </AdminRoute>
-          } />
-          <Route path="/blog" element={
-            <WebsiteLayout>
-              <BlogIndex />
-            </WebsiteLayout>
-          } />
-          <Route path="/blog/:slug" element={
-            <WebsiteLayout>
-              <BlogPost />
-            </WebsiteLayout>
           } />
         </Routes>
       </Router>

@@ -5,9 +5,14 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Save, Upload, X, Plus, Loader2, CreditCard, CheckCircle2, Sparkles } from 'lucide-react';
-import { suggestCareerPaths } from '../services/aiService';
 import { toast } from 'sonner';
 import { PageShell } from '../components/ui/page-shell';
+import { useResumeParser } from '../hooks/useResumeParser';
+import {
+  hasResumeTextChanged,
+  normalizeUserPreferences,
+  syncLegacyPreferenceFields,
+} from '../services/validator';
 
 const PREDEFINED_PATHS = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
@@ -18,9 +23,9 @@ const PREDEFINED_PATHS = [
 export function Settings() {
   const { profile, updateProfile } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [newPath, setNewPath] = useState('');
   const [couponCode, setCouponCode] = useState('');
+  const { analyzingResume, handleFileUpload, processResumeText } = useResumeParser(updateProfile, profile);
   const [formData, setFormData] = useState({
     careerPaths: [] as string[],
     jobType: 'both',
@@ -36,9 +41,15 @@ export function Settings() {
     if (profile) {
       setFormData({
         careerPaths: profile.careerPaths || [],
-        jobType: profile.jobType || 'both',
-        location: profile.location || '',
-        minSalary: profile.minSalary?.toString() || '',
+        jobType:
+          profile.preferences?.remoteOnly === true
+            ? 'remote'
+            : profile.jobType || 'both',
+        location: profile.preferences?.locations?.[0] || profile.location || '',
+        minSalary:
+          profile.preferences?.salaryFloor?.toString() ||
+          profile.minSalary?.toString() ||
+          '',
         resumeText: profile.resumeText || '',
         resumeAnalysis: profile.resumeAnalysis,
         receiveDailyAlerts: profile.receiveDailyAlerts !== false,
@@ -68,90 +79,70 @@ export function Settings() {
     setFormData(prev => ({ ...prev, careerPaths: prev.careerPaths.filter(p => p !== pathToRemove) }));
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeInputChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File is too large. Please upload a file smaller than 5MB.");
-      return;
-    }
-
-    setAnalyzing(true);
-    let text = '';
-    
-    try {
-      if (file.type === 'text/plain' || file.name.endsWith('.md')) {
-        text = await file.text();
-      } else if (file.type === 'application/pdf') {
-        const pdfWorkerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-        
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(' ');
-          text += pageText + '\n';
-        }
-      } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const mammoth = await import('mammoth');
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        text = result.value;
-      } else {
-        alert("Unsupported file type. Please upload a PDF, DOCX, or TXT file.");
-        setAnalyzing(false);
-        return;
-      }
-    } catch (err) {
-      console.error("Error parsing file", err);
-      alert("Could not parse the file. Please try a different format or paste the text directly.");
-      setAnalyzing(false);
-      return;
-    }
-
-    setFormData(prev => ({ ...prev, resumeText: text }));
-    
-    // Analyze resume for career paths and feedback
-    if (text.trim()) {
-      try {
-        const paths = await suggestCareerPaths(text, profile?.antiSlopEnabled !== false);
-        if (paths && paths.length > 0) {
-          setFormData(prev => ({ ...prev, careerPaths: paths }));
-        }
-        
-        const { analyzeResume } = await import('../services/aiService');
-        const analysis = await analyzeResume(text, paths || []);
-        if (analysis) {
-          setFormData(prev => ({ ...prev, resumeAnalysis: analysis }));
-        }
-      } catch (err: any) {
-        if (err.message === 'AI_QUOTA_EXCEEDED') {
-          toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to analyze your resume.', { duration: 6000 });
-        } else {
-          toast.error('Failed to analyze resume with AI.');
-        }
-      }
-    }
-    setAnalyzing(false);
+    await handleFileUpload(file, () => {});
+    e.target.value = '';
   };
 
   const handleSave = async () => {
     setSaving(true);
-    await updateProfile({
-      careerPaths: formData.careerPaths,
-      jobType: formData.jobType,
-      location: formData.location,
-      minSalary: formData.minSalary ? parseInt(formData.minSalary, 10) : null,
-      resumeText: formData.resumeText,
-      resumeAnalysis: formData.resumeAnalysis,
-      receiveDailyAlerts: formData.receiveDailyAlerts,
-      antiSlopEnabled: formData.antiSlopEnabled,
-    });
-    setSaving(false);
+    try {
+      const preferences = normalizeUserPreferences({
+        remoteOnly: formData.jobType === 'remote',
+        salaryFloor: formData.minSalary,
+        locations: formData.location ? [formData.location] : [],
+      });
+      const legacy = syncLegacyPreferenceFields(preferences);
+      const resumeChanged = hasResumeTextChanged(
+        profile?.resumeCleaned || profile?.resumeText || '',
+        formData.resumeText
+      );
+
+      if (resumeChanged) {
+        const processed = await processResumeText(formData.resumeText, {
+          showSuccessToast: false,
+          careerPathsOverride: formData.careerPaths,
+          preferencesOverride: preferences,
+        });
+
+        if (!processed) {
+          return;
+        }
+
+        await updateProfile({
+          careerPaths: formData.careerPaths,
+          preferences,
+          jobType: legacy.jobType,
+          location: legacy.location,
+          minSalary: legacy.minSalary,
+          receiveDailyAlerts: formData.receiveDailyAlerts,
+          antiSlopEnabled: formData.antiSlopEnabled,
+        });
+        toast.success('Preferences and resume updated.');
+        return;
+      }
+
+      await updateProfile({
+        careerPaths: formData.careerPaths,
+        preferences,
+        jobType: legacy.jobType,
+        location: legacy.location,
+        minSalary: legacy.minSalary,
+        resumeText: formData.resumeText,
+        resumeAnalysis: formData.resumeAnalysis,
+        receiveDailyAlerts: formData.receiveDailyAlerts,
+        antiSlopEnabled: formData.antiSlopEnabled,
+      });
+      toast.success('Preferences saved.');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save preferences.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpgrade = async () => {
@@ -171,7 +162,7 @@ export function Settings() {
         className="max-w-4xl"
       >
 
-        <Card>
+        <Card id="billing-plan">
           <CardHeader>
             <CardTitle>Billing & Plan</CardTitle>
             <CardDescription>Manage your subscription and upgrade to Pro.</CardDescription>
@@ -364,15 +355,15 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
-              <Button variant="outline" className="relative overflow-hidden" disabled={analyzing}>
-                {analyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {analyzing ? 'Analyzing Resume...' : 'Upload Resume'}
+              <Button variant="outline" className="relative overflow-hidden" disabled={analyzingResume}>
+                {analyzingResume ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {analyzingResume ? 'Analyzing Resume...' : 'Upload Resume'}
                 <input 
                   type="file" 
                   accept=".pdf,.txt,.md,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
-                  onChange={handleFileUpload}
+                  onChange={handleResumeInputChange}
                   className="absolute inset-0 opacity-0 cursor-pointer"
-                  disabled={analyzing}
+                  disabled={analyzingResume}
                 />
               </Button>
               <span className="text-xs text-foreground-muted">Supports .pdf, .docx, .txt. Max 5MB. Uploading will auto-generate career paths.</span>
@@ -386,7 +377,7 @@ export function Settings() {
             />
           </CardContent>
           <CardFooter className="flex justify-end border-t border-border pt-6">
-            <Button onClick={handleSave} disabled={saving || analyzing}>
+            <Button onClick={handleSave} disabled={saving || analyzingResume}>
               {saving ? 'Saving...' : (
                 <>
                   <Save className="mr-2 h-4 w-4" />

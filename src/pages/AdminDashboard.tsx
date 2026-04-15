@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, updateDoc, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -7,6 +7,10 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { PageShell } from '../components/ui/page-shell';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateDailyJobsDebug } from '../services/aiService';
+import { runAdminGhostMode } from '../services/adminGhostMode';
+import { GhostModeModal } from '../components/admin/GhostModeModal';
+import type { GhostModeOverrides, GhostModeRunResult, GhostModeTargetUser } from '../types/adminGhostMode';
 
 
 
@@ -29,6 +33,9 @@ export function AdminDashboard() {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [ghostModeUser, setGhostModeUser] = useState<GhostModeTargetUser | null>(null);
+  const [ghostModeRunning, setGhostModeRunning] = useState(false);
+  const [ghostModeResult, setGhostModeResult] = useState<GhostModeRunResult | null>(null);
   const [editFormData, setEditFormData] = useState({
     jobType: '',
     location: '',
@@ -180,6 +187,87 @@ export function AdminDashboard() {
     }
   };
 
+  const handleRunGhostMode = async (payload: {
+    runMode: 'preview' | 'persist';
+    inputMode: 'saved' | 'override';
+    overrides?: GhostModeOverrides;
+  }) => {
+    if (!ghostModeUser || !currentUser?.uid || !currentUser?.email) {
+      toast.error('Admin identity is required to run Ghost Mode.');
+      return;
+    }
+
+    setGhostModeRunning(true);
+    try {
+      const result = await runAdminGhostMode(
+        {
+          targetUser: ghostModeUser,
+          admin: {
+            uid: currentUser.uid,
+            email: currentUser.email,
+          },
+          runMode: payload.runMode,
+          inputMode: payload.inputMode,
+          overrides: payload.overrides,
+        },
+        {
+          generateDebugResult: (input) =>
+            generateDailyJobsDebug(
+              input.careerPaths,
+              input.jobType,
+              input.minSalary,
+              input.resumeText,
+              input.limit,
+              input.seenFingerprints,
+              input.learningContext,
+              input.location,
+              input.learningSignals
+            ),
+          persistDailyJobs: async ({
+            userId,
+            jobs,
+            lastJobFetchTime,
+            seenJobFingerprints,
+            runDate,
+          }) => {
+            await setDoc(
+              doc(db, 'users', userId),
+              {
+                dailyJobs: jobs,
+                lastJobFetchTime,
+                seenJobFingerprints,
+              },
+              { merge: true }
+            );
+
+            await setDoc(
+              doc(db, 'users', userId, 'daily_matches', runDate),
+              {
+                jobs,
+                fetchedAt: lastJobFetchTime,
+              },
+              { merge: true }
+            );
+          },
+          logRun: async (entry) => {
+            await addDoc(collection(db, 'admin_logs'), entry);
+          },
+        }
+      );
+
+      setGhostModeResult(result);
+      toast.success(
+        result.persisted
+          ? `Persisted ${result.debug.finalJobs.length} jobs for ${ghostModeUser.email || 'user'}`
+          : `Preview ready for ${ghostModeUser.email || 'user'}`
+      );
+    } catch (error: any) {
+      toast.error(error.message || 'Ghost Mode run failed');
+    } finally {
+      setGhostModeRunning(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -246,6 +334,16 @@ export function AdminDashboard() {
                     <td className="px-6 py-4 text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => handleEditUser(u)}>Edit Data</Button>
                       <Button size="sm" variant="outline" onClick={() => setDetailUser(u)}>View Details</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setGhostModeUser(u as GhostModeTargetUser);
+                          setGhostModeResult(null);
+                        }}
+                      >
+                        Simulate for User
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         impersonateUser(u.id, u.email);
                         toast.success(`Impersonating ${u.email}`);
@@ -449,6 +547,18 @@ export function AdminDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      <GhostModeModal
+        open={!!ghostModeUser}
+        user={ghostModeUser}
+        running={ghostModeRunning}
+        result={ghostModeResult}
+        onClose={() => {
+          setGhostModeUser(null);
+          setGhostModeResult(null);
+        }}
+        onRun={handleRunGhostMode}
+      />
     </div>
   );
 }
