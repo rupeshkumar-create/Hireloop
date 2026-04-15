@@ -71,7 +71,7 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName }:
         <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-background/50">
           <div 
             ref={resumeRef}
-            className="bg-surface shadow-xl border border-border w-full max-w-[800px] min-h-[1056px] p-10 md:p-14 markdown-body prose prose-sm sm:prose-base text-foreground"
+            className="bg-white shadow-xl border border-gray-200 w-full max-w-[800px] min-h-[1056px] p-10 md:p-14 markdown-body prose prose-sm sm:prose-base text-black"
             style={{
               fontFamily: 'system-ui, -apple-system, sans-serif'
             }}

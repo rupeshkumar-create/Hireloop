@@ -872,35 +872,57 @@ Return ONLY the email body. No subject line.`;
   }
 }
 
+export async function extractRecruiterEmail(jobDescription: string, companyName: string): Promise<string> {
+  const prompt = `You are a helpful assistant trying to find the contact email for a job application.
+Scan the following job description for ANY email addresses.
+If you find a specific recruiter or hiring manager email, return it.
+If you find a general careers email (e.g. careers@..., jobs@...), return it.
+If you do not find any email, return a best guess based on the company name (e.g. careers@${companyName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}.com).
+
+Job Description:
+${jobDescription.substring(0, 3000)}
+
+Company: ${companyName}
+
+Return ONLY the email address as a raw string. No other text.`;
+
+  try {
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'openai/gpt-4o-mini');
+    const email = response.choices?.[0]?.message?.content?.trim() || '';
+    // Basic validation
+    if (email.includes('@') && email.includes('.')) {
+      return email.split(' ')[0]; // ensure no extra text
+    }
+  } catch (error) {
+    console.error('Error finding email:', error);
+  }
+  return '';
+}
+
 // ---------------------------------------------------------------------------
 // Agent 6: Interview Question Generation
 // Mix of technical, behavioral, and remote-work specific questions.
 // ---------------------------------------------------------------------------
 export async function generateInterviewQuestions(jobTitle: string, company: string, antiSlopEnabled: boolean = true) {
-  const prompt = `You are an expert technical interviewer. Generate 5 highly relevant, challenging interview questions for a ${jobTitle} (Remote) position at ${company}.
+  const prompt = `You are an expert technical interviewer and Y Combinator founder. Generate 5 highly relevant, intense, and deeply thought-provoking interview questions with suggested answers for a ${jobTitle} (Remote) position at ${company}.
 
-Use this exact mix:
-- 2 technical/domain-specific questions relevant to the role's core responsibilities
-- 2 behavioral questions (frame them for STAR-method answers)
-- 1 remote-work specific question - e.g. how they handle async communication, stay productive without supervision, manage across time zones, or use remote tools (Slack, Notion, Jira, Loom, GitHub, etc.)
+Use a Y Combinator type of thinking:
+- Focus on first principles, high-growth impact, and dealing with ambiguity.
+- Ask questions that reveal how they think, not just what they know.
+- Include a suggested answer or "what to look for" for each question.
 
-${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
+Format each as a Markdown item:
+**Q1: [Question]**
+*Answer/What to look for:* [Brief guide on the ideal answer]
 
-Return a JSON array of exactly 5 strings. Respond ONLY with the JSON array.`;
+Generate exactly 5 questions.
+Return ONLY clean Markdown.`;
 
   try {
     const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
-
+    
     if (response.choices?.[0]?.message?.content) {
-      let text = response.choices[0].message.content.trim();
-      if (text.startsWith('```json')) text = text.replace(/^```json/, '').replace(/```$/, '').trim();
-      else if (text.startsWith('```')) text = text.replace(/^```/, '').replace(/```$/, '').trim();
-      const parsed = JSON.parse(text);
-      const questions = Array.isArray(parsed) ? parsed : (parsed.questions || Object.values(parsed)[0] || []);
-      if (!Array.isArray(questions) || questions.length === 0) {
-        throw new Error('Empty interview questions generated');
-      }
-      return questions;
+      return response.choices[0].message.content.trim();
     }
     throw new Error('Empty interview questions generated');
   } catch (error) {
@@ -945,17 +967,25 @@ export async function tailorResume(
   antiSlopEnabled: boolean = true,
   writingStyleContext: string = ''
 ) {
-  const prompt = `You are an expert resume writer specializing in remote job applications.
-Tailor the following resume for a REMOTE ${jobTitle} position.
+  const prompt = `You are an expert resume writer and technical recruiter.
+Tailor the following resume for a ${jobTitle} position.
 
-User's specific writing style preferences learned from past edits: ${writingStyleContext}
-Strictly adhere to these stylistic preferences.
+User's specific writing style preferences: ${writingStyleContext}
+
+# STRICT ATS FORMATTING RULES
+You MUST output the resume in clean, standard Markdown. Do NOT use weird angles, excessive emojis, or non-standard formatting.
+Use this exact structure:
+1. Header: Name as H1 (# Name), followed by Contact Info (Email | Phone | Location | LinkedIn/GitHub) on a single line.
+2. Summary: A short 2-3 sentence professional summary tailored to the job description.
+3. Skills: A grouped list of technical and soft skills relevant to the job description.
+4. Experience: Use H3 (###) for "Company - Title", followed by the dates. Use standard bullet points (-) for achievements.
+5. Education: Use H3 (###) for the Degree and University.
 
 Instructions:
-1. Highlight the most relevant skills and experiences for this specific role.
-2. Inject keywords from the job description to beat ATS filters.
+1. Highlight the most relevant skills and experiences for this specific role based on the Job Description.
+2. Inject keywords from the job description naturally to pass ATS filters.
 3. Strengthen bullet points with metrics and impact wherever the original has them.
-4. Add or emphasize remote-readiness signals where truthful - async communication, distributed team experience, self-management, remote tools (Slack, Notion, Jira, GitHub, Zoom, Loom, Figma, Linear, etc.), timezone flexibility.
+4. If the job is remote, emphasize remote-readiness signals (async communication, self-management).
 5. Do NOT fabricate experience or skills absent from the original resume.
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
@@ -966,7 +996,7 @@ ${jobDescription}
 Original Resume:
 ${resumeText}
 
-Return the tailored resume in clean Markdown format.`;
+Return ONLY the tailored resume in clean Markdown format.`;
 
   try {
     const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');

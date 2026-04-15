@@ -6,6 +6,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { AssetEditorModal } from '../components/dashboard/AssetEditorModal';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -42,26 +43,20 @@ export function JobTracker() {
     return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'board';
   });
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-  const [editingEmail, setEditingEmail] = useState(false);
-  const [emailText, setEmailText] = useState('');
-  const [emailInstruction, setEmailInstruction] = useState('');
-  const [editingResume, setEditingResume] = useState(false);
-  const [resumeText, setResumeText] = useState('');
-  const [resumeInstruction, setResumeInstruction] = useState('');
+  
+  const [editorModal, setEditorModal] = useState<{
+    isOpen: boolean;
+    job: TrackedJob | null;
+    type: 'email' | 'resume' | 'interview' | null;
+    content: string;
+  }>({ isOpen: false, job: null, type: null, content: '' });
+
   const [previewResumeData, setPreviewResumeData] = useState<{text: string, company: string} | null>(null);
 
   // When expanding a new job, reset edit states
   useEffect(() => {
     if (expandedJobId) {
-      setEditingEmail(false);
-      setEditingResume(false);
       const job = jobs.find(j => j.id === expandedJobId);
-      if (job) {
-        const coldEmail = typeof job.coldEmail === 'string' && !job.coldEmail.trim().toLowerCase().startsWith('error ') ? job.coldEmail : '';
-        const tailoredResume = typeof job.tailoredResume === 'string' && !job.tailoredResume.trim().toLowerCase().startsWith('error ') ? job.tailoredResume : '';
-        setEmailText(coldEmail);
-        setResumeText(tailoredResume);
-      }
     }
   }, [expandedJobId, jobs]);
 
@@ -233,24 +228,18 @@ export function JobTracker() {
     }
   };
 
-  const handleImproveText = async (job: TrackedJob, type: 'email' | 'resume') => {
+  const handleModalImproveText = async (instruction: string) => {
+    if (!editorModal.job || !editorModal.type) return;
+    const { job, type, content } = editorModal;
     const loadingKey = `${job.id}-${type}-improve`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      if (type === 'email') {
-        const newText = await improveTextWithAI(emailText, emailInstruction, profile?.learningProfile?.writingStyle);
-        setEmailText(newText);
-        setEmailInstruction('');
-        toast.success('Cold email improved!');
-      } else {
-        const newText = await improveTextWithAI(resumeText, resumeInstruction, profile?.learningProfile?.writingStyle);
-        setResumeText(newText);
-        setResumeInstruction('');
-        toast.success('Tailored resume improved!');
-      }
+      const newText = await improveTextWithAI(content, instruction, profile?.learningProfile?.writingStyle);
+      setEditorModal(prev => ({ ...prev, content: newText }));
+      toast.success('Content improved!');
     } catch (e: any) {
       if (e.message === 'AI_QUOTA_EXCEEDED') {
-        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits.', { duration: 6000 });
       } else {
         toast.error('Failed to improve text.');
       }
@@ -259,20 +248,25 @@ export function JobTracker() {
     }
   };
 
-  const handleSaveEditedText = async (job: TrackedJob, type: 'email' | 'resume') => {
+  const handleModalSaveText = async (newContent: string) => {
+    if (!editorModal.job || !editorModal.type) return;
+    const { job, type } = editorModal;
     try {
-      const updateData = type === 'email' ? { coldEmail: emailText } : { tailoredResume: resumeText };
+      let updateData = {};
+      if (type === 'email') updateData = { coldEmail: newContent };
+      if (type === 'resume') updateData = { tailoredResume: newContent };
+      if (type === 'interview') updateData = { interviewQuestions: newContent };
+
       await updateDoc(doc(db, 'trackedJobs', job.id), {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
+      
       toast.success('Changes saved!');
       
-      // Update learning profile
-      if (profile && updateProfile) {
+      if (profile && updateProfile && (type === 'email' || type === 'resume')) {
         const actionType = type === 'email' ? 'edit_email' : 'edit_resume';
-        const actionData = type === 'email' ? emailText : resumeText;
-        updateLearningProfile(actionType, actionData, profile.learningProfile?.writingStyle)
+        updateLearningProfile(actionType, newContent, profile.learningProfile?.writingStyle)
           .then(newStyle => {
             updateProfile({
               learningProfile: { ...profile.learningProfile, writingStyle: newStyle }
@@ -280,11 +274,23 @@ export function JobTracker() {
           });
       }
 
-      if (type === 'email') setEditingEmail(false);
-      else setEditingResume(false);
+      // Update local state in editor to match
+      setEditorModal(prev => ({ ...prev, content: newContent, isOpen: false }));
     } catch (e) {
       toast.error('Failed to save changes.');
     }
+  };
+
+  const openEditor = (job: TrackedJob, type: 'email' | 'resume' | 'interview') => {
+    let content = '';
+    if (type === 'email') content = job.coldEmail || '';
+    if (type === 'resume') content = job.tailoredResume || '';
+    if (type === 'interview') {
+      content = Array.isArray(job.interviewQuestions) 
+        ? job.interviewQuestions.join('\n\n') 
+        : (job.interviewQuestions || '');
+    }
+    setEditorModal({ isOpen: true, job, type, content });
   };
 
   const updateContactEmail = async (jobId: string, email: string) => {
@@ -487,8 +493,8 @@ export function JobTracker() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><Mail className="mr-2 h-4 w-4 text-foreground-muted" /> Cold Email</h4>
                             <div className="flex gap-2">
-                              {hasValidText(job.coldEmail) && !editingEmail && (
-                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingEmail(true)}>Edit</Button>
+                              {hasValidText(job.coldEmail) && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEditor(job, 'email')}>Edit</Button>
                               )}
                               {!hasValidText(job.coldEmail) && (
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'email')} disabled={actionLoading[`${job.id}-email`]}>
@@ -497,31 +503,8 @@ export function JobTracker() {
                               )}
                             </div>
                           </div>
-                          {editingEmail ? (
-                            <div className="space-y-2">
-                              <textarea 
-                                className="w-full h-48 text-xs p-3 border border-border rounded-md focus:ring-2 focus:ring-foreground focus:outline-none"
-                                value={emailText}
-                                onChange={(e) => setEmailText(e.target.value)}
-                              />
-                              <div className="flex gap-2 items-center">
-                                <input 
-                                  type="text" 
-                                  placeholder="e.g. Make it shorter and more aggressive" 
-                                  className="flex-1 rounded-xl border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3898ec]"
-                                  value={emailInstruction}
-                                  onChange={(e) => setEmailInstruction(e.target.value)}
-                                />
-                                <Button size="sm" variant="action" className="h-8 text-xs" disabled={!emailInstruction || actionLoading[`${job.id}-email-improve`]} onClick={() => handleImproveText(job, 'email')}>
-                                  {actionLoading[`${job.id}-email-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
-                                </Button>
-                              </div>
-                              <div className="flex justify-end gap-2 mt-2">
-                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingEmail(false)}>Cancel</Button>
-                                <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'email')}>Save Changes</Button>
-                              </div>
-                            </div>
-                          ) : hasValidText(job.coldEmail) ? (
+                          
+                          {hasValidText(job.coldEmail) ? (
                             <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto whitespace-pre-wrap">
                               {job.coldEmail}
                             </div>
@@ -529,14 +512,42 @@ export function JobTracker() {
                             <div className="text-xs text-foreground-muted italic">No cold email generated yet.</div>
                           )}
                           <div className="flex gap-2 items-center">
-                            <input 
-                              type="email" 
-                              placeholder="Contact Email (Optional)" 
-                              className="flex-1 text-xs border border-border rounded-md px-2 py-1.5 focus:ring-2 focus:ring-foreground focus:outline-none"
-                              value={job.contactEmail || ''}
-                              onChange={(e) => updateContactEmail(job.id, e.target.value)}
-                            />
-                            {hasValidText(job.coldEmail) && !editingEmail && (
+                            <div className="flex-1 flex relative">
+                              <input 
+                                type="email" 
+                                placeholder="Contact Email (Optional)" 
+                                className="w-full text-xs border border-border rounded-md pl-2 pr-20 py-1.5 focus:ring-2 focus:ring-foreground focus:outline-none"
+                                value={job.contactEmail || ''}
+                                onChange={(e) => updateContactEmail(job.id, e.target.value)}
+                              />
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 text-[10px] px-2"
+                                disabled={actionLoading[`${job.id}-find-email`]}
+                                onClick={async () => {
+                                  const loadingKey = `${job.id}-find-email`;
+                                  setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+                                  try {
+                                    const { extractRecruiterEmail } = await import('../services/aiService');
+                                    const email = await extractRecruiterEmail(job.notes || '', job.company);
+                                    if (email) {
+                                      updateContactEmail(job.id, email);
+                                      toast.success('Email found!');
+                                    } else {
+                                      toast.info('Could not automatically find an email.');
+                                    }
+                                  } catch (e) {
+                                    toast.error('Failed to find email.');
+                                  } finally {
+                                    setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+                                  }
+                                }}
+                              >
+                                {actionLoading[`${job.id}-find-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Auto-find'}
+                              </Button>
+                            </div>
+                            {hasValidText(job.coldEmail) && (
                               <Button size="sm" className="text-xs h-8 whitespace-nowrap" onClick={() => sendEmail(job)}>
                                 Send via Gmail
                               </Button>
@@ -555,8 +566,8 @@ export function JobTracker() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailored Resume</h4>
                             <div className="flex gap-2">
-                              {hasValidText(job.tailoredResume) && !editingResume && (
-                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingResume(true)}>Edit</Button>
+                              {hasValidText(job.tailoredResume) && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEditor(job, 'resume')}>Edit</Button>
                               )}
                               {!hasValidText(job.tailoredResume) && (
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'resume')} disabled={actionLoading[`${job.id}-resume`]}>
@@ -565,38 +576,15 @@ export function JobTracker() {
                               )}
                             </div>
                           </div>
-                          {editingResume ? (
-                            <div className="space-y-2">
-                              <textarea 
-                                className="w-full h-48 text-xs p-3 border border-border rounded-md focus:ring-2 focus:ring-foreground focus:outline-none font-mono"
-                                value={resumeText}
-                                onChange={(e) => setResumeText(e.target.value)}
-                              />
-                              <div className="flex gap-2 items-center">
-                                <input 
-                                  type="text" 
-                                  placeholder="e.g. Focus more on Leadership skills" 
-                                  className="flex-1 rounded-xl border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3898ec]"
-                                  value={resumeInstruction}
-                                  onChange={(e) => setResumeInstruction(e.target.value)}
-                                />
-                                <Button size="sm" variant="action" className="h-8 text-xs" disabled={!resumeInstruction || actionLoading[`${job.id}-resume-improve`]} onClick={() => handleImproveText(job, 'resume')}>
-                                  {actionLoading[`${job.id}-resume-improve`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'AI Improve'}
-                                </Button>
-                              </div>
-                              <div className="flex justify-end gap-2 mt-2">
-                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingResume(false)}>Cancel</Button>
-                                <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'resume')}>Save Changes</Button>
-                              </div>
-                            </div>
-                          ) : hasValidText(job.tailoredResume) ? (
+                          
+                          {hasValidText(job.tailoredResume) ? (
                             <div id={`resume-${job.id}`} className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
                               <ReactMarkdown>{job.tailoredResume}</ReactMarkdown>
                             </div>
                           ) : (
                             <div className="text-xs text-foreground-muted italic">No tailored resume generated yet.</div>
                           )}
-                          {hasValidText(job.tailoredResume) && !editingResume && (
+                          {hasValidText(job.tailoredResume) && (
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => setPreviewResumeData({text: job.tailoredResume!, company: job.company})}>
                                 <FileText className="mr-2 h-3 w-3" /> Preview & Download
@@ -615,26 +603,50 @@ export function JobTracker() {
                           )}
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Q&A</h4>
-                            {!hasValidInterview(job.interviewQuestions) && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'interview')} disabled={actionLoading[`${job.id}-interview`]}>
-                                {actionLoading[`${job.id}-interview`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
-                              </Button>
-                            )}
+                            <div className="flex gap-2">
+                              {hasValidInterview(job.interviewQuestions) && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEditor(job, 'interview')}>Edit</Button>
+                              )}
+                              {!hasValidInterview(job.interviewQuestions) && (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'interview')} disabled={actionLoading[`${job.id}-interview`]}>
+                                  {actionLoading[`${job.id}-interview`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           {hasValidInterview(job.interviewQuestions) ? (
-                            <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto">
+                            <div className="bg-surface border border-border rounded-md p-4 text-xs text-foreground-muted max-h-64 overflow-y-auto markdown-body prose prose-sm max-w-none">
                               {Array.isArray(job.interviewQuestions) ? (
-                                <ul className="list-decimal pl-4 space-y-2">
-                                  {job.interviewQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                                <ul className="list-decimal pl-5 space-y-3">
+                                  {job.interviewQuestions.map((q, i) => (
+                                    <li key={i} className="leading-relaxed">{q}</li>
+                                  ))}
                                 </ul>
                               ) : (
-                                <div className="markdown-body prose prose-sm max-w-none">
-                                  <ReactMarkdown>{job.interviewQuestions as string}</ReactMarkdown>
-                                </div>
+                                <ReactMarkdown>{job.interviewQuestions as string}</ReactMarkdown>
                               )}
                             </div>
                           ) : (
                             <div className="text-xs text-foreground-muted italic">No interview questions generated yet.</div>
+                          )}
+                          {hasValidInterview(job.interviewQuestions) && (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => {
+                                const text = Array.isArray(job.interviewQuestions) ? job.interviewQuestions.join('\n\n') : job.interviewQuestions;
+                                const blob = new Blob([text!], { type: 'text/markdown' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `Interview_Prep_${job.company.replace(/\s+/g, '_')}.md`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                toast.success("Interview Prep downloaded!");
+                              }}>
+                                Download Q&A
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -657,6 +669,23 @@ export function JobTracker() {
         resumeText={previewResumeData?.text || ''}
         companyName={previewResumeData?.company || ''}
       />
+
+      {editorModal.isOpen && editorModal.job && editorModal.type && (
+        <AssetEditorModal
+          isOpen={editorModal.isOpen}
+          onClose={() => setEditorModal({ isOpen: false, job: null, type: null, content: '' })}
+          title={
+            editorModal.type === 'email' ? `Cold Email for ${editorModal.job.company}` :
+            editorModal.type === 'resume' ? `Tailored Resume for ${editorModal.job.company}` :
+            `Interview Prep for ${editorModal.job.company}`
+          }
+          type={editorModal.type}
+          initialContent={editorModal.content}
+          onSave={handleModalSaveText}
+          onAiImprove={handleModalImproveText}
+          isAiLoading={!!actionLoading[`${editorModal.job.id}-${editorModal.type}-improve`]}
+        />
+      )}
       </div>
     </PageShell>
   );
