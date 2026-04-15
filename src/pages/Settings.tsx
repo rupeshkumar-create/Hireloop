@@ -118,7 +118,7 @@ export function Settings() {
     // Analyze resume for career paths and feedback
     if (text.trim()) {
       try {
-        const paths = await suggestCareerPaths(text);
+        const paths = await suggestCareerPaths(text, profile?.antiSlopEnabled !== false);
         if (paths && paths.length > 0) {
           setFormData(prev => ({ ...prev, careerPaths: paths }));
         }

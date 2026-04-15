@@ -59,7 +59,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
 
       if (text.trim()) {
         toast.info("Analyzing resume for career paths and preferences...");
-        const suggestedPaths = await suggestCareerPaths(text);
+        const suggestedPaths = await suggestCareerPaths(text, profile?.antiSlopEnabled !== false);
         if (suggestedPaths && suggestedPaths.length > 0) {
           paths = suggestedPaths;
           toast.success("Career paths automatically detected!");

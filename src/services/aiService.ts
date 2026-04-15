@@ -55,25 +55,30 @@ function parseJsonArray(content: string): any[] {
 
 function extractSkills(resumeText: string): string[] {
   const skillCandidates = [
-    'node.js',
-    'typescript',
-    'javascript',
-    'react',
-    'python',
-    'aws',
-    'postgresql',
-    'docker',
-    'kubernetes',
-    'graphql',
-    'firebase',
-    'java',
-    'golang',
-    'next.js',
+    // Languages
+    'python', 'java', 'golang', 'go', 'ruby', 'rust', 'c++', 'c#', 'c', 'php', 'swift', 'kotlin', 'objective-c', 'scala', 'dart', 'typescript', 'javascript', 'sql', 'html', 'css', 'bash', 'shell', 'perl', 'haskell', 'lua', 'clojure', 'elixir', 'solidity',
+    // Frontend
+    'react', 'angular', 'vue', 'svelte', 'next.js', 'nuxt', 'gatsby', 'remix', 'ember', 'bootstrap', 'tailwind', 'sass', 'less', 'jquery', 'redux', 'mobx', 'zustand', 'webpack', 'vite', 'rollup', 'babel',
+    // Backend & Frameworks
+    'node.js', 'express', 'nestjs', 'django', 'flask', 'fastapi', 'spring', 'spring boot', 'laravel', 'symfony', 'asp.net', 'rails', 'phoenix', 'fiber', 'actix', 'gin', 'echo', 'fastify',
+    // Databases
+    'postgresql', 'mysql', 'mongodb', 'sqlite', 'mariadb', 'oracle', 'redis', 'memcached', 'cassandra', 'elasticsearch', 'couchbase', 'dynamodb', 'neo4j', 'firestore', 'supabase', 'firebase', 'clickhouse', 'snowflake', 'bigquery', 'redshift', 'cockroachdb',
+    // Cloud & DevOps
+    'aws', 'azure', 'gcp', 'google cloud', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible', 'pulumi', 'jenkins', 'circleci', 'github actions', 'gitlab ci', 'datadog', 'new relic', 'grafana', 'prometheus', 'splunk', 'kafka',
+    // Other
+    'graphql', 'grpc', 'rest', 'rabbitmq', 'activemq', 'celery', 'airflow', 'spark', 'hadoop', 'flink', 'dbt', 'tableau', 'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'pytorch', 'keras', 'linux', 'ubuntu', 'agile', 'scrum', 'jira', 'figma'
   ];
 
   const lowerResume = resumeText.toLowerCase();
-  const matched = skillCandidates.filter((skill) => lowerResume.includes(skill));
-  return matched.slice(0, 4);
+  const matched = skillCandidates.filter((skill) => {
+    if (skill === 'c++') return lowerResume.includes('c++');
+    if (skill === 'c#') return lowerResume.includes('c#');
+    
+    const regex = new RegExp(`\\b${skill.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
+    return regex.test(lowerResume);
+  });
+  
+  return matched.slice(0, 8);
 }
 
 function normalizeQueries(rawValue: unknown): string[] {
@@ -253,12 +258,35 @@ function normalizeRankedJob(rawJob: any, sourceJob: SerperJob): RankedJob {
   };
 }
 
-function buildFallbackRankedJobs(jobs: SerperJob[], limit: number): RankedJob[] {
+function buildFallbackRankedJobs(jobs: SerperJob[], careerPaths: string[], resumeText: string, limit: number): RankedJob[] {
+  const candidateSkills = extractSkills(resumeText).map(s => s.toLowerCase());
+  const pathKeywords = careerPaths.flatMap(p => p.toLowerCase().split(' ')).filter(kw => kw.length > 3);
+
   return jobs
     .map((job) => {
       const freshnessScore = getFreshnessScore(job.daysOld || 0);
       const atsQualityScore = getAtsQualityScore(job.applyLink);
-      const finalScore = freshnessScore * 0.6 + atsQualityScore * 0.4;
+      
+      const jobDescLower = job.description.toLowerCase();
+      const jobTitleLower = job.title.toLowerCase();
+
+      let relevanceScore = 40; // baseline
+      
+      // Title match
+      const titleMatch = pathKeywords.some(kw => jobTitleLower.includes(kw));
+      if (titleMatch) relevanceScore += 30;
+
+      // Skill match
+      let matchedSkills = 0;
+      candidateSkills.forEach(skill => {
+        if (jobDescLower.includes(skill)) matchedSkills++;
+      });
+      relevanceScore += Math.min(30, matchedSkills * 10);
+
+      // Penalty if no title and no skills
+      if (!titleMatch && matchedSkills === 0) relevanceScore = 10;
+
+      const finalScore = (relevanceScore * 0.45) + (freshnessScore * 0.15) + (atsQualityScore * 0.15) + (60 * 0.25);
 
       return {
         title: job.title,
@@ -268,13 +296,13 @@ function buildFallbackRankedJobs(jobs: SerperJob[], limit: number): RankedJob[] 
         description: job.description,
         url: job.applyLink,
         requirements: [],
-        matchScore: Math.round(finalScore),
+        matchScore: Math.round(relevanceScore),
         datePosted: toIsoDate(job.postedAt, job.daysOld),
         finalScore: Math.round(finalScore),
         freshnessScore,
         atsQualityScore,
         companyQualityScore: 60,
-        companyQualityReason: 'Fallback deterministic ranking without model enrichment.',
+        companyQualityReason: 'Fallback deterministic ranking based on basic keyword matching.',
         isYC: false,
         isFundedStartup: false,
         salaryPrediction: '',
@@ -388,7 +416,7 @@ Return ONLY a JSON array with one object per job in the same order:
       .slice(0, limit);
   } catch (error: any) {
     console.error('Error scoring real jobs:', error);
-    return buildFallbackRankedJobs(jobsToScore, limit);
+    return buildFallbackRankedJobs(jobsToScore, careerPaths, resumeText, limit);
   }
 }
 
@@ -705,13 +733,15 @@ Return JSON array of 5 queries
 // Agent 2: Career Path Suggestion
 // Suggests 4 remote-friendly job titles based on the resume.
 // ---------------------------------------------------------------------------
-export async function suggestCareerPaths(resumeText: string): Promise<string[]> {
+export async function suggestCareerPaths(resumeText: string, antiSlopEnabled: boolean = true): Promise<string[]> {
   const prompt = `You are an expert career counselor specializing in remote work opportunities.
 Based on the following resume, suggest 4 highly relevant career paths (job titles) that:
 1. This person is genuinely well-suited for, based on their actual skills and experience.
 2. Are commonly available as fully remote positions (e.g. Software Engineer, Product Manager, UX Designer, Data Scientist, DevOps Engineer, Content Strategist, Technical Writer).
 
 Keep titles concise (e.g. "Senior Frontend Engineer", "Remote Product Manager").
+
+${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
 Resume Text:
 ${resumeText.substring(0, 3000)}
@@ -940,7 +970,9 @@ Use a Y Combinator type of thinking:
 
 Format each as a Markdown item:
 **Q1: [Question]**
-*Answer/What to look for:* [Brief guide on the ideal answer]
+**Answer/What to look for:** [Brief guide on the ideal answer]
+
+${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
 Generate exactly 5 questions.
 Return ONLY clean Markdown.`;
@@ -962,7 +994,7 @@ Return ONLY clean Markdown.`;
 // Agent 7: Salary Insights
 // Market salary ranges with a remote vs on-site premium comparison.
 // ---------------------------------------------------------------------------
-export async function generateSalaryInsights(jobTitle: string, location: string) {
+export async function generateSalaryInsights(jobTitle: string, location: string, antiSlopEnabled: boolean = true) {
   const prompt = `You are an expert compensation analyst specializing in remote tech roles.
 Provide realistic salary insights for a REMOTE "${jobTitle}" position.
 
@@ -971,6 +1003,8 @@ Include:
 2. **On-site equivalent** in "${location}" - for comparison.
 3. **Remote premium/discount** - e.g. "Remote roles for this title pay ~8% more than on-site in ${location} due to reduced overhead."
 4. **3 key salary factors** - e.g. years of experience, specific stack, company size/stage.
+
+${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
 Format in clean Markdown. Under 200 words. No fluff.`;
 

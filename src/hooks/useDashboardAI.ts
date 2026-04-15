@@ -28,7 +28,7 @@ export function useDashboardAI(profile: any) {
         const questions = await aiService.generateInterviewQuestions(job.title, job.company, profile?.antiSlopEnabled !== false);
         setAiResult(questions);
       } else if (action === 'salary') {
-        const insights = await aiService.generateSalaryInsights(job.title, job.location);
+        const insights = await aiService.generateSalaryInsights(job.title, job.location, profile?.antiSlopEnabled !== false);
         setAiResult(insights);
       }
     } catch (error: any) {

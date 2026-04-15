@@ -35,6 +35,7 @@ export interface UserProfile {
 
 interface AuthContextType {
   user: User | null;
+  realUser: User | null;
   profile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -187,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       user, 
+      realUser,
       profile, 
       loading, 
       signInWithGoogle, 

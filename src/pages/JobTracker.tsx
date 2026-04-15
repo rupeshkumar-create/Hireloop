@@ -12,6 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 import { PageShell } from '../components/ui/page-shell';
@@ -623,7 +624,7 @@ export function JobTracker() {
                                   ))}
                                 </ul>
                               ) : (
-                                <ReactMarkdown>{job.interviewQuestions as string}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{job.interviewQuestions as string}</ReactMarkdown>
                               )}
                             </div>
                           ) : (

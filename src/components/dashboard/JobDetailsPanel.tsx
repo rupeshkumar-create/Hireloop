@@ -4,6 +4,7 @@ import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, Message
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Job } from '../../types/dashboard';
 import { AiActionType } from '../../hooks/useDashboardAI';
 import { useAuth } from '../../contexts/AuthContext';
@@ -139,7 +140,7 @@ export function JobDetailsPanel({
                       </ul>
                     ) : (
                       <div className="markdown-body prose prose-sm max-w-none prose-zinc">
-                        <ReactMarkdown>{aiResult as string}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult as string}</ReactMarkdown>
                       </div>
                     )}
                     

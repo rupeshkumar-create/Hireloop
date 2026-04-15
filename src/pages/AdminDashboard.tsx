@@ -11,11 +11,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 
 export function AdminDashboard() {
-  const { user, impersonateUser } = useAuth();
+  const { user, realUser, impersonateUser } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
   const [passwordInput, setPasswordInput] = useState('');
   
+  const adminEmails = ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'];
+  const currentUser = realUser || user;
+
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -93,15 +96,15 @@ export function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (sessionStorage.getItem('super_admin_unlocked') === 'true' && user?.email && ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'].includes(user.email.toLowerCase())) {
+    if (sessionStorage.getItem('super_admin_unlocked') === 'true' && currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase())) {
       setIsAuthenticated(true);
     }
-  }, [user]);
+  }, [currentUser]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === import.meta.env.VITE_SUPER_ADMIN_PASSWORD) {
-      if (user?.email && ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'].includes(user.email.toLowerCase())) {
+      if (currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase())) {
         sessionStorage.setItem('super_admin_unlocked', 'true');
         setIsAuthenticated(true);
         toast.success('Admin access granted');
@@ -153,8 +156,8 @@ export function AdminDashboard() {
 
       // 2. Log the action
       await addDoc(collection(db, 'admin_logs'), {
-        adminUid: user?.uid || 'unknown_uid',
-        adminEmail: user?.email || 'unknown_email',
+        adminUid: currentUser?.uid || 'unknown_uid',
+        adminEmail: currentUser?.email || 'unknown_email',
         targetUserId: selectedUser.id || 'unknown_target_id',
         targetUserEmail: selectedUser.email || 'unknown_target_email',
         oldPlan: selectedUser.plan || 'free',
