@@ -52,9 +52,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background font-sans text-foreground">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex h-[4.5rem] items-center justify-end border-b border-border bg-background/80 px-6 backdrop-blur-xl md:px-8">
-          <ThemeToggle />
-        </div>
         <main className="flex-1 overflow-y-auto bg-background px-6 py-8 md:px-8">
           {children}
         </main>

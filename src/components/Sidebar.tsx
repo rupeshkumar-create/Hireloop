@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Briefcase, LayoutDashboard, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { ThemeToggle } from './ui/theme-toggle';
 
 export function Sidebar() {
   const { profile, logout, isImpersonating, stopImpersonating } = useAuth();
@@ -92,6 +93,9 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-border p-3">
+        <div className={cn("mb-4 flex items-center", isCollapsed ? "justify-center" : "justify-start")}>
+          <ThemeToggle isCollapsed={isCollapsed} />
+        </div>
         <div className={cn("mb-4 flex items-center rounded-2xl border border-border bg-background/70 py-2", isCollapsed ? "justify-center px-0" : "px-3")}>
           {profile?.photoURL ? (
             <img src={profile.photoURL} alt="Profile" className={cn("rounded-full border border-border object-cover shrink-0", isCollapsed ? "h-8 w-8" : "mr-3 h-10 w-10")} referrerPolicy="no-referrer" />
