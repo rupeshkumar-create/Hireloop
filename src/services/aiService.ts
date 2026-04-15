@@ -1,4 +1,5 @@
 import { SerperJob, SearchRemoteJobsStats, searchRemoteJobs, jobFingerprint } from './serperService';
+import { searchJobicy } from './jobicyService';
 
 interface RankedJob {
   title: string;
@@ -554,81 +555,95 @@ Return JSON array of 5 queries
   const aggregatedStats = createEmptySearchStats();
   let realJobs: SerperJob[] = [];
 
-  try {
-    const strictStage = await searchRemoteJobs(optimizedQueries, {
-      allowedDomains: atsDomains,
-      allowCompanyCareerPages: false,
-      maxDaysOld: 7,
-      maxQueries: Math.max(5, optimizedQueries.length),
-      jobType,
-      userLocation: location
-    });
-    realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
-    Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, strictStage.stats));
-  } catch (err) {
-    console.warn('Serper unavailable during primary search:', err);
-  }
-  console.log('Serper Jobs After Strict Stage:', realJobs.length);
-
-  const extraQueries = buildExpansionQueries(careerPaths, resumeText, jobType, location).filter(
-    (query) => !optimizedQueries.includes(query)
-  );
-
-  if (realJobs.length < limit && extraQueries.length > 0) {
+  // --- JOBICY API INTEGRATION ---
+  if (isRemote) {
     try {
-      const broaderStage = await searchRemoteJobs(extraQueries, {
+      const jobicyTags = [...careerPaths, extractSkills(resumeText)[0]].filter(Boolean);
+      const jobicyJobs = await searchJobicy(jobicyTags, location);
+      realJobs = mergeDedupJobs(realJobs, jobicyJobs);
+      console.log(`Jobicy returned ${jobicyJobs.length} jobs.`);
+    } catch (err) {
+      console.warn('Jobicy unavailable:', err);
+    }
+  }
+
+  if (realJobs.length < limit * 2) {
+    try {
+      const strictStage = await searchRemoteJobs(optimizedQueries, {
         allowedDomains: atsDomains,
         allowCompanyCareerPages: false,
         maxDaysOld: 7,
-        maxQueries: Math.min(15, extraQueries.length),
+        maxQueries: Math.max(5, optimizedQueries.length),
         jobType,
         userLocation: location
       });
-      realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
-      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, broaderStage.stats));
+      realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
+      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, strictStage.stats));
     } catch (err) {
-      console.warn('Serper unavailable during expanded ATS search:', err);
+      console.warn('Serper unavailable during primary search:', err);
     }
-  }
+    console.log('Serper Jobs After Strict Stage:', realJobs.length);
 
-  if (realJobs.length < limit) {
-    const trustedCareerQueries = Array.from(new Set([...optimizedQueries, ...extraQueries]));
-    try {
-      const trustedCareerStage = await searchRemoteJobs(trustedCareerQueries, {
-        allowedDomains: atsDomains,
-        allowCompanyCareerPages: true,
-        maxDaysOld: proMaxDaysOld,
-        maxQueries: Math.min(20, trustedCareerQueries.length),
-        jobType,
-        userLocation: location
-      });
-      realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
-      Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
-    } catch (err) {
-      console.warn('Serper unavailable during trusted career-page search:', err);
-    }
-  }
-
-  if (realJobs.length < limit && isPro) {
-    const boardQueries = buildBoardQueries(careerPaths, resumeText, jobType, location).filter(
+    const extraQueries = buildExpansionQueries(careerPaths, resumeText, jobType, location).filter(
       (query) => !optimizedQueries.includes(query)
     );
-    if (boardQueries.length > 0) {
+
+    if (realJobs.length < limit && extraQueries.length > 0) {
       try {
-        const boardStage = await searchRemoteJobs(boardQueries, {
-          allowedDomains: [...atsDomains, ...proBoardDomains],
-          blockedDomains: ['google.com'],
-          skipNetworkFetchForDomains: proBoardDomains,
-          allowCompanyCareerPages: true,
-          maxDaysOld: proMaxDaysOld,
-          maxQueries: Math.min(20, boardQueries.length),
+        const broaderStage = await searchRemoteJobs(extraQueries, {
+          allowedDomains: atsDomains,
+          allowCompanyCareerPages: false,
+          maxDaysOld: 7,
+          maxQueries: Math.min(15, extraQueries.length),
           jobType,
           userLocation: location
         });
-        realJobs = mergeDedupJobs(realJobs, boardStage.jobs);
-        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, boardStage.stats));
+        realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
+        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, broaderStage.stats));
       } catch (err) {
-        console.warn('Serper unavailable during Pro board fill:', err);
+        console.warn('Serper unavailable during expanded ATS search:', err);
+      }
+    }
+
+    if (realJobs.length < limit) {
+      const trustedCareerQueries = Array.from(new Set([...optimizedQueries, ...extraQueries]));
+      try {
+        const trustedCareerStage = await searchRemoteJobs(trustedCareerQueries, {
+          allowedDomains: atsDomains,
+          allowCompanyCareerPages: true,
+          maxDaysOld: proMaxDaysOld,
+          maxQueries: Math.min(20, trustedCareerQueries.length),
+          jobType,
+          userLocation: location
+        });
+        realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
+        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
+      } catch (err) {
+        console.warn('Serper unavailable during trusted career-page search:', err);
+      }
+    }
+
+    if (realJobs.length < limit && isPro) {
+      const boardQueries = buildBoardQueries(careerPaths, resumeText, jobType, location).filter(
+        (query) => !optimizedQueries.includes(query)
+      );
+      if (boardQueries.length > 0) {
+        try {
+          const boardStage = await searchRemoteJobs(boardQueries, {
+            allowedDomains: [...atsDomains, ...proBoardDomains],
+            blockedDomains: ['google.com'],
+            skipNetworkFetchForDomains: proBoardDomains,
+            allowCompanyCareerPages: true,
+            maxDaysOld: proMaxDaysOld,
+            maxQueries: Math.min(20, boardQueries.length),
+            jobType,
+            userLocation: location
+          });
+          realJobs = mergeDedupJobs(realJobs, boardStage.jobs);
+          Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, boardStage.stats));
+        } catch (err) {
+          console.warn('Serper unavailable during Pro board fill:', err);
+        }
       }
     }
   }
