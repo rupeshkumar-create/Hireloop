@@ -23,7 +23,8 @@ export function Settings() {
   const [couponCode, setCouponCode] = useState('');
   const [formData, setFormData] = useState({
     careerPaths: [] as string[],
-    jobType: 'remote',
+    jobType: 'both',
+    location: '',
     minSalary: '',
     resumeText: '',
     resumeAnalysis: undefined as any,
@@ -35,7 +36,8 @@ export function Settings() {
     if (profile) {
       setFormData({
         careerPaths: profile.careerPaths || [],
-        jobType: profile.jobType || 'remote',
+        jobType: profile.jobType || 'both',
+        location: profile.location || '',
         minSalary: profile.minSalary?.toString() || '',
         resumeText: profile.resumeText || '',
         resumeAnalysis: profile.resumeAnalysis,
@@ -142,6 +144,7 @@ export function Settings() {
     await updateProfile({
       careerPaths: formData.careerPaths,
       jobType: formData.jobType,
+      location: formData.location,
       minSalary: formData.minSalary ? parseInt(formData.minSalary, 10) : null,
       resumeText: formData.resumeText,
       resumeAnalysis: formData.resumeAnalysis,
@@ -275,7 +278,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-border">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground-muted">Work Type</label>
                 <select 
@@ -284,11 +287,22 @@ export function Settings() {
                   value={formData.jobType}
                   onChange={handleChange}
                 >
-                  <option value="remote">Remote</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="onsite">On-site</option>
-                  <option value="any">Any</option>
+                  <option value="both">Both (Remote & On-site)</option>
+                  <option value="remote">Remote Only</option>
+                  <option value="onsite">On-site Only</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground-muted">Location</label>
+                <Input 
+                  name="location" 
+                  type="text" 
+                  placeholder="e.g. San Francisco, CA" 
+                  value={formData.location} 
+                  onChange={handleChange} 
+                  disabled={formData.jobType === 'remote'}
+                  title={formData.jobType === 'remote' ? "Location is ignored for Remote jobs" : ""}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground-muted">Minimum Salary (USD)</label>

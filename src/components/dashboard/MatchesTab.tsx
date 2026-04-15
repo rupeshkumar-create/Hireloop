@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Briefcase, MapPin, DollarSign, Calendar, ArrowUpDown } from 'lucide-react';
+import { Loader2, Briefcase, MapPin, DollarSign, Calendar, ArrowUpDown, Plane } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -115,6 +115,11 @@ export function MatchesTab({
                     </div>
                     <div className="flex flex-wrap gap-4 mt-4 text-sm text-foreground-muted">
                       <div className="flex items-center"><MapPin className="mr-1.5 h-4 w-4 text-foreground-muted" /> {job.location}</div>
+                      {job.requiresRelocation && (
+                        <div className="flex items-center text-[rgba(201,100,66,1)]" title="Requires relocation">
+                          <Plane className="mr-1.5 h-4 w-4" /> Relocation
+                        </div>
+                      )}
                       <div className="flex items-center"><DollarSign className="mr-1.5 h-4 w-4 text-foreground-muted" /> {job.salary}</div>
                       {job.datePosted && (
                         <div className="flex items-center"><Calendar className="mr-1.5 h-4 w-4 text-foreground-muted" /> {new Date(job.datePosted).toLocaleDateString()}</div>

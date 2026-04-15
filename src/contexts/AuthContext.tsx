@@ -17,7 +17,8 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   careerPaths?: string[];
-  jobType?: string;
+  jobType?: string; // e.g. 'remote', 'onsite', 'both'
+  location?: string;
   minSalary?: number | null;
   resumeText?: string;
   resumeAnalysis?: ResumeAnalysis;

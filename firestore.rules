@@ -74,7 +74,8 @@ service cloud.firestore {
              (!('displayName' in data) || data.displayName is string) &&
              (!('photoURL' in data) || data.photoURL is string) &&
              (!('careerPaths' in data) || (data.careerPaths is list && data.careerPaths.size() <= 10)) &&
-             (!('jobType' in data) || data.jobType in ['remote', 'hybrid', 'onsite', 'any']) &&
+             (!('jobType' in data) || data.jobType in ['remote', 'hybrid', 'onsite', 'any', 'both']) &&
+             (!('location' in data) || data.location is string) &&
              (!('minSalary' in data) || data.minSalary == null || data.minSalary is number) &&
              (!('resumeText' in data) || (data.resumeText is string && data.resumeText.size() < 100000)) &&
              data.createdAt is string &&

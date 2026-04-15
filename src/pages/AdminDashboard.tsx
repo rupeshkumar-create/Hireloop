@@ -25,6 +25,53 @@ export function AdminDashboard() {
   const [newPlan, setNewPlan] = useState<'free' | 'pro'>('free');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    jobType: '',
+    location: '',
+    minSalary: '',
+    careerPaths: ''
+  });
+
+  const handleEditUser = (u: any) => {
+    setEditingUser(u);
+    setEditFormData({
+      jobType: u.jobType || 'both',
+      location: u.location || '',
+      minSalary: u.minSalary?.toString() || '',
+      careerPaths: (u.careerPaths || []).join(', ')
+    });
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      const paths = editFormData.careerPaths.split(',').map(s => s.trim()).filter(Boolean);
+      await updateDoc(doc(db, 'users', editingUser.id), {
+        jobType: editFormData.jobType,
+        location: editFormData.location,
+        minSalary: editFormData.minSalary ? parseInt(editFormData.minSalary, 10) : null,
+        careerPaths: paths,
+        updatedAt: new Date().toISOString()
+      });
+      
+      toast.success(`Updated details for ${editingUser.email}`);
+      setUsers(users.map(u => u.id === editingUser.id ? { 
+        ...u, 
+        jobType: editFormData.jobType,
+        location: editFormData.location,
+        minSalary: editFormData.minSalary ? parseInt(editFormData.minSalary, 10) : null,
+        careerPaths: paths
+      } : u));
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error('Failed to update user details');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const getSortableTime = (value: any) => {
     if (!value) return 0;
@@ -70,24 +117,23 @@ export function AdminDashboard() {
     if (!isAuthenticated) return;
     
     setLoading(true);
-    // Read the full collection and sort client-side so admin can still see
-    // older docs with missing or inconsistently typed createdAt values.
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-      
-      usersData.sort((a, b) => {
-        const dateA = getSortableTime(a.createdAt);
-        const dateB = getSortableTime(b.createdAt);
-        return dateB - dateA;
-      });
+      // Read the full collection
+      const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+        const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        
+        usersData.sort((a, b) => {
+          const dateA = getSortableTime(a.createdAt);
+          const dateB = getSortableTime(b.createdAt);
+          return dateB - dateA;
+        });
 
-      setUsers(usersData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to load users. ' + error.message);
-      setLoading(false);
-    });
+        setUsers(usersData);
+        setLoading(false);
+      }, (error) => {
+        console.error('Error fetching users:', error);
+        toast.error('Failed to load users. ' + error.message);
+        setLoading(false);
+      });
 
     return () => unsubscribe();
   }, [isAuthenticated]);
@@ -195,6 +241,7 @@ export function AdminDashboard() {
                       {formatDate(u.lastActiveAt)}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => handleEditUser(u)}>Edit Data</Button>
                       <Button size="sm" variant="outline" onClick={() => setDetailUser(u)}>View Details</Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         impersonateUser(u.id, u.email);
@@ -213,6 +260,71 @@ export function AdminDashboard() {
           </div>
         )}
       </PageShell>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md rounded-[28px] border border-border bg-surface p-6 shadow-[0_24px_80px_rgba(0,0,0,0.12)] max-h-[90vh] overflow-y-auto"
+            >
+              <h3 className="text-lg font-bold mb-4 text-foreground">Edit User: {editingUser.email}</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground-muted mb-1">Job Type</label>
+                  <select 
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3898ec]"
+                    value={editFormData.jobType}
+                    onChange={(e) => setEditFormData({ ...editFormData, jobType: e.target.value })}
+                  >
+                    <option value="both">Both (Remote & On-site)</option>
+                    <option value="remote">Remote Only</option>
+                    <option value="onsite">On-site Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground-muted mb-1">Location</label>
+                  <input 
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3898ec]"
+                    placeholder="e.g. San Francisco, CA"
+                    value={editFormData.location}
+                    onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground-muted mb-1">Min Salary (USD)</label>
+                  <input 
+                    type="number"
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3898ec]"
+                    placeholder="e.g. 120000"
+                    value={editFormData.minSalary}
+                    onChange={(e) => setEditFormData({ ...editFormData, minSalary: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground-muted mb-1">Career Paths (comma separated)</label>
+                  <textarea 
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3898ec]"
+                    rows={3}
+                    placeholder="e.g. Software Engineer, Frontend Developer"
+                    value={editFormData.careerPaths}
+                    onChange={(e) => setEditFormData({ ...editFormData, careerPaths: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <Button variant="outline" onClick={() => setEditingUser(null)} disabled={saving}>Cancel</Button>
+                <Button onClick={handleSaveUserEdit} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Change Plan Modal */}
       <AnimatePresence>

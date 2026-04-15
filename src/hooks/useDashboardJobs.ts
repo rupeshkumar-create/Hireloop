@@ -102,12 +102,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
       const result = await generateDailyJobs(
         profile.careerPaths,
-        'remote',
+        profile.jobType || 'both',
         profile.minSalary || null,
         profile.resumeText || '',
         limit,
         seenFingerprints,
-        profile.learningProfile?.jobPreferences || ''
+        profile.learningProfile?.jobPreferences || '',
+        profile.location || ''
       );
       const results = result.jobs;
       setJobs(results);

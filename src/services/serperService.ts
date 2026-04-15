@@ -9,6 +9,7 @@ export interface SerperJob {
   salary: string;
   postedAt: string;
   daysOld?: number;
+  requiresRelocation?: boolean;
 }
 
 export interface SearchRemoteJobsOptions {
@@ -18,6 +19,8 @@ export interface SearchRemoteJobsOptions {
   allowCompanyCareerPages?: boolean;
   maxQueries?: number;
   maxDaysOld?: number;
+  jobType?: string;
+  userLocation?: string;
 }
 
 export interface SearchRemoteJobsStats {
@@ -182,13 +185,14 @@ function pickBestApplyLink(
   return candidates[0] || '';
 }
 
-function isValidJob(job: SerperJob): boolean {
+function isValidJob(job: SerperJob, jobType?: string): boolean {
   const normalizedTitle = job.title.trim().toLowerCase();
+  const requiresRemote = jobType === 'remote';
   return (
     job.title.trim().length > 3 &&
     job.company.trim().length > 2 &&
     job.applyLink.startsWith('http') &&
-    job.location.toLowerCase().includes('remote') &&
+    (!requiresRemote || job.location.toLowerCase().includes('remote')) &&
     job.description.trim().length > 0 &&
     normalizedTitle !== 'job' &&
     normalizedTitle !== 'opening'
@@ -260,14 +264,20 @@ export async function searchRemoteJobs(
         }
         seen.add(fp);
 
-        // ── 2. Remote-only filter ─────────────────────────────────────────
+        // ── 2. Remote/On-site filter ──────────────────────────────────────
         const loc: string = job.location || '';
         const scheduleType: string = job.detected_extensions?.schedule_type || '';
         const isRemote =
           loc.toLowerCase().includes('remote') ||
           scheduleType.toLowerCase().includes('remote') ||
           job.detected_extensions?.work_from_home === true;
-        if (!isRemote) {
+          
+        if (options.jobType === 'remote' && !isRemote) {
+          stats.removedByRemoteFilter += 1;
+          continue;
+        }
+        
+        if (options.jobType === 'onsite' && isRemote) {
           stats.removedByRemoteFilter += 1;
           continue;
         }
@@ -298,10 +308,23 @@ export async function searchRemoteJobs(
         }
 
         const safeLocation = (loc || '').trim();
-        const normalizedLocation = safeLocation.length > 0 ? safeLocation : 'Remote';
-        const finalLocation = normalizedLocation.toLowerCase().includes('remote')
-          ? normalizedLocation
-          : `Remote (${normalizedLocation})`;
+        const normalizedLocation = safeLocation.length > 0 ? safeLocation : (isRemote ? 'Remote' : 'Location Not Specified');
+        let finalLocation = normalizedLocation;
+        let requiresRelocation = false;
+        
+        if (isRemote) {
+          finalLocation = normalizedLocation.toLowerCase().includes('remote')
+            ? normalizedLocation
+            : `Remote (${normalizedLocation})`;
+        } else if (options.userLocation) {
+          // Very basic check if location text differs heavily from user location
+          const uLocWords = options.userLocation.toLowerCase().split(/[,\s]+/);
+          const jLocWords = finalLocation.toLowerCase().split(/[,\s]+/);
+          const hasOverlap = uLocWords.some(w => w.length > 2 && jLocWords.includes(w));
+          if (!hasOverlap) {
+            requiresRelocation = true;
+          }
+        }
 
         const candidateJob: SerperJob = {
           title: job.title || '',
@@ -312,9 +335,10 @@ export async function searchRemoteJobs(
           salary: job.detected_extensions?.salary || '',
           postedAt,
           daysOld,
+          requiresRelocation,
         };
 
-        if (!isValidJob(candidateJob)) {
+        if (!isValidJob(candidateJob, options.jobType)) {
           stats.removedByShapeValidation += 1;
           continue;
         }

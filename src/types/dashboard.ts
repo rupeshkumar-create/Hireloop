@@ -8,6 +8,7 @@ export interface Job {
   requirements: string[];
   matchScore?: number;
   datePosted?: string;
+  requiresRelocation?: boolean;
 }
 
 export type SortOption = 'matchScore' | 'company' | 'datePosted';

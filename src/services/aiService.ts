@@ -23,6 +23,7 @@ interface RankedJob {
   hotJobScore?: number;
   hotSignals?: string[];
   isHotJob?: boolean;
+  requiresRelocation?: boolean;
 }
 
 export interface GenerateDailyJobsResult {
@@ -90,19 +91,23 @@ function normalizeQueries(rawValue: unknown): string[] {
   return [];
 }
 
-function buildDeterministicQueries(careerPaths: string[], resumeText: string, minSalary: number | null): string[] {
+function buildDeterministicQueries(careerPaths: string[], resumeText: string, minSalary: number | null, jobType: string, location: string): string[] {
   const skills = extractSkills(resumeText);
   const primarySkill = skills[0] || 'typescript';
   const secondarySkill = skills[1] || 'react';
   const salaryClause = minSalary ? ` salary ${minSalary}` : '';
   const atsClause = '(site:greenhouse.io OR site:lever.co OR site:ashbyhq.com OR site:workable.com OR site:jobs.workday.com)';
 
-  return careerPaths.slice(0, 5).map((path) =>
-    `remote "${path}" "${primarySkill}" "${secondarySkill}" ${atsClause}${salaryClause}`.trim()
-  );
+  return careerPaths.slice(0, 5).map((path, idx) => {
+    let locModifier = 'remote';
+    if (jobType === 'onsite' || (jobType === 'both' && idx % 2 !== 0 && location)) {
+      locModifier = `"${location}"`;
+    }
+    return `${locModifier} "${path}" "${primarySkill}" "${secondarySkill}" ${atsClause}${salaryClause}`.trim();
+  });
 }
 
-function buildExpansionQueries(careerPaths: string[], resumeText: string): string[] {
+function buildExpansionQueries(careerPaths: string[], resumeText: string, jobType: string, location: string): string[] {
   const titleSeeds = careerPaths.length > 0 ? careerPaths : ['software engineer', 'backend engineer'];
   const synonyms = ['software engineer', 'developer', 'backend engineer', 'full stack engineer', 'platform engineer'];
   const skills = extractSkills(resumeText);
@@ -117,16 +122,22 @@ function buildExpansionQueries(careerPaths: string[], resumeText: string): strin
   ];
 
   const generated: string[] = [];
+  let idx = 0;
   for (const title of [...titleSeeds, ...synonyms]) {
     for (const domain of domains) {
-      generated.push(`remote "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+      let locModifier = 'remote';
+      if (jobType === 'onsite' || (jobType === 'both' && idx % 2 !== 0 && location)) {
+        locModifier = `"${location}"`;
+      }
+      generated.push(`${locModifier} "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+      idx++;
     }
   }
 
   return Array.from(new Set(generated));
 }
 
-function buildBoardQueries(careerPaths: string[], resumeText: string): string[] {
+function buildBoardQueries(careerPaths: string[], resumeText: string, jobType: string, location: string): string[] {
   const titleSeeds = careerPaths.length > 0 ? careerPaths : ['software engineer', 'backend engineer'];
   const skills = extractSkills(resumeText);
   const primarySkill = skills[0] || 'typescript';
@@ -139,9 +150,15 @@ function buildBoardQueries(careerPaths: string[], resumeText: string): string[] 
   ];
 
   const generated: string[] = [];
+  let idx = 0;
   for (const title of titleSeeds.slice(0, 6)) {
     for (const domain of domains) {
-      generated.push(`remote "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+      let locModifier = 'remote';
+      if (jobType === 'onsite' || (jobType === 'both' && idx % 2 !== 0 && location)) {
+        locModifier = `"${location}"`;
+      }
+      generated.push(`${locModifier} "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+      idx++;
     }
   }
 
@@ -231,6 +248,7 @@ function normalizeRankedJob(rawJob: any, sourceJob: SerperJob): RankedJob {
     hotJobScore,
     hotSignals: Array.isArray(rawJob.hotSignals) ? rawJob.hotSignals.filter((value: unknown): value is string => typeof value === 'string') : [],
     isHotJob: hotJobScore >= 70,
+    requiresRelocation: sourceJob.requiresRelocation === true,
   };
 }
 
@@ -264,6 +282,7 @@ function buildFallbackRankedJobs(jobs: SerperJob[], limit: number): RankedJob[] 
         hotJobScore: freshnessScore >= 90 ? 80 : 40,
         hotSignals: freshnessScore >= 90 ? ['Fresh posting'] : [],
         isHotJob: freshnessScore >= 90,
+        requiresRelocation: job.requiresRelocation === true,
       };
     })
     .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
@@ -456,13 +475,20 @@ Respond ONLY with the updated context string.`;
 
 export async function generateDailyJobs(
   careerPaths: string[],
-  _jobType: string, // always 'remote' — kept for API compatibility
+  jobType: string, 
   minSalary: number | null,
   resumeText: string,
   limit: number = 1,
-  seenFingerprints: string[] = [], // fingerprints of jobs already shown to this user
-  learningContext: string = ''
+  seenFingerprints: string[] = [], 
+  learningContext: string = '',
+  location: string = ''
 ): Promise<GenerateDailyJobsResult> {
+  const isRemote = jobType === 'remote' || jobType === 'both';
+  const isOnsite = jobType === 'onsite' || jobType === 'both';
+  
+  const locationClause = isOnsite && location ? `If generating an on-site or hybrid query, MUST include the location: "${location}"` : '';
+  const remoteClause = isRemote ? 'MUST include "remote" if generating a remote query' : 'MUST NOT include "remote"';
+  
   const queryPrompt = `
 You are a top 0.1% technical recruiter.
 
@@ -473,8 +499,9 @@ Hidden User Preferences learned from past behavior: ${learningContext}
 
 # STRICT RULES
 
-- MUST include:
-  "remote"
+- Job Type Preference: ${jobType}
+- ${remoteClause}
+- ${locationClause}
 - MUST include:
   1 job title
   2 core skills
@@ -493,6 +520,7 @@ Generate 5 HIGH-PRECISION queries:
 - narrow
 - specific
 - high signal
+- If Job Type is 'both', make half the queries remote and half on-site for ${location}.
 
 Resume:
 ${resumeText.substring(0, 1000)}
@@ -514,7 +542,7 @@ Return JSON array of 5 queries
   }
 
   if (!optimizedQueries || optimizedQueries.length === 0) {
-    optimizedQueries = buildDeterministicQueries(careerPaths, resumeText, minSalary);
+    optimizedQueries = buildDeterministicQueries(careerPaths, resumeText, minSalary, jobType, location);
   }
   optimizedQueries = optimizedQueries.slice(0, 5);
   console.log('Queries:', optimizedQueries);
@@ -532,6 +560,8 @@ Return JSON array of 5 queries
       allowCompanyCareerPages: false,
       maxDaysOld: 7,
       maxQueries: Math.max(5, optimizedQueries.length),
+      jobType,
+      userLocation: location
     });
     realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
     Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, strictStage.stats));
@@ -540,7 +570,7 @@ Return JSON array of 5 queries
   }
   console.log('Serper Jobs After Strict Stage:', realJobs.length);
 
-  const extraQueries = buildExpansionQueries(careerPaths, resumeText).filter(
+  const extraQueries = buildExpansionQueries(careerPaths, resumeText, jobType, location).filter(
     (query) => !optimizedQueries.includes(query)
   );
 
@@ -551,6 +581,8 @@ Return JSON array of 5 queries
         allowCompanyCareerPages: false,
         maxDaysOld: 7,
         maxQueries: Math.min(15, extraQueries.length),
+        jobType,
+        userLocation: location
       });
       realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
       Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, broaderStage.stats));
@@ -567,6 +599,8 @@ Return JSON array of 5 queries
         allowCompanyCareerPages: true,
         maxDaysOld: proMaxDaysOld,
         maxQueries: Math.min(20, trustedCareerQueries.length),
+        jobType,
+        userLocation: location
       });
       realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
       Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
@@ -576,7 +610,7 @@ Return JSON array of 5 queries
   }
 
   if (realJobs.length < limit && isPro) {
-    const boardQueries = buildBoardQueries(careerPaths, resumeText).filter(
+    const boardQueries = buildBoardQueries(careerPaths, resumeText, jobType, location).filter(
       (query) => !optimizedQueries.includes(query)
     );
     if (boardQueries.length > 0) {
@@ -588,6 +622,8 @@ Return JSON array of 5 queries
           allowCompanyCareerPages: true,
           maxDaysOld: proMaxDaysOld,
           maxQueries: Math.min(20, boardQueries.length),
+          jobType,
+          userLocation: location
         });
         realJobs = mergeDedupJobs(realJobs, boardStage.jobs);
         Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, boardStage.stats));
@@ -685,8 +721,9 @@ export interface ResumeAnalysis {
 }
 
 export interface JobPreferences {
-  jobType: 'remote' | 'hybrid' | 'onsite' | 'any';
+  jobType: 'remote' | 'hybrid' | 'onsite' | 'both';
   minSalary: number | null;
+  location?: string;
 }
 
 export async function analyzeResume(resumeText: string, careerPaths: string[]): Promise<ResumeAnalysis | null> {
@@ -734,19 +771,20 @@ Respond ONLY with the JSON object.`;
 
 // ---------------------------------------------------------------------------
 // Agent 4: Job Preferences Extraction
-// Always returns remote jobType (platform is remote-only). Infers salary only.
+// Infers salary and location from resume.
 // ---------------------------------------------------------------------------
 export async function extractJobPreferences(resumeText: string): Promise<JobPreferences> {
-  const prompt = `You are an expert technical recruiter. Based on the following resume, infer a realistic minimum expected salary (in USD) for this candidate.
-This platform is for REMOTE jobs only - job type is always "remote". Focus only on determining the salary.
+  const prompt = `You are an expert technical recruiter. Based on the following resume, infer a realistic minimum expected salary (in USD) for this candidate and their current location (City, State/Country).
+If no location is found, leave it blank.
 
 Resume Text:
 ${resumeText.substring(0, 3000)}
 
 Return a JSON object:
 {
-  "jobType": "remote",
-  "minSalary": <number>
+  "jobType": "both",
+  "minSalary": <number>,
+  "location": "<City, State/Country>"
 }
 
 Respond ONLY with the JSON object.`;
@@ -757,15 +795,16 @@ Respond ONLY with the JSON object.`;
     if (response.choices?.[0]?.message?.content) {
       const parsed = JSON.parse(response.choices[0].message.content);
       return {
-        jobType: 'remote' as const,
-        minSalary: typeof parsed.minSalary === 'number' ? parsed.minSalary : null
+        jobType: 'both' as const,
+        minSalary: typeof parsed.minSalary === 'number' ? parsed.minSalary : null,
+        location: typeof parsed.location === 'string' ? parsed.location : ''
       };
     }
   } catch (error) {
     console.error('Error extracting job preferences:', error);
     if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;
   }
-  return { jobType: 'remote' as const, minSalary: null };
+  return { jobType: 'both' as const, minSalary: null, location: '' };
 }
 
 // ---------------------------------------------------------------------------
