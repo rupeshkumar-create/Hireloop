@@ -558,8 +558,20 @@ Return JSON array of 5 queries
   // --- JOBICY API INTEGRATION ---
   if (isRemote) {
     try {
-      const jobicyTags = [...careerPaths, extractSkills(resumeText)[0]].filter(Boolean);
-      const jobicyJobs = await searchJobicy(jobicyTags, location);
+      const skills = extractSkills(resumeText);
+      const topSkill = skills.length > 0 ? skills[0] : null;
+      
+      // Send individual words/short-phrases instead of entire career path titles
+      // to increase hit rate on Jobicy's tag matching
+      const jobicyTags = [
+        ...careerPaths.map(p => p.split(' ')[0]), // "Software Engineer" -> "Software"
+        topSkill
+      ].filter(Boolean);
+
+      // Unique tags only
+      const uniqueTags = Array.from(new Set(jobicyTags)) as string[];
+      
+      const jobicyJobs = await searchJobicy(uniqueTags, location);
       realJobs = mergeDedupJobs(realJobs, jobicyJobs);
       console.log(`Jobicy returned ${jobicyJobs.length} jobs.`);
     } catch (err) {

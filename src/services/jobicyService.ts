@@ -41,7 +41,10 @@ export async function searchJobicy(tags: string[], location: string): Promise<Se
 
   for (const tag of searchTags) {
     try {
-      const url = `https://jobicy.com/api/v2/remote-jobs?count=30&tag=${encodeURIComponent(tag)}${geo ? `&geo=${geo}` : ''}`;
+      const safeTag = tag.replace(/\s+/g, '-').toLowerCase();
+      // Only include geo if it's a known mapping. Jobicy defaults to global/anywhere.
+      const url = `https://jobicy.com/api/v2/remote-jobs?count=30&tag=${encodeURIComponent(safeTag)}${geo ? `&geo=${geo}` : ''}`;
+      console.log('Fetching from Jobicy:', url);
       const res = await fetch(url, {
         headers: {
           'Accept': 'application/json',
@@ -56,7 +59,12 @@ export async function searchJobicy(tags: string[], location: string): Promise<Se
       
       const data = await res.json();
       
-      if (data.success !== false && data.jobs) {
+      if (data.success === false) {
+        console.warn(`Jobicy API returned false success for tag: ${tag}. Message:`, data.message);
+        continue;
+      }
+
+      if (data.jobs && Array.isArray(data.jobs)) {
         for (const j of data.jobs) {
           if (!seenIds.has(j.id)) {
             seenIds.add(j.id);

@@ -285,7 +285,8 @@ export async function searchRemoteJobs(
         // ── 3. Staleness filter ───────────────────────────────────────────
         const postedAt: string = job.detected_extensions?.posted_at || '';
         const daysOld = parsePostedDaysAgo(postedAt);
-        if (daysOld > maxDaysOld) {
+        // Slightly looser freshness check for Serper fallback if Jobicy fails
+        if (daysOld > maxDaysOld + 14) {
           stats.removedByFreshnessFilter += 1;
           continue;
         }
