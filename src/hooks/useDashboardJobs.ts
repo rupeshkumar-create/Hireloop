@@ -178,17 +178,23 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       // Pro features: Auto-generate AI assets & trigger self-learning
       if (profile?.plan?.toLowerCase() === 'pro' && profile?.resumeText) {
         toast.info('Generating AI assets in the background...');
-        Promise.all([
+        Promise.allSettled([
           generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),
           tailorResume(job.title, job.description, profile.resumeText, true, profile.learningProfile?.writingStyle),
           generateInterviewQuestions(job.title, job.company, true)
-        ]).then(async ([email, resume, questions]) => {
-          await setDoc(doc(db, 'trackedJobs', docRef.id), {
-            coldEmail: email,
-            tailoredResume: resume,
-            interviewQuestions: questions
-          }, { merge: true });
-          toast.success('AI assets ready for ' + job.company);
+        ]).then(async (results) => {
+          const updateData: Record<string, any> = {};
+          const [emailRes, resumeRes, interviewRes] = results;
+          if (emailRes.status === 'fulfilled') updateData.coldEmail = emailRes.value;
+          if (resumeRes.status === 'fulfilled') updateData.tailoredResume = resumeRes.value;
+          if (interviewRes.status === 'fulfilled') updateData.interviewQuestions = interviewRes.value;
+
+          if (Object.keys(updateData).length > 0) {
+            await setDoc(doc(db, 'trackedJobs', docRef.id), updateData, { merge: true });
+            toast.success('AI assets ready for ' + job.company);
+          } else {
+            console.error('Background AI generation failed:', results);
+          }
         }).catch(err => {
           console.error('Background AI generation failed:', err);
         });

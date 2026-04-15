@@ -152,7 +152,12 @@ export function JobDetailsPanel({
                             let optimizedResume = profile?.resumeText || '';
                             if (profile?.resumeText) {
                               toast.info('Generating tailored resume...');
-                              optimizedResume = await tailorResume(selectedJob.title, selectedJob.description, profile.resumeText, profile?.antiSlopEnabled !== false);
+                              try {
+                                optimizedResume = await tailorResume(selectedJob.title, selectedJob.description, profile.resumeText, profile?.antiSlopEnabled !== false);
+                              } catch (e: any) {
+                                toast.error(e?.message || 'Failed to generate tailored resume.');
+                                return;
+                              }
                             }
 
                             const blob = new Blob([optimizedResume], { type: 'text/markdown' });

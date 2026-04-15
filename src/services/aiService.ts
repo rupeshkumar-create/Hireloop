@@ -730,7 +730,7 @@ User style context: "${context}"
 Rewrite the text according to the instruction. Return ONLY the new text without any conversational filler.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch (error) {
     console.error('Failed to improve text:', error);
@@ -766,11 +766,15 @@ ${resumeText}
 Return ONLY the email body. No subject line.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
-    return response.choices?.[0]?.message?.content || '';
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const content = response.choices?.[0]?.message?.content || '';
+    if (!content.trim()) {
+      throw new Error('Empty cold email generated');
+    }
+    return content;
   } catch (error) {
     console.error('Error generating cold email:', error);
-    return 'Error generating email. Please try again.';
+    throw error instanceof Error ? error : new Error('Failed to generate cold email');
   }
 }
 
@@ -791,19 +795,23 @@ ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 Return a JSON array of exactly 5 strings. Respond ONLY with the JSON array.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
 
     if (response.choices?.[0]?.message?.content) {
       let text = response.choices[0].message.content.trim();
       if (text.startsWith('```json')) text = text.replace(/^```json/, '').replace(/```$/, '').trim();
       else if (text.startsWith('```')) text = text.replace(/^```/, '').replace(/```$/, '').trim();
       const parsed = JSON.parse(text);
-      return Array.isArray(parsed) ? parsed : (parsed.questions || Object.values(parsed)[0] || []);
+      const questions = Array.isArray(parsed) ? parsed : (parsed.questions || Object.values(parsed)[0] || []);
+      if (!Array.isArray(questions) || questions.length === 0) {
+        throw new Error('Empty interview questions generated');
+      }
+      return questions;
     }
-    return [];
+    throw new Error('Empty interview questions generated');
   } catch (error) {
     console.error('Error generating interview questions:', error);
-    return [];
+    throw error instanceof Error ? error : new Error('Failed to generate interview questions');
   }
 }
 
@@ -824,7 +832,7 @@ Include:
 Format in clean Markdown. Under 200 words. No fluff.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch (error) {
     console.error('Error generating salary insights:', error);
@@ -867,10 +875,14 @@ ${resumeText}
 Return the tailored resume in clean Markdown format.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6-fast');
-    return response.choices?.[0]?.message?.content || '';
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const content = response.choices?.[0]?.message?.content || '';
+    if (!content.trim()) {
+      throw new Error('Empty tailored resume generated');
+    }
+    return content;
   } catch (error) {
     console.error('Error tailoring resume:', error);
-    return 'Error tailoring resume. Please try again.';
+    throw error instanceof Error ? error : new Error('Failed to tailor resume');
   }
 }

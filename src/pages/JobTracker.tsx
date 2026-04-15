@@ -57,8 +57,10 @@ export function JobTracker() {
       setEditingResume(false);
       const job = jobs.find(j => j.id === expandedJobId);
       if (job) {
-        setEmailText(job.coldEmail || '');
-        setResumeText(job.tailoredResume || '');
+        const coldEmail = typeof job.coldEmail === 'string' && !job.coldEmail.trim().toLowerCase().startsWith('error ') ? job.coldEmail : '';
+        const tailoredResume = typeof job.tailoredResume === 'string' && !job.tailoredResume.trim().toLowerCase().startsWith('error ') ? job.tailoredResume : '';
+        setEmailText(coldEmail);
+        setResumeText(tailoredResume);
       }
     }
   }, [expandedJobId, jobs]);
@@ -69,6 +71,19 @@ export function JobTracker() {
   
   // AI Action States for List View
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [backfillLoading, setBackfillLoading] = useState(false);
+
+  const hasValidText = (value?: string) => {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    return !trimmed.toLowerCase().startsWith('error ');
+  };
+
+  const hasValidInterview = (value?: string | string[]) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return hasValidText(value);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -115,13 +130,13 @@ export function JobTracker() {
       let updateData: Partial<TrackedJob> = {};
       
       if (type === 'email') {
-        const email = await generateColdEmail(job.title, job.company, profile?.resumeText || '');
+        const email = await generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle);
         updateData = { coldEmail: email };
       } else if (type === 'resume') {
-        const resume = await tailorResume(job.title, job.notes || '', profile?.resumeText || '');
+        const resume = await tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle);
         updateData = { tailoredResume: resume };
       } else if (type === 'interview') {
-        const questions = await generateInterviewQuestions(job.title, job.company);
+        const questions = await generateInterviewQuestions(job.title, job.company, true);
         updateData = { interviewQuestions: questions };
       }
 
@@ -131,36 +146,82 @@ export function JobTracker() {
       });
     } catch (error) {
       console.error("Error generating asset:", error);
-      alert("Failed to generate content. Please try again.");
+      toast.error("Failed to generate content. Please try again.");
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
-  const handleGenerateAllAssets = async (job: TrackedJob) => {
+  const handleGenerateAllAssets = async (job: TrackedJob, options?: { silent?: boolean }) => {
     const loadingKey = `${job.id}-all`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
     
     try {
-      toast.info('Generating all AI assets...');
-      const [email, resume, questions] = await Promise.all([
+      if (!options?.silent) toast.info('Generating all AI assets...');
+      const results = await Promise.allSettled([
         generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
         tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
         generateInterviewQuestions(job.title, job.company, true)
       ]);
 
-      await updateDoc(doc(db, 'trackedJobs', job.id), {
-        coldEmail: email,
-        tailoredResume: resume,
-        interviewQuestions: questions,
-        updatedAt: new Date().toISOString()
-      });
-      toast.success('All AI assets generated successfully!');
+      const [emailRes, resumeRes, interviewRes] = results;
+      const updateData: Partial<TrackedJob> = {};
+      let failed = 0;
+      if (emailRes.status === 'fulfilled') updateData.coldEmail = emailRes.value;
+      else failed++;
+      if (resumeRes.status === 'fulfilled') updateData.tailoredResume = resumeRes.value;
+      else failed++;
+      if (interviewRes.status === 'fulfilled') updateData.interviewQuestions = interviewRes.value;
+      else failed++;
+
+      if (Object.keys(updateData).length > 0) {
+        await updateDoc(doc(db, 'trackedJobs', job.id), {
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      if (!options?.silent) {
+        if (failed === 0) toast.success('All AI assets generated successfully!');
+        else if (Object.keys(updateData).length > 0) toast.success('Some AI assets generated. Click refresh to fill missing ones.');
+        else toast.error('Failed to generate AI assets. Please try again.');
+      }
     } catch (error) {
       console.error("Error generating all assets:", error);
-      toast.error("Failed to generate content. Please try again.");
+      if (!options?.silent) toast.error("Failed to generate content. Please try again.");
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleBackfillMissingAssets = async () => {
+    if (profile?.plan?.toLowerCase() !== 'pro') return;
+    if (!profile?.resumeText) {
+      toast.error('Upload your resume in Settings to generate AI assets.');
+      return;
+    }
+
+    const jobsToFix = jobs.filter((j) => {
+      const needsEmail = !hasValidText(j.coldEmail);
+      const needsResume = !hasValidText(j.tailoredResume);
+      const needsInterview = !hasValidInterview(j.interviewQuestions);
+      return needsEmail || needsResume || needsInterview;
+    });
+
+    if (jobsToFix.length === 0) {
+      toast.info('No missing AI assets found.');
+      return;
+    }
+
+    setBackfillLoading(true);
+    try {
+      toast.info(`Backfilling AI assets for ${jobsToFix.length} saved jobs...`);
+      for (const job of jobsToFix) {
+        await handleGenerateAllAssets(job, { silent: true });
+      }
+      toast.success('Backfill complete.');
+    } finally {
+      setBackfillLoading(false);
     }
   };
 
@@ -223,8 +284,8 @@ export function JobTracker() {
   };
 
   const sendEmail = (job: TrackedJob) => {
-    if (!job.coldEmail) return;
-    const mailBody = encodeURIComponent(`${job.coldEmail}\n\nJob URL: ${job.url}\n\n[Please see my resume attached]`);
+    if (!hasValidText(job.coldEmail)) return;
+    const mailBody = encodeURIComponent(`${job.coldEmail || ''}\n\nJob URL: ${job.url}\n\n[Please see my resume attached]`);
     const to = job.contactEmail ? `&to=${encodeURIComponent(job.contactEmail)}` : '';
     window.open(`https://mail.google.com/mail/?view=cm&fs=1${to}&su=Application for ${job.title}&body=${mailBody}`, '_blank');
   };
@@ -234,23 +295,31 @@ export function JobTracker() {
       title="Job Tracker"
       description="Manage and track your job applications."
       actions={
-        <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
-          <Button 
-            variant={viewMode === 'board' ? 'default' : 'ghost'} 
-            size="sm" 
-            className={`px-3 ${viewMode === 'board' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
-            onClick={() => setViewMode('board')}
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" /> Board
-          </Button>
-          <Button 
-            variant={viewMode === 'list' ? 'default' : 'ghost'} 
-            size="sm" 
-            className={`px-3 ${viewMode === 'list' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
-            onClick={() => setViewMode('list')}
-          >
-            <List className="h-4 w-4 mr-2" /> History List
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+            <Button 
+              variant={viewMode === 'board' ? 'default' : 'ghost'} 
+              size="sm" 
+              className={`px-3 ${viewMode === 'board' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
+              onClick={() => setViewMode('board')}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" /> Board
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'default' : 'ghost'} 
+              size="sm" 
+              className={`px-3 ${viewMode === 'list' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4 mr-2" /> History List
+            </Button>
+          </div>
+          {profile?.plan?.toLowerCase() === 'pro' && (
+            <Button size="sm" variant="outline" disabled={backfillLoading} onClick={handleBackfillMissingAssets}>
+              {backfillLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Backfill Missing AI Assets
+            </Button>
+          )}
         </div>
       }
     >
@@ -406,10 +475,10 @@ export function JobTracker() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><Mail className="mr-2 h-4 w-4 text-foreground-muted" /> Cold Email</h4>
                             <div className="flex gap-2">
-                              {job.coldEmail && !editingEmail && (
+                              {hasValidText(job.coldEmail) && !editingEmail && (
                                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingEmail(true)}>Edit</Button>
                               )}
-                              {!job.coldEmail && (
+                              {!hasValidText(job.coldEmail) && (
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'email')} disabled={actionLoading[`${job.id}-email`]}>
                                   {actionLoading[`${job.id}-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
                                 </Button>
@@ -440,7 +509,7 @@ export function JobTracker() {
                                 <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'email')}>Save Changes</Button>
                               </div>
                             </div>
-                          ) : job.coldEmail ? (
+                          ) : hasValidText(job.coldEmail) ? (
                             <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto whitespace-pre-wrap">
                               {job.coldEmail}
                             </div>
@@ -455,7 +524,7 @@ export function JobTracker() {
                               value={job.contactEmail || ''}
                               onChange={(e) => updateContactEmail(job.id, e.target.value)}
                             />
-                            {job.coldEmail && !editingEmail && (
+                            {hasValidText(job.coldEmail) && !editingEmail && (
                               <Button size="sm" className="text-xs h-8 whitespace-nowrap" onClick={() => sendEmail(job)}>
                                 Send via Gmail
                               </Button>
@@ -474,10 +543,10 @@ export function JobTracker() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailored Resume</h4>
                             <div className="flex gap-2">
-                              {job.tailoredResume && !editingResume && (
+                              {hasValidText(job.tailoredResume) && !editingResume && (
                                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingResume(true)}>Edit</Button>
                               )}
-                              {!job.tailoredResume && (
+                              {!hasValidText(job.tailoredResume) && (
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'resume')} disabled={actionLoading[`${job.id}-resume`]}>
                                   {actionLoading[`${job.id}-resume`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
                                 </Button>
@@ -508,14 +577,14 @@ export function JobTracker() {
                                 <Button size="sm" className="h-8 text-xs" onClick={() => handleSaveEditedText(job, 'resume')}>Save Changes</Button>
                               </div>
                             </div>
-                          ) : job.tailoredResume ? (
+                          ) : hasValidText(job.tailoredResume) ? (
                             <div id={`resume-${job.id}`} className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
                               <ReactMarkdown>{job.tailoredResume}</ReactMarkdown>
                             </div>
                           ) : (
                             <div className="text-xs text-foreground-muted italic">No tailored resume generated yet.</div>
                           )}
-                          {job.tailoredResume && !editingResume && (
+                          {hasValidText(job.tailoredResume) && !editingResume && (
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => setPreviewResumeData({text: job.tailoredResume!, company: job.company})}>
                                 <FileText className="mr-2 h-3 w-3" /> Preview & Download
@@ -534,13 +603,13 @@ export function JobTracker() {
                           )}
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm text-foreground flex items-center"><MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Q&A</h4>
-                            {!job.interviewQuestions && (
+                            {!hasValidInterview(job.interviewQuestions) && (
                               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'interview')} disabled={actionLoading[`${job.id}-interview`]}>
                                 {actionLoading[`${job.id}-interview`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
                               </Button>
                             )}
                           </div>
-                          {job.interviewQuestions ? (
+                          {hasValidInterview(job.interviewQuestions) ? (
                             <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto">
                               {Array.isArray(job.interviewQuestions) ? (
                                 <ul className="list-decimal pl-4 space-y-2">
