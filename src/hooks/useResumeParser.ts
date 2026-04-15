@@ -93,8 +93,12 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       toast.success("Resume uploaded successfully!");
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      console.error("Error saving resume to Firestore:", error);
-      toast.error(`Failed to save resume: ${error.message || 'Unknown error'}`);
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to analyze your resume.', { duration: 6000 });
+      } else {
+        console.error("Error saving resume to Firestore:", error);
+        toast.error(`Failed to save resume: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setAnalyzingResume(false);
     }

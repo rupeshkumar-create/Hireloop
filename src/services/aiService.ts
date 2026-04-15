@@ -126,6 +126,28 @@ function buildExpansionQueries(careerPaths: string[], resumeText: string): strin
   return Array.from(new Set(generated));
 }
 
+function buildBoardQueries(careerPaths: string[], resumeText: string): string[] {
+  const titleSeeds = careerPaths.length > 0 ? careerPaths : ['software engineer', 'backend engineer'];
+  const skills = extractSkills(resumeText);
+  const primarySkill = skills[0] || 'typescript';
+  const secondarySkill = skills[1] || 'react';
+  const domains = [
+    'site:linkedin.com/jobs',
+    'site:indeed.com/viewjob',
+    'site:glassdoor.com/job-listing',
+    'site:ziprecruiter.com/jobs',
+  ];
+
+  const generated: string[] = [];
+  for (const title of titleSeeds.slice(0, 6)) {
+    for (const domain of domains) {
+      generated.push(`remote "${title}" "${primarySkill}" "${secondarySkill}" ${domain}`);
+    }
+  }
+
+  return Array.from(new Set(generated));
+}
+
 function mergeDedupJobs(existingJobs: SerperJob[], incomingJobs: SerperJob[]): SerperJob[] {
   const seen = new Set(existingJobs.map((job) => jobFingerprint(job.title, job.company)));
   const merged = [...existingJobs];
@@ -336,7 +358,7 @@ Return ONLY a JSON array with one object per job in the same order:
 ]`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'anthropic/claude-3-opus');
+    const response = await callOpenAI([{ role: 'user', content: scoringPrompt }], undefined, 'anthropic/claude-3.5-sonnet');
     const content = response.choices?.[0]?.message?.content || '[]';
     const parsedScores = parseJsonArray(content);
 
@@ -350,7 +372,7 @@ Return ONLY a JSON array with one object per job in the same order:
   }
 }
 
-export async function callOpenAI(messages: any[], response_format?: any, model: string = 'google/gemini-2.0-flash') {
+export async function callOpenAI(messages: any[], response_format?: any, model: string = 'openai/gpt-4o-mini') {
   const response = await fetch('/api/openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -358,6 +380,9 @@ export async function callOpenAI(messages: any[], response_format?: any, model: 
   });
   if (!response.ok) {
     const error = await response.json();
+    if (error.status === 402 || error.status === 429 || (error.error && typeof error.error === 'string' && (error.error.toLowerCase().includes('credit') || error.error.toLowerCase().includes('balance') || error.error.toLowerCase().includes('quota')))) {
+      throw new Error('AI_QUOTA_EXCEEDED');
+    }
     throw new Error(error.error || 'Failed to call OpenAI proxy');
   }
   return response.json();
@@ -480,7 +505,7 @@ Return JSON array of 5 queries
 
   let optimizedQueries: string[] = [];
   try {
-    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], undefined, 'google/gemini-2.0-flash');
+    const queryResponse = await callOpenAI([{ role: 'user', content: queryPrompt }], undefined, 'openai/gpt-4o-mini');
     if (queryResponse.choices?.[0]?.message?.content) {
       optimizedQueries = normalizeQueries(parseJsonArray(queryResponse.choices[0].message.content));
     }
@@ -495,6 +520,9 @@ Return JSON array of 5 queries
   console.log('Queries:', optimizedQueries);
 
   const atsDomains = ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'];
+  const proBoardDomains = ['linkedin.com', 'indeed.com', 'glassdoor.com', 'ziprecruiter.com'];
+  const isPro = limit > 1;
+  const proMaxDaysOld = isPro ? 14 : 7;
   const aggregatedStats = createEmptySearchStats();
   let realJobs: SerperJob[] = [];
 
@@ -502,6 +530,7 @@ Return JSON array of 5 queries
     const strictStage = await searchRemoteJobs(optimizedQueries, {
       allowedDomains: atsDomains,
       allowCompanyCareerPages: false,
+      maxDaysOld: 7,
       maxQueries: Math.max(5, optimizedQueries.length),
     });
     realJobs = mergeDedupJobs(realJobs, strictStage.jobs);
@@ -520,6 +549,7 @@ Return JSON array of 5 queries
       const broaderStage = await searchRemoteJobs(extraQueries, {
         allowedDomains: atsDomains,
         allowCompanyCareerPages: false,
+        maxDaysOld: 7,
         maxQueries: Math.min(15, extraQueries.length),
       });
       realJobs = mergeDedupJobs(realJobs, broaderStage.jobs);
@@ -535,12 +565,35 @@ Return JSON array of 5 queries
       const trustedCareerStage = await searchRemoteJobs(trustedCareerQueries, {
         allowedDomains: atsDomains,
         allowCompanyCareerPages: true,
+        maxDaysOld: proMaxDaysOld,
         maxQueries: Math.min(20, trustedCareerQueries.length),
       });
       realJobs = mergeDedupJobs(realJobs, trustedCareerStage.jobs);
       Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, trustedCareerStage.stats));
     } catch (err) {
       console.warn('Serper unavailable during trusted career-page search:', err);
+    }
+  }
+
+  if (realJobs.length < limit && isPro) {
+    const boardQueries = buildBoardQueries(careerPaths, resumeText).filter(
+      (query) => !optimizedQueries.includes(query)
+    );
+    if (boardQueries.length > 0) {
+      try {
+        const boardStage = await searchRemoteJobs(boardQueries, {
+          allowedDomains: [...atsDomains, ...proBoardDomains],
+          blockedDomains: ['google.com'],
+          skipNetworkFetchForDomains: proBoardDomains,
+          allowCompanyCareerPages: true,
+          maxDaysOld: proMaxDaysOld,
+          maxQueries: Math.min(20, boardQueries.length),
+        });
+        realJobs = mergeDedupJobs(realJobs, boardStage.jobs);
+        Object.assign(aggregatedStats, mergeSearchStats(aggregatedStats, boardStage.stats));
+      } catch (err) {
+        console.warn('Serper unavailable during Pro board fill:', err);
+      }
     }
   }
 
@@ -674,6 +727,7 @@ Respond ONLY with the JSON object.`;
     return null;
   } catch (error) {
     console.error('Error analyzing resume:', error);
+    if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;
     return null;
   }
 }
@@ -709,6 +763,7 @@ Respond ONLY with the JSON object.`;
     }
   } catch (error) {
     console.error('Error extracting job preferences:', error);
+    if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;
   }
   return { jobType: 'remote' as const, minSalary: null };
 }
@@ -730,7 +785,7 @@ User style context: "${context}"
 Rewrite the text according to the instruction. Return ONLY the new text without any conversational filler.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch (error) {
     console.error('Failed to improve text:', error);
@@ -766,7 +821,7 @@ ${resumeText}
 Return ONLY the email body. No subject line.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
     const content = response.choices?.[0]?.message?.content || '';
     if (!content.trim()) {
       throw new Error('Empty cold email generated');
@@ -795,7 +850,7 @@ ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 Return a JSON array of exactly 5 strings. Respond ONLY with the JSON array.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
 
     if (response.choices?.[0]?.message?.content) {
       let text = response.choices[0].message.content.trim();
@@ -832,7 +887,7 @@ Include:
 Format in clean Markdown. Under 200 words. No fluff.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch (error) {
     console.error('Error generating salary insights:', error);
@@ -875,7 +930,7 @@ ${resumeText}
 Return the tailored resume in clean Markdown format.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4.6');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
     const content = response.choices?.[0]?.message?.content || '';
     if (!content.trim()) {
       throw new Error('Empty tailored resume generated');

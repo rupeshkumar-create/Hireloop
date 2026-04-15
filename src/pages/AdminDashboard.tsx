@@ -84,12 +84,8 @@ export function AdminDashboard() {
       setUsers(usersData);
       setLoading(false);
     }, (error) => {
-      try {
-        handleFirestoreError(error, OperationType.LIST, 'users');
-      } catch (formattedError) {
-        console.error('Error fetching users:', formattedError);
-      }
-      toast.error('Failed to load users. Check permissions.');
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users. ' + error.message);
       setLoading(false);
     });
 

@@ -12,6 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const blockedDomains = Array.isArray(req.body?.blockedDomains)
     ? req.body.blockedDomains.filter((value: unknown): value is string => typeof value === 'string')
     : [];
+  const skipNetworkFetchForDomains = Array.isArray(req.body?.skipNetworkFetchForDomains)
+    ? req.body.skipNetworkFetchForDomains.filter(
+        (value: unknown): value is string => typeof value === 'string'
+      )
+    : [];
   const allowCompanyCareerPages = req.body?.allowCompanyCareerPages === true;
 
   if (!url) {
@@ -19,23 +24,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    let response = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'follow',
-    });
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
+      return res.status(200).json({ valid: false, finalUrl: lowerUrl });
+    }
 
-    if (response.status === 405) {
-      response = await fetch(url, {
-        method: 'GET',
+    const shouldSkipFetch = skipNetworkFetchForDomains.some((domain) =>
+      lowerUrl.includes(domain.toLowerCase())
+    );
+
+    let finalUrl = lowerUrl;
+    if (!shouldSkipFetch) {
+      let response = await fetch(url, {
+        method: 'HEAD',
         redirect: 'follow',
       });
+
+      if (response.status === 405) {
+        response = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow',
+        });
+      }
+
+      if (!response.ok) {
+        return res.status(200).json({ valid: false, finalUrl: response.url || url });
+      }
+
+      finalUrl = (response.url || url).toLowerCase();
     }
 
-    if (!response.ok) {
-      return res.status(200).json({ valid: false, finalUrl: response.url || url });
-    }
-
-    const finalUrl = (response.url || url).toLowerCase();
     const isBlocked = blockedDomains.some((domain) => finalUrl.includes(domain.toLowerCase()));
     const isAllowed = allowedDomains.some((domain) => finalUrl.includes(domain.toLowerCase()));
     const looksLikeCareerPage =

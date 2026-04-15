@@ -155,7 +155,11 @@ export function JobDetailsPanel({
                               try {
                                 optimizedResume = await tailorResume(selectedJob.title, selectedJob.description, profile.resumeText, profile?.antiSlopEnabled !== false);
                               } catch (e: any) {
-                                toast.error(e?.message || 'Failed to generate tailored resume.');
+                                if (e.message === 'AI_QUOTA_EXCEEDED') {
+                                  toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+                                } else {
+                                  toast.error(e?.message || 'Failed to generate tailored resume.');
+                                }
                                 return;
                               }
                             }

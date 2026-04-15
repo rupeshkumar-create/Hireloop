@@ -32,7 +32,11 @@ export function useDashboardAI(profile: any) {
         setAiResult(insights);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to generate AI content.");
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+      } else {
+        toast.error(error.message || "Failed to generate AI content.");
+      }
     }
     
     setActionLoading(false);

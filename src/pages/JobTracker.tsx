@@ -144,9 +144,13 @@ export function JobTracker() {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating asset:", error);
-      toast.error("Failed to generate content. Please try again.");
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+      } else {
+        toast.error("Failed to generate content. Please try again.");
+      }
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
@@ -186,9 +190,13 @@ export function JobTracker() {
         else if (Object.keys(updateData).length > 0) toast.success('Some AI assets generated. Click refresh to fill missing ones.');
         else toast.error('Failed to generate AI assets. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating all assets:", error);
-      if (!options?.silent) toast.error("Failed to generate content. Please try again.");
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        if (!options?.silent) toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+      } else {
+        if (!options?.silent) toast.error("Failed to generate content. Please try again.");
+      }
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
@@ -240,8 +248,12 @@ export function JobTracker() {
         setResumeInstruction('');
         toast.success('Tailored resume improved!');
       }
-    } catch (e) {
-      toast.error('Failed to improve text.');
+    } catch (e: any) {
+      if (e.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+      } else {
+        toast.error('Failed to improve text.');
+      }
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }

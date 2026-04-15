@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { messages, response_format, model } = req.body;
     
     // Fallback to a cheap model if none provided
-    const selectedModel = model || 'google/gemini-3-flash-preview';
+    const selectedModel = model || 'openai/gpt-4o-mini';
     
     const response = await openai.chat.completions.create({
       model: selectedModel,
@@ -28,6 +28,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     return res.status(200).json(response);
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(error.status || 500).json({ error: error.message, status: error.status });
   }
 }

@@ -44,9 +44,9 @@ service cloud.firestore {
     // Super Admin Check
     function isSuperAdmin() {
       return isAuthenticated() && request.auth.token.email != null && (
-        request.auth.token.email.matches('(?i)^rupesh7126@gmail.com$') ||
-        request.auth.token.email.matches('(?i)^kv3244@gmail.com$') ||
-        request.auth.token.email.matches('(?i)^rupesh7128@gmail.com$')
+        request.auth.token.email == 'rupesh7126@gmail.com' ||
+        request.auth.token.email == 'kv3244@gmail.com' ||
+        request.auth.token.email == 'rupesh7128@gmail.com'
       );
     }
     

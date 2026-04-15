@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 const OPENROUTER_KEY = process.env.VITE_OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = 'anthropic/claude-opus-4.6';
+const OPENROUTER_MODEL = 'anthropic/claude-3.5-sonnet';
 
 interface TopicData {
   title: string;

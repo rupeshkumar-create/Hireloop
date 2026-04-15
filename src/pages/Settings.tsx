@@ -115,15 +115,23 @@ export function Settings() {
     
     // Analyze resume for career paths and feedback
     if (text.trim()) {
-      const paths = await suggestCareerPaths(text);
-      if (paths && paths.length > 0) {
-        setFormData(prev => ({ ...prev, careerPaths: paths }));
-      }
-      
-      const { analyzeResume } = await import('../services/aiService');
-      const analysis = await analyzeResume(text, paths || []);
-      if (analysis) {
-        setFormData(prev => ({ ...prev, resumeAnalysis: analysis }));
+      try {
+        const paths = await suggestCareerPaths(text);
+        if (paths && paths.length > 0) {
+          setFormData(prev => ({ ...prev, careerPaths: paths }));
+        }
+        
+        const { analyzeResume } = await import('../services/aiService');
+        const analysis = await analyzeResume(text, paths || []);
+        if (analysis) {
+          setFormData(prev => ({ ...prev, resumeAnalysis: analysis }));
+        }
+      } catch (err: any) {
+        if (err.message === 'AI_QUOTA_EXCEEDED') {
+          toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to analyze your resume.', { duration: 6000 });
+        } else {
+          toast.error('Failed to analyze resume with AI.');
+        }
       }
     }
     setAnalyzing(false);

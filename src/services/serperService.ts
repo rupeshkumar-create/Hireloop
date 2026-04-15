@@ -13,8 +13,11 @@ export interface SerperJob {
 
 export interface SearchRemoteJobsOptions {
   allowedDomains?: string[];
+  blockedDomains?: string[];
+  skipNetworkFetchForDomains?: string[];
   allowCompanyCareerPages?: boolean;
   maxQueries?: number;
+  maxDaysOld?: number;
 }
 
 export interface SearchRemoteJobsStats {
@@ -88,7 +91,8 @@ const BLOCKED_JOB_DOMAINS = [
 export async function validateJobLink(
   url: string,
   allowedDomains: string[] = VALID_ATS_DOMAINS,
-  allowCompanyCareerPages: boolean = false
+  allowCompanyCareerPages: boolean = false,
+  options: { blockedDomains?: string[]; skipNetworkFetchForDomains?: string[] } = {}
 ): Promise<JobLinkValidationResult> {
   try {
     const response = await fetch('/api/validate-job-link', {
@@ -99,7 +103,8 @@ export async function validateJobLink(
       body: JSON.stringify({
         url,
         allowedDomains,
-        blockedDomains: BLOCKED_JOB_DOMAINS,
+        blockedDomains: options.blockedDomains ?? BLOCKED_JOB_DOMAINS,
+        skipNetworkFetchForDomains: options.skipNetworkFetchForDomains ?? [],
         allowCompanyCareerPages,
       }),
     });
@@ -122,6 +127,59 @@ export async function validateJobLink(
       finalUrl: url,
     };
   }
+}
+
+function looksLikeCareerPage(url: string): boolean {
+  return /careers|jobs|job-application|job\/|apply/.test(url.toLowerCase());
+}
+
+function scoreApplyLink(
+  url: string,
+  allowedDomains: string[],
+  allowCompanyCareerPages: boolean,
+  blockedDomains: string[]
+): number {
+  const normalized = url.toLowerCase();
+  if (!normalized.startsWith('http')) return -100;
+  if (normalized.includes('google.com/search')) return -100;
+  if (VALID_ATS_DOMAINS.some((domain) => normalized.includes(domain))) return 300;
+  const isBlocked = blockedDomains.some((domain) => normalized.includes(domain.toLowerCase()));
+  if (allowCompanyCareerPages && !isBlocked && looksLikeCareerPage(normalized)) return 200;
+  if (!isBlocked && allowedDomains.some((domain) => normalized.includes(domain.toLowerCase()))) return 120;
+  return 0;
+}
+
+function collectCandidateLinks(job: any): string[] {
+  const collected: string[] = [];
+  const pushLink = (value: any) => {
+    if (typeof value === 'string' && value.trim().length > 0) collected.push(value.trim());
+  };
+
+  if (Array.isArray(job.apply_options)) {
+    for (const option of job.apply_options) {
+      pushLink(option?.link);
+    }
+  }
+  pushLink(job.apply_link);
+  pushLink(job.link);
+
+  return Array.from(new Set(collected));
+}
+
+function pickBestApplyLink(
+  job: any,
+  allowedDomains: string[],
+  allowCompanyCareerPages: boolean,
+  blockedDomains: string[]
+): string {
+  const candidates = collectCandidateLinks(job)
+    .filter((link) => !link.includes('google.com/search'))
+    .sort(
+      (a, b) =>
+        scoreApplyLink(b, allowedDomains, allowCompanyCareerPages, blockedDomains) -
+        scoreApplyLink(a, allowedDomains, allowCompanyCareerPages, blockedDomains)
+    );
+  return candidates[0] || '';
 }
 
 function isValidJob(job: SerperJob): boolean {
@@ -166,6 +224,9 @@ export async function searchRemoteJobs(
   const seen = new Set<string>();
   const allowedDomains = options.allowedDomains || VALID_ATS_DOMAINS;
   const allowCompanyCareerPages = options.allowCompanyCareerPages === true;
+  const blockedDomains = options.blockedDomains || BLOCKED_JOB_DOMAINS;
+  const skipNetworkFetchForDomains = options.skipNetworkFetchForDomains || [];
+  const maxDaysOld = options.maxDaysOld ?? 7;
 
   // Ensure we don't spam the API if the array is huge
   const queriesToSearch = queries.slice(0, options.maxQueries ?? 3);
@@ -211,38 +272,41 @@ export async function searchRemoteJobs(
           continue;
         }
 
-        // ── 3. 7-day staleness filter ─────────────────────────────────────
+        // ── 3. Staleness filter ───────────────────────────────────────────
         const postedAt: string = job.detected_extensions?.posted_at || '';
         const daysOld = parsePostedDaysAgo(postedAt);
-        if (daysOld > 7) {
+        if (daysOld > maxDaysOld) {
           stats.removedByFreshnessFilter += 1;
           continue;
         }
 
-        // Try to get the direct ATS link from apply_options
-        let directApplyLink = '';
-        if (job.apply_options && job.apply_options.length > 0) {
-          directApplyLink = job.apply_options[0].link;
-        }
+        const finalLink = pickBestApplyLink(job, allowedDomains, allowCompanyCareerPages, blockedDomains);
 
-        const finalLink = directApplyLink || job.apply_link || job.link;
-        
         // Ensure there is a valid direct link
         if (!finalLink || finalLink.includes('google.com/search')) {
           stats.removedByMissingLink += 1;
           continue;
         }
 
-        const linkValidation = await validateJobLink(finalLink, allowedDomains, allowCompanyCareerPages);
+        const linkValidation = await validateJobLink(finalLink, allowedDomains, allowCompanyCareerPages, {
+          blockedDomains,
+          skipNetworkFetchForDomains,
+        });
         if (!linkValidation.valid) {
           stats.removedByLinkValidation += 1;
           continue;
         }
 
+        const safeLocation = (loc || '').trim();
+        const normalizedLocation = safeLocation.length > 0 ? safeLocation : 'Remote';
+        const finalLocation = normalizedLocation.toLowerCase().includes('remote')
+          ? normalizedLocation
+          : `Remote (${normalizedLocation})`;
+
         const candidateJob: SerperJob = {
           title: job.title || '',
           company: job.company_name || '',
-          location: loc || 'Remote',
+          location: finalLocation,
           description: job.description || '',
           applyLink: linkValidation.finalUrl || finalLink,
           salary: job.detected_extensions?.salary || '',

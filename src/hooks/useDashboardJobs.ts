@@ -151,7 +151,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         toast.success(`Found ${results.length} new jobs matching your profile!`);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to fetch jobs.");
+      if (error.message === 'AI_QUOTA_EXCEEDED') {
+        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue finding jobs.', { duration: 6000 });
+      } else {
+        toast.error(error.message || "Failed to fetch jobs.");
+      }
     } finally {
       setLoadingJobs(false);
     }
