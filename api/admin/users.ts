@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminAuth, getAdminDb } from '../_lib/firebaseAdmin';
-import { isAllowedAdminEmail } from '../../src/lib/admin';
+
+const SUPER_ADMIN_EMAILS = [
+  'rupesh7126@gmail.com',
+  'kv3244@gmail.com',
+  'rupesh7128@gmail.com',
+];
 
 function getBearerToken(req: VercelRequest): string | null {
   const header = req.headers.authorization;
@@ -29,6 +34,10 @@ function getSortableTime(value: unknown): number {
   }
 
   return 0;
+}
+
+function isAllowedAdminEmail(email: string | null | undefined): boolean {
+  return SUPER_ADMIN_EMAILS.includes((email || '').trim().toLowerCase());
 }
 
 type AdminUserRecord = {

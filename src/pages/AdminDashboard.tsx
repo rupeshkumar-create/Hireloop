@@ -128,6 +128,19 @@ export function AdminDashboard() {
 
     let cancelled = false;
 
+    const readResponsePayload = async (response: Response) => {
+      const rawText = await response.text();
+      if (!rawText) {
+        return { data: null, rawText: '' };
+      }
+
+      try {
+        return { data: JSON.parse(rawText), rawText };
+      } catch {
+        return { data: null, rawText };
+      }
+    };
+
     const loadUsers = async () => {
       setLoading(true);
       try {
@@ -142,9 +155,17 @@ export function AdminDashboard() {
           },
         });
 
-        const payload = await response.json();
+        const { data: payload, rawText } = await readResponsePayload(response);
         if (!response.ok) {
-          throw new Error(payload.error || 'Failed to load users.');
+          throw new Error(
+            payload?.error ||
+            rawText ||
+            `Request failed with status ${response.status}`
+          );
+        }
+
+        if (!payload || typeof payload !== 'object') {
+          throw new Error(rawText || 'Server returned an invalid response.');
         }
 
         if (!cancelled) {
