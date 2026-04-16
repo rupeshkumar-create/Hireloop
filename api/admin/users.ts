@@ -167,8 +167,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let db;
 
     try {
-      auth = getAdminAuth();
-      db = getAdminDb();
+      auth = await getAdminAuth();
+      db = await getAdminDb();
     } catch (initError: any) {
       console.error('[Admin Endpoint Init Failed]', initError);
       return res.status(500).json({ error: `Backend initialization failed: ${initError.message}` });
