@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, updateDoc, addDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { generateDailyJobsDebug } from '../services/aiService';
 import { runAdminGhostMode } from '../services/adminGhostMode';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
 import type { GhostModeOverrides, GhostModeRunResult, GhostModeTargetUser } from '../types/adminGhostMode';
+import { isAllowedAdminEmail } from '../lib/admin';
 
 
 
@@ -20,7 +21,6 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const [passwordInput, setPasswordInput] = useState('');
   
-  const adminEmails = ['rupesh7126@gmail.com', 'kv3244@gmail.com', 'rupesh7128@gmail.com'];
   const currentUser = realUser || user;
 
   const [users, setUsers] = useState<any[]>([]);
@@ -103,7 +103,7 @@ export function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (sessionStorage.getItem('super_admin_unlocked') === 'true' && currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase())) {
+    if (sessionStorage.getItem('super_admin_unlocked') === 'true' && isAllowedAdminEmail(currentUser?.email)) {
       setIsAuthenticated(true);
     }
   }, [currentUser]);
@@ -111,7 +111,7 @@ export function AdminDashboard() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === import.meta.env.VITE_SUPER_ADMIN_PASSWORD) {
-      if (currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase())) {
+      if (isAllowedAdminEmail(currentUser?.email)) {
         sessionStorage.setItem('super_admin_unlocked', 'true');
         setIsAuthenticated(true);
         toast.success('Admin access granted');
@@ -125,28 +125,49 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    
-    setLoading(true);
-      // Read the full collection
-      const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-        const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        
-        usersData.sort((a, b) => {
-          const dateA = getSortableTime(a.createdAt);
-          const dateB = getSortableTime(b.createdAt);
-          return dateB - dateA;
+
+    let cancelled = false;
+
+    const loadUsers = async () => {
+      setLoading(true);
+      try {
+        const idToken = await realUser?.getIdToken();
+        if (!idToken) {
+          throw new Error('Missing admin session.');
+        }
+
+        const response = await fetch('/api/admin/users', {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
         });
 
-        setUsers(usersData);
-        setLoading(false);
-      }, (error) => {
-        console.error('Error fetching users:', error);
-        toast.error('Failed to load users. ' + error.message);
-        setLoading(false);
-      });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to load users.');
+        }
 
-    return () => unsubscribe();
-  }, [isAuthenticated]);
+        if (!cancelled) {
+          setUsers(Array.isArray(payload.users) ? payload.users : []);
+        }
+      } catch (error: any) {
+        console.error('Error fetching users:', error);
+        if (!cancelled) {
+          toast.error('Failed to load users. ' + (error.message || 'Unknown error'));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, realUser]);
 
   const handleChangePlan = async () => {
     if (!selectedUser || !reason.trim()) {

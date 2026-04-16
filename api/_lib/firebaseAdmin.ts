@@ -1,4 +1,5 @@
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApp, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 function getServiceAccount() {
@@ -11,11 +12,21 @@ function getServiceAccount() {
 }
 
 export function getAdminDb() {
+  const app = getAdminApp();
+  return getFirestore(app);
+}
+
+export function getAdminAuth() {
+  const app = getAdminApp();
+  return getAuth(app);
+}
+
+function getAdminApp() {
   if (!getApps().length) {
     initializeApp({
       credential: cert(getServiceAccount()),
     });
   }
 
-  return getFirestore();
+  return getApp();
 }
