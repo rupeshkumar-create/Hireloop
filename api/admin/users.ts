@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminAuth, getAdminDb } from '../_lib/firebaseAdmin';
-import { buildAdminUserDetail, buildAdminUserListItem } from '../../src/lib/adminUsers';
 
 const SUPER_ADMIN_EMAILS = [
   'rupesh7126@gmail.com',
@@ -46,6 +45,109 @@ type AdminUserRecord = {
   createdAt?: unknown;
 } & Record<string, unknown>;
 
+const LIST_FIELDS = [
+  'email',
+  'displayName',
+  'plan',
+  'createdAt',
+  'lastActiveAt',
+  'jobType',
+  'location',
+  'minSalary',
+  'careerPaths',
+] as const;
+
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function toOptionalNumber(value: unknown): number | null | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  return value === null ? null : undefined;
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value.filter(
+    (item): item is string => typeof item === 'string' && item.trim().length > 0
+  );
+  return items.length ? items : [];
+}
+
+function normalizeDateLike(value: unknown): unknown {
+  if (!value) {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    try {
+      const date = (value as { toDate: () => Date }).toDate();
+      return date.toISOString();
+    } catch {
+      return undefined;
+    }
+  }
+
+  return value;
+}
+
+function toLearningProfile(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const profile = value as Record<string, unknown>;
+  const normalized = {
+    jobPreferences: toOptionalString(profile.jobPreferences),
+    writingStyle: toOptionalString(profile.writingStyle),
+  };
+
+  return normalized.jobPreferences || normalized.writingStyle ? normalized : undefined;
+}
+
+function buildAdminUserListItem(user: AdminUserRecord) {
+  return {
+    id: user.id,
+    email: toOptionalString(user.email),
+    displayName: toOptionalString(user.displayName),
+    plan: user.plan === 'pro' ? 'pro' : 'free',
+    createdAt: normalizeDateLike(user.createdAt),
+    lastActiveAt: normalizeDateLike(user.lastActiveAt),
+    jobType: toOptionalString(user.jobType),
+    location: toOptionalString(user.location),
+    minSalary: toOptionalNumber(user.minSalary),
+    careerPaths: toStringArray(user.careerPaths),
+  };
+}
+
+function buildAdminUserDetail(user: AdminUserRecord) {
+  return {
+    ...buildAdminUserListItem(user),
+    learningProfile: toLearningProfile(user.learningProfile),
+    resumeText: toOptionalString(user.resumeText),
+    seenJobFingerprints: toStringArray(user.seenJobFingerprints),
+    learningSignals:
+      user.learningSignals && typeof user.learningSignals === 'object'
+        ? user.learningSignals
+        : undefined,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -76,7 +178,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ user });
     }
 
-    const snapshot = await getAdminDb().collection('users').get();
+    const snapshot = await getAdminDb()
+      .collection('users')
+      .select(...LIST_FIELDS)
+      .get();
     const users = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
       .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
