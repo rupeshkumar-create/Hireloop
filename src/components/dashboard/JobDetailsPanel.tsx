@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 interface JobDetailsPanelProps {
   selectedJob: Job;
-  saveJob: (j: Job) => void;
+  saveJob: (j: Job) => Promise<boolean>;
   dismissJob: (j: Job) => void;
   trackJobClick: (j: Job) => void;
   handleAiAction: (a: AiActionType, j: Job) => void;

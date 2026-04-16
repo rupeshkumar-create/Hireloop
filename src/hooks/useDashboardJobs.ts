@@ -15,6 +15,11 @@ import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 
 // Max fingerprints to store per user (~10/day × 30 days = 300)
 const MAX_SEEN_FINGERPRINTS = 300;
+type GeneratedTrackedJobAssets = {
+  coldEmail?: string;
+  tailoredResume?: string;
+  interviewQuestions?: string | string[];
+};
 
 // Helper to determine the most recent 8:00 AM IST (which is 2:30 AM UTC)
 function getMostRecent8AMIST(): Date {
@@ -81,6 +86,28 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       console.error("Error fetching stats:", error);
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const persistTrackedJobAssets = async (
+    jobId: string,
+    assets: GeneratedTrackedJobAssets
+  ) => {
+    const timestamp = new Date().toISOString();
+    const entries = Object.entries(assets).filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0;
+      return typeof value === 'string' && value.trim().length > 0;
+    }) as Array<[keyof GeneratedTrackedJobAssets, string | string[]]>;
+
+    for (const [field, value] of entries) {
+      await setDoc(
+        doc(db, 'trackedJobs', jobId),
+        {
+          [field]: value,
+          updatedAt: timestamp,
+        },
+        { merge: true }
+      );
     }
   };
 
@@ -186,8 +213,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
-  const saveJob = async (job: Job) => {
-    if (!user) return;
+  const saveJob = async (job: Job): Promise<boolean> => {
+    if (!user) return false;
     try {
       const docRef = await addDoc(collection(db, 'trackedJobs'), {
         userId: user.uid,
@@ -224,14 +251,14 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           tailorResume(job.title, job.description, profile.resumeText, true, profile.learningProfile?.writingStyle),
           generateInterviewQuestions(job.title, job.company, true)
         ]).then(async (results) => {
-          const updateData: Record<string, any> = {};
+          const generatedAssets: GeneratedTrackedJobAssets = {};
           const [emailRes, resumeRes, interviewRes] = results;
-          if (emailRes.status === 'fulfilled') updateData.coldEmail = emailRes.value;
-          if (resumeRes.status === 'fulfilled') updateData.tailoredResume = resumeRes.value;
-          if (interviewRes.status === 'fulfilled') updateData.interviewQuestions = interviewRes.value;
+          if (emailRes.status === 'fulfilled') generatedAssets.coldEmail = emailRes.value;
+          if (resumeRes.status === 'fulfilled') generatedAssets.tailoredResume = resumeRes.value;
+          if (interviewRes.status === 'fulfilled') generatedAssets.interviewQuestions = interviewRes.value;
 
-          if (Object.keys(updateData).length > 0) {
-            await setDoc(doc(db, 'trackedJobs', docRef.id), updateData, { merge: true });
+          if (Object.keys(generatedAssets).length > 0) {
+            await persistTrackedJobAssets(docRef.id, generatedAssets);
             toast.success('AI assets ready for ' + job.company);
           } else {
             console.error('Background AI generation failed:', results);
@@ -251,9 +278,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
             }).catch(err => console.error('Self-learning failed:', err));
         }
       }
+      return true;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'trackedJobs');
       toast.error('Failed to save job.');
+      return false;
     }
   };
 

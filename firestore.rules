@@ -98,7 +98,9 @@ service cloud.firestore {
              (!hasField(data, 'notes') || (data.notes is string && data.notes.size() < 50000)) &&
              (!hasField(data, 'coldEmail') || (data.coldEmail is string && data.coldEmail.size() < 50000)) &&
              (!hasField(data, 'tailoredResume') || (data.tailoredResume is string && data.tailoredResume.size() < 100000)) &&
-             (!hasField(data, 'interviewQuestions') || (data.interviewQuestions is list && data.interviewQuestions.size() <= 20)) &&
+             (!hasField(data, 'interviewQuestions') ||
+              ((data.interviewQuestions is string && data.interviewQuestions.size() < 50000) ||
+               (data.interviewQuestions is list && data.interviewQuestions.size() <= 20))) &&
              (!hasField(data, 'contactEmail') || (data.contactEmail is string && data.contactEmail.size() < 200)) &&
              data.createdAt is string &&
              (!hasField(data, 'updatedAt') || data.updatedAt is string);

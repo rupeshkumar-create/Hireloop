@@ -28,7 +28,11 @@ const sampleJob: Job = {
   matchScore: 92,
 };
 
-function renderMatches(plan?: string, jobs: Job[] = [sampleJob]) {
+function renderMatches(
+  plan?: string,
+  jobs: Job[] = [sampleJob],
+  savedJobFingerprints: string[] = []
+) {
   return renderToStaticMarkup(
     React.createElement(
       MemoryRouter,
@@ -49,6 +53,8 @@ function renderMatches(plan?: string, jobs: Job[] = [sampleJob]) {
         selectedJob: null,
         setSelectedJob: () => {},
         setAiAction: () => {},
+        saveJob: async () => true,
+        savedJobFingerprints,
         dismissJob: () => {},
       })
     )
@@ -72,5 +78,17 @@ describe('MatchesTab paywall rendering', () => {
 
     expect(html).not.toContain('Upgrade to Pro');
     expect(html).not.toContain('Premium Match');
+  });
+
+  it('shows a save action on unlocked job cards', () => {
+    const html = renderMatches('pro');
+
+    expect(html).toContain('Save');
+  });
+
+  it('shows saved status for recently saved jobs', () => {
+    const html = renderMatches('pro', [sampleJob], ['frontend engineer::acme']);
+
+    expect(html).toContain('Saved');
   });
 });

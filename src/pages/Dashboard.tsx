@@ -13,11 +13,13 @@ import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { Button } from '../components/ui/button';
 import { PageShell } from '../components/ui/page-shell';
 import { Job } from '../types/dashboard';
+import { jobFingerprint } from '../services/serperService';
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'matches'>('overview');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
 
   const {
     filteredAndSortedJobs, loadingJobs,
@@ -57,6 +59,17 @@ export function Dashboard() {
     if (!lastFetchTime) return true;
     const hoursSinceLastFetch = (Date.now() - new Date(lastFetchTime).getTime()) / (1000 * 60 * 60);
     return hoursSinceLastFetch >= 24;
+  };
+
+  const handleSaveJob = async (job: Job) => {
+    const didSave = await saveJob(job);
+    if (!didSave) return false;
+
+    const fingerprint = jobFingerprint(job.title, job.company);
+    setSavedJobFingerprints((current) =>
+      current.includes(fingerprint) ? current : [...current, fingerprint]
+    );
+    return true;
   };
 
   if (!profile?.resumeText) {
@@ -129,6 +142,8 @@ export function Dashboard() {
                 sortBy={sortBy} setSortBy={setSortBy}
                 selectedJob={selectedJob} setSelectedJob={setSelectedJob}
                 setAiAction={setAiAction}
+                saveJob={handleSaveJob}
+                savedJobFingerprints={savedJobFingerprints}
                 dismissJob={dismissJob}
               />
             </motion.div>
@@ -138,7 +153,7 @@ export function Dashboard() {
             {selectedJob && (
               <JobDetailsPanel 
                 selectedJob={selectedJob}
-                saveJob={saveJob}
+                saveJob={handleSaveJob}
                 dismissJob={dismissJob}
                 trackJobClick={trackJobClick}
                 handleAiAction={handleAiAction}

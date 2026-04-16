@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MapPin, DollarSign, Calendar, ArrowUpDown, Plane, X, Lock } from 'lucide-react';
+import { Loader2, MapPin, DollarSign, Calendar, ArrowUpDown, Plane, X, Lock, BookmarkPlus } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -10,6 +10,7 @@ import { Job, SortOption } from '../../types/dashboard';
 import { cn } from '../../lib/utils';
 import { isProPlan } from '../../lib/planLimits';
 import { buildMatchFeedItems } from './matchPaywall';
+import { jobFingerprint } from '../../services/serperService';
 
 interface MatchesTabProps {
   plan?: string;
@@ -27,6 +28,8 @@ interface MatchesTabProps {
   selectedJob: Job | null;
   setSelectedJob: (j: Job | null) => void;
   setAiAction: (v: any) => void;
+  saveJob: (j: Job) => Promise<boolean>;
+  savedJobFingerprints: string[];
   dismissJob: (j: Job) => void;
 }
 
@@ -37,10 +40,11 @@ export function MatchesTab({
   filterLocation, setFilterLocation,
   filterSalary, setFilterSalary,
   sortBy, setSortBy,
-  selectedJob, setSelectedJob, setAiAction, dismissJob
+  selectedJob, setSelectedJob, setAiAction, saveJob, savedJobFingerprints, dismissJob
 }: MatchesTabProps) {
   const feedItems = buildMatchFeedItems(jobs, plan);
   const showLockedCards = !isProPlan(plan) && jobs.length > 0;
+  const [savingFingerprints, setSavingFingerprints] = React.useState<string[]>([]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full">
@@ -109,15 +113,21 @@ export function MatchesTab({
                 transition={{ duration: 0.2, delay: idx * 0.05 }}
               >
                 {item.kind === 'job' ? (
-                  <Card
-                    className={cn(
-                      "cursor-pointer transition-all hover:-translate-y-0.5 hover:border-border-strong",
-                      selectedJob === item.job ? "border-border-strong ring-1 ring-ring" : ""
-                    )}
-                    onClick={() => { setSelectedJob(item.job); setAiAction(null); }}
-                  >
-                    <CardContent className="p-5">
-                      <div className="flex justify-between items-start">
+                  (() => {
+                    const fingerprint = jobFingerprint(item.job.title, item.job.company);
+                    const isSaved = savedJobFingerprints.includes(fingerprint);
+                    const isSaving = savingFingerprints.includes(fingerprint);
+
+                    return (
+                      <Card
+                        className={cn(
+                          "cursor-pointer transition-all hover:-translate-y-0.5 hover:border-border-strong",
+                          selectedJob === item.job ? "border-border-strong ring-1 ring-ring" : ""
+                        )}
+                        onClick={() => { setSelectedJob(item.job); setAiAction(null); }}
+                      >
+                        <CardContent className="p-5">
+                      <div className="flex justify-between items-start gap-3">
                         <div>
                           <h3 className="font-bold text-foreground font-display text-lg">{item.job.title}</h3>
                           <p className="text-foreground-muted font-medium">{item.job.company}</p>
@@ -128,6 +138,32 @@ export function MatchesTab({
                               {item.job.matchScore}% Match
                             </Badge>
                           )}
+                          <Button
+                            variant={isSaved ? 'secondary' : 'outline'}
+                            size="sm"
+                            className="h-8"
+                            disabled={isSaved || isSaving}
+                            onClick={async (event) => {
+                              event.stopPropagation();
+                              setSavingFingerprints((current) =>
+                                current.includes(fingerprint) ? current : [...current, fingerprint]
+                              );
+                              try {
+                                await saveJob(item.job);
+                              } finally {
+                                setSavingFingerprints((current) =>
+                                  current.filter((value) => value !== fingerprint)
+                                );
+                              }
+                            }}
+                          >
+                            {isSaving ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <BookmarkPlus className="mr-2 h-4 w-4" />
+                            )}
+                            {isSaved ? 'Saved' : isSaving ? 'Saving...' : 'Save'}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -153,8 +189,10 @@ export function MatchesTab({
                           <div className="flex items-center"><Calendar className="mr-1.5 h-4 w-4 text-foreground-muted" /> {new Date(item.job.datePosted).toLocaleDateString()}</div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()
                 ) : (
                   <Card className="relative overflow-hidden border-border bg-surface/90">
                     <CardContent className="p-5">
