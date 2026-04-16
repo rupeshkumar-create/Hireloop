@@ -45,6 +45,7 @@ type AdminUserRecord = {
   createdAt?: unknown;
 } & Record<string, unknown>;
 
+// Only select the fields required for the table to prevent payload/memory explosion
 const LIST_FIELDS = [
   'email',
   'displayName',
@@ -148,48 +149,81 @@ function buildAdminUserDetail(user: AdminUserRecord) {
   };
 }
 
+/**
+ * Top-level error boundary to catch Vercel function initialization or runtime errors
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const token = getBearerToken(req);
-  if (!token) {
-    return res.status(401).json({ error: 'Missing admin token' });
-  }
-
   try {
-    const decoded = await getAdminAuth().verifyIdToken(token);
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const token = getBearerToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Missing admin token' });
+    }
+
+    let auth;
+    let db;
+
+    try {
+      auth = getAdminAuth();
+      db = getAdminDb();
+    } catch (initError: any) {
+      console.error('[Admin Endpoint Init Failed]', initError);
+      return res.status(500).json({ error: `Backend initialization failed: ${initError.message}` });
+    }
+
+    let decoded;
+    try {
+      decoded = await auth.verifyIdToken(token);
+    } catch (tokenError: any) {
+      console.error('[Admin Token Verification Failed]', tokenError);
+      return res.status(401).json({ error: `Invalid admin token: ${tokenError.message}` });
+    }
+
     if (!isAllowedAdminEmail(decoded.email)) {
       return res.status(403).json({ error: 'Not authorized as super admin' });
     }
 
     const requestedUserId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
-    if (requestedUserId) {
-      const docSnapshot = await getAdminDb().collection('users').doc(requestedUserId).get();
-      if (!docSnapshot.exists) {
-        return res.status(404).json({ error: 'User not found' });
-      }
 
-      const user = buildAdminUserDetail({
-        id: docSnapshot.id,
-        ...docSnapshot.data(),
-      } as AdminUserRecord);
-      return res.status(200).json({ user });
+    if (requestedUserId) {
+      try {
+        const docSnapshot = await db.collection('users').doc(requestedUserId).get();
+        
+        if (!docSnapshot.exists) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = buildAdminUserDetail({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
+        } as AdminUserRecord);
+
+        return res.status(200).json({ user });
+      } catch (dbError: any) {
+        console.error(`[Admin Detail Query Failed] user: ${requestedUserId}`, dbError);
+        return res.status(500).json({ error: `Failed to load user details: ${dbError.message}` });
+      }
     }
 
-    const snapshot = await getAdminDb()
-      .collection('users')
-      .select(...LIST_FIELDS)
-      .get();
-    const users = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
-      .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
-      .map(buildAdminUserListItem);
+    try {
+      const snapshot = await db.collection('users').select(...LIST_FIELDS).get();
+      const users = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
+        .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
+        .map(buildAdminUserListItem);
 
-    return res.status(200).json({ users });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return res.status(500).json({ error: message });
+      return res.status(200).json({ users });
+    } catch (listError: any) {
+      console.error('[Admin List Query Failed]', listError);
+      return res.status(500).json({ error: `Failed to fetch users list: ${listError.message}` });
+    }
+
+  } catch (uncaughtError: any) {
+    console.error('[Fatal Admin Endpoint Error]', uncaughtError);
+    const message = uncaughtError instanceof Error ? uncaughtError.message : String(uncaughtError);
+    return res.status(500).json({ error: `A critical server error occurred: ${message}` });
   }
 }
