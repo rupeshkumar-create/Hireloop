@@ -57,6 +57,8 @@ const LIST_FIELDS = [
   'minSalary',
   'careerPaths',
 ] as const;
+const DEFAULT_LIST_LIMIT = 100;
+const MAX_LIST_LIMIT = 200;
 
 function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
@@ -149,6 +151,17 @@ function buildAdminUserDetail(user: AdminUserRecord) {
   };
 }
 
+function getListLimit(value: unknown): number {
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.min(parsed, MAX_LIST_LIMIT);
+    }
+  }
+
+  return DEFAULT_LIST_LIMIT;
+}
+
 /**
  * Top-level error boundary to catch Vercel function initialization or runtime errors
  */
@@ -209,13 +222,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const snapshot = await db.collection('users').select(...LIST_FIELDS).get();
+      const limit = getListLimit(req.query.limit);
+      const snapshot = await db
+        .collection('users')
+        .select(...LIST_FIELDS)
+        .limit(limit)
+        .get();
       const users = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
         .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
         .map(buildAdminUserListItem);
 
-      return res.status(200).json({ users });
+      return res.status(200).json({
+        users,
+        meta: {
+          limit,
+          count: users.length,
+          truncated: snapshot.size >= limit,
+        },
+      });
     } catch (listError: any) {
       console.error('[Admin List Query Failed]', listError);
       return res.status(500).json({ error: `Failed to fetch users list: ${listError.message}` });
