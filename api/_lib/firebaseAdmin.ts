@@ -1,14 +1,40 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 // We must lazy-load firebase-admin to prevent Vercel from timing out during module initialization
-let adminApp: any = null;
+import type { App } from 'firebase-admin/app';
+import type { Auth } from 'firebase-admin/auth';
+import type { Firestore } from 'firebase-admin/firestore';
+
+type GlobalAdminCache = {
+  app: App | null;
+  auth: Auth | null;
+  db: Firestore | null;
+  dbId: string | null;
+  appModPromise: Promise<any> | null;
+  authModPromise: Promise<any> | null;
+  firestoreModPromise: Promise<any> | null;
+};
+
+const globalCache = (globalThis as any).__hireschemaFirebaseAdmin as GlobalAdminCache | undefined;
+const cache: GlobalAdminCache =
+  globalCache ||
+  {
+    app: null,
+    auth: null,
+    db: null,
+    dbId: null,
+    appModPromise: null,
+    authModPromise: null,
+    firestoreModPromise: null,
+  };
+
+(globalThis as any).__hireschemaFirebaseAdmin = cache;
 
 const DEFAULT_FIRESTORE_DATABASE_ID = 'ai-studio-d612fcdb-7a91-4b68-99fc-cca70ab71581';
 
 async function initFirebaseAdmin() {
-  if (adminApp) return adminApp;
+  if (cache.app) return cache.app;
 
-  const { cert, getApps, initializeApp } = await import('firebase-admin/app');
+  cache.appModPromise ||= import('firebase-admin/app');
+  const { cert, getApps, initializeApp } = await cache.appModPromise;
   
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw || !raw.trim()) {
@@ -24,28 +50,42 @@ async function initFirebaseAdmin() {
 
   const apps = getApps();
   if (!apps.length) {
-    adminApp = initializeApp({ credential: cert(serviceAccount) });
+    cache.app = initializeApp({ credential: cert(serviceAccount) });
   } else {
-    adminApp = apps[0];
+    cache.app = apps[0];
   }
 
-  return adminApp;
+  return cache.app;
 }
 
 export async function getAdminDb() {
   const app = await initFirebaseAdmin();
-  const { getFirestore } = await import('firebase-admin/firestore');
-  
-  const databaseId =
+  const databaseId = (
     process.env.FIRESTORE_DATABASE_ID ||
     process.env.FIREBASE_FIRESTORE_DATABASE_ID ||
-    DEFAULT_FIRESTORE_DATABASE_ID;
+    DEFAULT_FIRESTORE_DATABASE_ID
+  ).trim();
 
-  return databaseId.trim() ? getFirestore(app, databaseId.trim()) : getFirestore(app);
+  if (cache.db && cache.dbId === databaseId) {
+    return cache.db;
+  }
+
+  cache.firestoreModPromise ||= import('firebase-admin/firestore');
+  const { getFirestore } = await cache.firestoreModPromise;
+  
+  cache.db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+  cache.dbId = databaseId;
+  return cache.db;
 }
 
 export async function getAdminAuth() {
   const app = await initFirebaseAdmin();
-  const { getAuth } = await import('firebase-admin/auth');
-  return getAuth(app);
+  if (cache.auth) {
+    return cache.auth;
+  }
+
+  cache.authModPromise ||= import('firebase-admin/auth');
+  const { getAuth } = await cache.authModPromise;
+  cache.auth = getAuth(app);
+  return cache.auth;
 }

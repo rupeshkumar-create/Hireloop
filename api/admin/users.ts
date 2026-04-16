@@ -162,6 +162,24 @@ function getListLimit(value: unknown): number {
   return DEFAULT_LIST_LIMIT;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
 /**
  * Top-level error boundary to catch Vercel function initialization or runtime errors
  */
@@ -176,20 +194,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Missing admin token' });
     }
 
-    let auth;
-    let db;
+    const timeoutMs = 8000;
 
+    let auth: Awaited<ReturnType<typeof getAdminAuth>>;
     try {
-      auth = await getAdminAuth();
-      db = await getAdminDb();
+      auth = await withTimeout(getAdminAuth(), timeoutMs, 'Admin auth initialization');
     } catch (initError: any) {
-      console.error('[Admin Endpoint Init Failed]', initError);
+      console.error('[Admin Auth Init Failed]', initError);
       return res.status(500).json({ error: `Backend initialization failed: ${initError.message}` });
     }
 
     let decoded;
     try {
-      decoded = await auth.verifyIdToken(token);
+      decoded = await withTimeout(auth.verifyIdToken(token), timeoutMs, 'Admin token verification');
     } catch (tokenError: any) {
       console.error('[Admin Token Verification Failed]', tokenError);
       return res.status(401).json({ error: `Invalid admin token: ${tokenError.message}` });
@@ -199,11 +216,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Not authorized as super admin' });
     }
 
+    let db: Awaited<ReturnType<typeof getAdminDb>>;
+    try {
+      db = await withTimeout(getAdminDb(), timeoutMs, 'Admin Firestore initialization');
+    } catch (dbInitError: any) {
+      console.error('[Admin Firestore Init Failed]', dbInitError);
+      return res.status(500).json({ error: `Backend initialization failed: ${dbInitError.message}` });
+    }
+
     const requestedUserId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
 
     if (requestedUserId) {
       try {
-        const docSnapshot = await db.collection('users').doc(requestedUserId).get();
+        const docSnapshot = await withTimeout(
+          db.collection('users').doc(requestedUserId).get(),
+          timeoutMs,
+          'Admin user detail query'
+        );
         
         if (!docSnapshot.exists) {
           return res.status(404).json({ error: 'User not found' });
@@ -223,11 +252,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const limit = getListLimit(req.query.limit);
-      const snapshot = await db
-        .collection('users')
-        .select(...LIST_FIELDS)
-        .limit(limit)
-        .get();
+      const snapshot = await withTimeout(
+        db.collection('users').select(...LIST_FIELDS).limit(limit).get(),
+        timeoutMs,
+        'Admin users list query'
+      );
       const users = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
         .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
