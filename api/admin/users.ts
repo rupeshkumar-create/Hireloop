@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminAuth, getAdminDb } from '../_lib/firebaseAdmin';
+import { buildAdminUserDetail, buildAdminUserListItem } from '../../src/lib/adminUsers';
 
 const SUPER_ADMIN_EMAILS = [
   'rupesh7126@gmail.com',
@@ -61,10 +62,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Not authorized as super admin' });
     }
 
+    const requestedUserId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
+    if (requestedUserId) {
+      const docSnapshot = await getAdminDb().collection('users').doc(requestedUserId).get();
+      if (!docSnapshot.exists) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const user = buildAdminUserDetail({
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      } as AdminUserRecord);
+      return res.status(200).json({ user });
+    }
+
     const snapshot = await getAdminDb().collection('users').get();
-    const users: AdminUserRecord[] = snapshot.docs
+    const users = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
-      .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt));
+      .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
+      .map(buildAdminUserListItem);
 
     return res.status(200).json({ users });
   } catch (error) {

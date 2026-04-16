@@ -12,6 +12,7 @@ import { runAdminGhostMode } from '../services/adminGhostMode';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
 import type { GhostModeOverrides, GhostModeRunResult, GhostModeTargetUser } from '../types/adminGhostMode';
 import { isAllowedAdminEmail } from '../lib/admin';
+import type { AdminUserDetail, AdminUserListItem } from '../lib/adminUsers';
 
 
 
@@ -23,16 +24,16 @@ export function AdminDashboard() {
   
   const currentUser = realUser || user;
 
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal State
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [detailUser, setDetailUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(null);
+  const [detailUser, setDetailUser] = useState<AdminUserDetail | null>(null);
   const [newPlan, setNewPlan] = useState<'free' | 'pro'>('free');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<AdminUserListItem | null>(null);
   const [ghostModeUser, setGhostModeUser] = useState<GhostModeTargetUser | null>(null);
   const [ghostModeRunning, setGhostModeRunning] = useState(false);
   const [ghostModeResult, setGhostModeResult] = useState<GhostModeRunResult | null>(null);
@@ -43,7 +44,7 @@ export function AdminDashboard() {
     careerPaths: ''
   });
 
-  const handleEditUser = (u: any) => {
+  const handleEditUser = (u: AdminUserListItem) => {
     setEditingUser(u);
     setEditFormData({
       jobType: u.jobType || 'both',
@@ -102,6 +103,72 @@ export function AdminDashboard() {
     return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
   };
 
+  const readResponsePayload = async (response: Response) => {
+    const rawText = await response.text();
+    if (!rawText) {
+      return { data: null, rawText: '' };
+    }
+
+    try {
+      return { data: JSON.parse(rawText), rawText };
+    } catch {
+      return { data: null, rawText };
+    }
+  };
+
+  const getAdminHeaders = async () => {
+    const idToken = await realUser?.getIdToken();
+    if (!idToken) {
+      throw new Error('Missing admin session.');
+    }
+
+    return {
+      Authorization: `Bearer ${idToken}`,
+    };
+  };
+
+  const fetchAdminUser = async (userId: string): Promise<AdminUserDetail> => {
+    const response = await fetch(`/api/admin/users?userId=${encodeURIComponent(userId)}`, {
+      headers: await getAdminHeaders(),
+    });
+
+    const { data: payload, rawText } = await readResponsePayload(response);
+    if (!response.ok) {
+      throw new Error(
+        payload?.error ||
+        rawText ||
+        `Request failed with status ${response.status}`
+      );
+    }
+
+    if (!payload || typeof payload !== 'object' || !payload.user) {
+      throw new Error(rawText || 'Server returned an invalid user response.');
+    }
+
+    return payload.user as AdminUserDetail;
+  };
+
+  const handleViewDetails = async (userId: string) => {
+    try {
+      const user = await fetchAdminUser(userId);
+      setDetailUser(user);
+    } catch (error: any) {
+      console.error('Error fetching admin user details:', error);
+      toast.error('Failed to load user details. ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleOpenGhostMode = async (userId: string) => {
+    try {
+      const user = await fetchAdminUser(userId);
+      setGhostModeUser(user as GhostModeTargetUser);
+      setGhostModeResult(null);
+    } catch (error: any) {
+      console.error('Error fetching ghost mode user:', error);
+      toast.error('Failed to load user profile for Ghost Mode. ' + (error.message || 'Unknown error'));
+    }
+  };
+
   useEffect(() => {
     if (sessionStorage.getItem('super_admin_unlocked') === 'true' && isAllowedAdminEmail(currentUser?.email)) {
       setIsAuthenticated(true);
@@ -128,31 +195,11 @@ export function AdminDashboard() {
 
     let cancelled = false;
 
-    const readResponsePayload = async (response: Response) => {
-      const rawText = await response.text();
-      if (!rawText) {
-        return { data: null, rawText: '' };
-      }
-
-      try {
-        return { data: JSON.parse(rawText), rawText };
-      } catch {
-        return { data: null, rawText };
-      }
-    };
-
     const loadUsers = async () => {
       setLoading(true);
       try {
-        const idToken = await realUser?.getIdToken();
-        if (!idToken) {
-          throw new Error('Missing admin session.');
-        }
-
         const response = await fetch('/api/admin/users', {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
+          headers: await getAdminHeaders(),
         });
 
         const { data: payload, rawText } = await readResponsePayload(response);
@@ -375,14 +422,11 @@ export function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => handleEditUser(u)}>Edit Data</Button>
-                      <Button size="sm" variant="outline" onClick={() => setDetailUser(u)}>View Details</Button>
+                      <Button size="sm" variant="outline" onClick={() => void handleViewDetails(u.id)}>View Details</Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setGhostModeUser(u as GhostModeTargetUser);
-                          setGhostModeResult(null);
-                        }}
+                        onClick={() => void handleOpenGhostMode(u.id)}
                       >
                         Simulate for User
                       </Button>
