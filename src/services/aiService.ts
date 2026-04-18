@@ -552,7 +552,7 @@ Return ONLY a JSON array of exactly 10 query strings.`;
     const queryResponse = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'openai/gpt-4o-mini'
+      'openai/gpt-4o'
     );
     if (queryResponse.choices?.[0]?.message?.content) {
       const aiQueries = normalizeGeneratedQueries(
@@ -569,6 +569,8 @@ Return ONLY a JSON array of exactly 10 query strings.`;
   return buildFallbackScoutQueries(context, minSalary, jobType, location);
 }
 
+const TRUSTED_ATS_DOMAINS = ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'];
+
 async function harvestJobs(
   queries: string[],
   options: {
@@ -578,9 +580,13 @@ async function harvestJobs(
   }
 ) {
   return searchRemoteJobs(queries, {
-    allowedDomains: ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'],
+    allowedDomains: TRUSTED_ATS_DOMAINS,
+    // Skip the actual HTTP fetch for known trusted ATS domains — they're already
+    // validated by domain name. Real HEAD/GET requests to Greenhouse/Lever often
+    // return 403, incorrectly filtering out valid jobs.
+    skipNetworkFetchForDomains: TRUSTED_ATS_DOMAINS,
     allowCompanyCareerPages: false,
-    maxDaysOld: 7,
+    maxDaysOld: 14,
     maxQueries: 10,
     maxJobs: 40,
     jobType: options.jobType,
@@ -656,7 +662,7 @@ Return ONLY a JSON array with one object per job in the same order:
         const response = await callOpenAI(
           [{ role: 'user', content: scoringPrompt }],
           undefined,
-          'google/gemini-3.1-pro'
+          'google/gemini-2.5-pro-preview-03-25'
         );
         const content = response.choices?.[0]?.message?.content || '[]';
         return parseJsonArray(content);
@@ -1153,7 +1159,7 @@ ${resumeText.substring(0, 6000)}`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       { type: 'json_object' },
-      'openai/gpt-5.4-pro'
+      'openai/gpt-4o'
     );
 
     const content = response.choices?.[0]?.message?.content;
@@ -1196,7 +1202,7 @@ ${resumeText.substring(0, 6000)}`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'google/gemini-3.1-pro'
+      'google/gemini-2.5-pro-preview-03-25'
     );
     return response.choices?.[0]?.message?.content?.trim() || '';
   } catch (error) {
@@ -1226,7 +1232,7 @@ Rewrite the text according to the instruction. Return ONLY the new text without 
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-opus-4.6'
+      'anthropic/claude-opus-4'
     );
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch (error) {
@@ -1293,7 +1299,7 @@ Return ONLY the email body.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4.6'
+        'anthropic/claude-opus-4'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) {
@@ -1380,7 +1386,7 @@ Return ONLY the email body. No subject line.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4.6'
+        'anthropic/claude-opus-4'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) {
@@ -1447,7 +1453,7 @@ Generate exactly 5 questions.
 Return ONLY clean Markdown.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4');
     
     if (response.choices?.[0]?.message?.content) {
       return response.choices[0].message.content.trim();
@@ -1478,7 +1484,7 @@ ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 Format in clean Markdown. Under 200 words. No fluff.`;
 
   try {
-    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-3.5-sonnet');
+    const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'anthropic/claude-opus-4');
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch (error) {
     console.error('Error generating salary insights:', error);
@@ -1534,7 +1540,7 @@ Return ONLY the tailored resume in clean Markdown format.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4.6'
+        'anthropic/claude-opus-4'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) {

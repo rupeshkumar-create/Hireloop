@@ -57,8 +57,8 @@ const LIST_FIELDS = [
   'minSalary',
   'careerPaths',
 ] as const;
-const DEFAULT_LIST_LIMIT = 100;
-const MAX_LIST_LIMIT = 200;
+const DEFAULT_LIST_LIMIT = 500;
+const MAX_LIST_LIMIT = 1000;
 
 function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
@@ -252,14 +252,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const limit = getListLimit(req.query.limit);
+      // Order by createdAt desc at the DB level so the limit captures the most
+      // recent users (not just whoever happens to sort first by document ID).
       const snapshot = await withTimeout(
-        db.collection('users').select(...LIST_FIELDS).limit(limit).get(),
+        db.collection('users').orderBy('createdAt', 'desc').select(...LIST_FIELDS).limit(limit).get(),
         timeoutMs,
         'Admin users list query'
       );
       const users = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
-        .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt))
         .map(buildAdminUserListItem);
 
       return res.status(200).json({
