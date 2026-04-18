@@ -1,30 +1,27 @@
-import type { Job } from './dashboard';
+import type { DailyJob } from './dailyJob';
 import type { ScoutLearningContext } from '../services/learningSignals';
 
 export type GhostModeRunMode = 'preview' | 'persist';
 export type GhostModeInputMode = 'saved' | 'override';
 
-export interface GhostModeJob extends Job {
-  finalScore?: number;
-}
-
-export interface GhostModeRejectedJob {
-  job: GhostModeJob;
-  code: string;
-}
+/** Alias kept for backwards compat inside the admin UI */
+export type GhostModeJob = DailyJob;
 
 export interface DailyJobsDebugResult {
-  queries: string[];
+  // Harvest stats
   harvestedCount: number;
   dedupedCount: number;
-  validatedCount: number;
   unseenCount: number;
   seenCount: number;
   usedBackfill: boolean;
-  acceptedJobs: GhostModeJob[];
-  rejectedJobs: GhostModeRejectedJob[];
-  rejectionCodeCounts: Record<string, number>;
-  finalJobs: GhostModeJob[];
+  sourceBreakdown: Record<string, number>;
+
+  // Matching stats
+  scoredCount: number;
+  enrichedCount: number;
+
+  // Results
+  finalJobs: DailyJob[];
 }
 
 export interface GhostModeProfileInput {
@@ -60,9 +57,7 @@ export interface GhostModeTargetUser {
   resumeText?: string;
   location?: string;
   seenJobFingerprints?: string[];
-  learningProfile?: {
-    jobPreferences?: string;
-  };
+  learningProfile?: { jobPreferences?: string };
   learningSignals?: ScoutLearningContext;
 }
 

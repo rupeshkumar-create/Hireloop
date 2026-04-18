@@ -14,33 +14,35 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Toaster } from 'sonner';
 import { ThemeToggle } from './components/ui/theme-toggle';
-import { isAllowedAdminEmail } from './lib/admin';
+import { useState, useEffect } from 'react';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
   }
-  
+
   return user ? <>{children}</> : <Navigate to="/login" />;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
+  const { realUser, loading } = useAuth();
+  const [status, setStatus] = useState<'checking' | 'allowed' | 'denied'>('checking');
 
-  if (!isAllowedAdminEmail(user.email)) {
-    return <Navigate to="/dashboard" />;
+  useEffect(() => {
+    if (loading) return;
+    if (!realUser) { setStatus('denied'); return; }
+    setStatus('checking');
+    realUser.getIdTokenResult(false)
+      .then(r => setStatus(r.claims.superAdmin === true ? 'allowed' : 'denied'))
+      .catch(() => setStatus('denied'));
+  }, [realUser, loading]);
+
+  if (loading || status === 'checking') {
+    return <div className="flex h-screen items-center justify-center bg-background">Checking access...</div>;
   }
-  
+  if (status === 'denied') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 

@@ -1,11 +1,39 @@
+/**
+ * useDashboardJobs
+ *
+ * Reads today's pre-computed daily job matches from Firestore.
+ * Job generation happens entirely server-side (cron pipeline) — this hook
+ * never calls external APIs or LLMs directly.
+ *
+ * Data flow:
+ *   Cron → Firestore users/{uid}/daily_matches/{date}
+ *   Hook  → reads that document → exposes jobs to the UI
+ *
+ * Falls back to the last-fetched cache on the user doc when today's record
+ * does not yet exist (e.g. before midnight cron fires).
+ */
 import { useState, useMemo, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import { toast } from 'sonner';
-import { Job, SortOption } from '../types/dashboard';
-import { generateDailyJobs, generateColdEmail, tailorResume, generateInterviewQuestions, updateLearningProfile } from '../services/aiService';
-import { jobFingerprint } from '../services/serperService';
-import { sendDailyJobAlertsEmail } from '../services/emailService';
+import type { DailyJob } from '../types/dailyJob';
+import type { Job, SortOption } from '../types/dashboard';
+import {
+  generateColdEmail,
+  tailorResume,
+  generateInterviewQuestions,
+  updateLearningProfile,
+} from '../services/aiService';
+import { jobFingerprint } from '../services/jobHarvester';
 import {
   applyLearningEvent,
   type LearningEventJob,
@@ -13,60 +41,49 @@ import {
 } from '../services/learningSignals';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 
-// Max fingerprints to store per user (~10/day × 30 days = 300)
-const MAX_SEEN_FINGERPRINTS = 300;
+const MAX_SEEN_FINGERPRINTS = 500;
+
 type GeneratedTrackedJobAssets = {
   coldEmail?: string;
   tailoredResume?: string;
   interviewQuestions?: string | string[];
 };
 
-// Helper to determine the most recent 8:00 AM IST (which is 2:30 AM UTC)
-function getMostRecent8AMIST(): Date {
+/** Returns today's date string in YYYY-MM-DD (IST, UTC+5:30). */
+function getTodayIST(): string {
   const now = new Date();
-  const mostRecent = new Date(now);
-  mostRecent.setUTCHours(2, 30, 0, 0);
-
-  // If current UTC time is before 2:30 AM, the most recent 8:00 AM IST was yesterday
-  if (now.getUTCHours() < 2 || (now.getUTCHours() === 2 && now.getUTCMinutes() < 30)) {
-    mostRecent.setUTCDate(mostRecent.getUTCDate() - 1);
-  }
-
-  return mostRecent;
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().split('T')[0];
 }
 
 export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<DailyJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
   const [dismissedFingerprints, setDismissedFingerprints] = useState<string[]>([]);
-  
+
   const [stats, setStats] = useState({ saved: 0, applied: 0, interviewing: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Filters & Sorting
+  // Filters & sorting
   const [filterCompany, setFilterCompany] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterSalary, setFilterSalary] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('matchScore');
 
   useEffect(() => {
-    if (user) {
-      fetchStats();
-    }
+    if (user) fetchStats();
   }, [user]);
 
-  // Load jobs from profile if they exist
+  // Auto-load jobs when the profile is ready
   useEffect(() => {
-    if (profile?.dailyJobs && jobs.length === 0 && !loadingJobs) {
-      // If they just upgraded to pro but only have 1 job cached, automatically refresh
-      const expectedLimit = getDailyMatchLimit(profile?.plan);
-      if (profile.dailyJobs.length < expectedLimit) {
-        fetchJobs(true); // force refresh
-      } else {
-        setJobs(profile.dailyJobs);
-      }
+    if (profile && user && jobs.length === 0 && !loadingJobs) {
+      loadJobs();
     }
-  }, [profile?.dailyJobs, profile?.plan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.uid ?? profile?.email]);
+
+  // ── Stats ───────────────────────────────────────────────────────────────────
 
   const fetchStats = async () => {
     if (!user) return;
@@ -75,19 +92,86 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
       let saved = 0, applied = 0, interviewing = 0;
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((d) => {
+        const data = d.data();
         if (data.status === 'saved') saved++;
         if (data.status === 'applied') applied++;
         if (data.status === 'interviewing') interviewing++;
       });
       setStats({ saved, applied, interviewing });
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      console.error('Error fetching stats:', error);
     } finally {
       setStatsLoading(false);
     }
   };
+
+  // ── Load jobs from Firestore ────────────────────────────────────────────────
+
+  const loadJobs = async () => {
+    if (!user || !profile) return;
+    setLoadingJobs(true);
+
+    try {
+      const today = getTodayIST();
+      const limit = getDailyMatchLimit(profile?.plan);
+
+      // 1. Try today's pre-computed record first
+      const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
+      const dailySnap = await getDoc(dailyRef);
+
+      if (dailySnap.exists()) {
+        const record = dailySnap.data();
+        const fetched: DailyJob[] = (record.jobs || []).slice(0, limit);
+        setJobs(fetched);
+        setLastFetchTime(record.generatedAt || today);
+        return;
+      }
+
+      // 2. Fall back to last-cached batch on the user doc
+      if (profile.dailyJobs && profile.dailyJobs.length > 0) {
+        const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
+        setJobs(cached);
+        setLastFetchTime(profile.lastJobFetchTime || null);
+
+        if (cached.length < limit) {
+          toast.info("Today's jobs are being prepared. Showing your most recent matches for now.");
+        }
+        return;
+      }
+
+      // 3. No jobs at all — prompt user to wait
+      toast.info("Your daily job matches are being prepared. Check back soon!", { duration: 5000 });
+    } catch (error) {
+      console.error('Error loading daily jobs:', error);
+      toast.error('Failed to load your daily job matches.');
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  // Kept for Dashboard backward-compat (called when tab switches to Matches)
+  const fetchJobs = async (_forceRefresh: boolean = false) => {
+    await loadJobs();
+  };
+
+  // ── Learning signal persistence ─────────────────────────────────────────────
+
+  const persistLearningSignals = async (signals: LearningSignals) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid), { learningSignals: signals }, { merge: true });
+  };
+
+  const recordLearningEvent = async (
+    eventType: 'saved' | 'dismissed' | 'applied' | 'clicked',
+    job: LearningEventJob
+  ) => {
+    const nextSignals = applyLearningEvent(profile?.learningSignals, eventType, job);
+    await persistLearningSignals(nextSignals);
+    if (updateProfile) await updateProfile({ learningSignals: nextSignals });
+  };
+
+  // ── Tracked-job asset persistence ──────────────────────────────────────────
 
   const persistTrackedJobAssets = async (
     jobId: string,
@@ -102,116 +186,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     for (const [field, value] of entries) {
       await setDoc(
         doc(db, 'trackedJobs', jobId),
-        {
-          [field]: value,
-          updatedAt: timestamp,
-        },
+        { [field]: value, updatedAt: timestamp },
         { merge: true }
       );
     }
   };
 
-  const fetchJobs = async (forceRefresh: boolean = false) => {
-    if (!profile?.careerPaths || profile.careerPaths.length === 0) {
-      toast.error("Please set your Career Paths in Settings first.");
-      return;
-    }
-
-    // Determine if we actually need to fetch
-    const mostRecent8AM = getMostRecent8AMIST();
-    const lastFetch = profile.lastJobFetchTime ? new Date(profile.lastJobFetchTime) : null;
-    
-    // If not forcing, and we already fetched after the most recent 8 AM IST, just use cached jobs
-    // Free stays at 1/day. Pro targets 10/day, with staged retrieval filling as much real inventory as possible.
-    const limit = getDailyMatchLimit(profile?.plan);
-    if (!forceRefresh && lastFetch && lastFetch >= mostRecent8AM && profile.dailyJobs && profile.dailyJobs.length >= limit) {
-      setJobs(profile.dailyJobs);
-      return;
-    }
-
-    setLoadingJobs(true);
-    try {
-      // Load fingerprints of jobs already shown to this user (deduplication)
-      const seenFingerprints: string[] = profile.seenJobFingerprints || [];
-
-      const result = await generateDailyJobs(
-        profile.careerPaths,
-        profile.jobType || 'both',
-        profile.minSalary || null,
-        profile.resumeText || '',
-        limit,
-        seenFingerprints,
-        profile.learningProfile?.jobPreferences || '',
-        profile.location || '',
-        profile.learningSignals
-      );
-      const results = result.jobs;
-      setJobs(results);
-
-      // Build updated fingerprint list - append new jobs, cap at MAX_SEEN_FINGERPRINTS
-      const newFingerprints = results.map((j: Job) => jobFingerprint(j.title, j.company));
-      const updatedSeen = [
-        ...new Set([...seenFingerprints, ...newFingerprints])
-      ].slice(-MAX_SEEN_FINGERPRINTS);
-
-      // Save jobs + updated seen list to profile
-      const fetchTime = new Date().toISOString();
-      const todayDate = fetchTime.split('T')[0];
-      
-      await setDoc(doc(db, 'users', user.uid), {
-        dailyJobs: results,
-        lastJobFetchTime: fetchTime,
-        seenJobFingerprints: updatedSeen,
-      }, { merge: true });
-
-      // Save historical matches by date
-      if (results.length > 0) {
-        await setDoc(doc(db, 'users', user.uid, 'daily_matches', todayDate), {
-          jobs: results,
-          fetchedAt: fetchTime
-        }, { merge: true });
-      }
-
-      // Send the job alerts email via Resend if enabled
-      if (results.length > 0 && user?.email && profile?.receiveDailyAlerts !== false) {
-        sendDailyJobAlertsEmail(user.email, results).catch(console.error);
-      }
-
-      if (results.length === 0) {
-        toast.error('Live search did not return enough valid remote matches right now. Please try again later.');
-      } else if (result.usedBackfill) {
-        toast.success(`Found ${results.length} jobs. Today was light, so we included some strong repeat matches to fill your Pro list.`);
-      } else if (results.length < limit) {
-        toast.info(`Found ${results.length} real matches. Live inventory was lighter than usual, so we returned the best available jobs.`);
-      } else {
-        toast.success(`Found ${results.length} new jobs matching your profile!`);
-      }
-    } catch (error: any) {
-      if (error.message === 'AI_QUOTA_EXCEEDED') {
-        toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue finding jobs.', { duration: 6000 });
-      } else {
-        toast.error(error.message || "Failed to fetch jobs.");
-      }
-    } finally {
-      setLoadingJobs(false);
-    }
-  };
-
-  const persistLearningSignals = async (signals: LearningSignals) => {
-    if (!user) return;
-    await setDoc(doc(db, 'users', user.uid), { learningSignals: signals }, { merge: true });
-  };
-
-  const recordLearningEvent = async (
-    eventType: 'saved' | 'dismissed' | 'applied' | 'clicked',
-    job: LearningEventJob
-  ) => {
-    const nextSignals = applyLearningEvent(profile?.learningSignals, eventType, job);
-    await persistLearningSignals(nextSignals);
-    if (updateProfile) {
-      await updateProfile({ learningSignals: nextSignals });
-    }
-  };
+  // ── Save job ────────────────────────────────────────────────────────────────
 
   const saveJob = async (job: Job): Promise<boolean> => {
     if (!user) return false;
@@ -223,10 +204,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         location: job.location,
         salary: job.salary,
         status: 'saved',
-        url: job.url,
+        url: (job as DailyJob).applyUrl || '',
         notes: job.description,
         createdAt: new Date().toISOString(),
-        aiAssets: null // Will be populated if Pro
       });
 
       try {
@@ -236,20 +216,20 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           description: job.description,
           requirements: job.requirements,
         });
-      } catch (learningError) {
-        console.error('Failed to record saved-job learning event:', learningError);
+      } catch (err) {
+        console.error('Failed to record saved-job learning event:', err);
       }
 
       toast.success('Job saved to tracker!');
       fetchStats();
 
-      // Pro features: Auto-generate AI assets & trigger self-learning
+      // Pro: auto-generate AI assets in the background
       if (isProPlan(profile?.plan) && profile?.resumeText) {
-        toast.info('Generating AI assets in the background...');
+        toast.info('Generating AI assets in the background…');
         Promise.allSettled([
           generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),
           tailorResume(job.title, job.description, profile.resumeText, true, profile.learningProfile?.writingStyle),
-          generateInterviewQuestions(job.title, job.company, true)
+          generateInterviewQuestions(job.title, job.company, true),
         ]).then(async (results) => {
           const generatedAssets: GeneratedTrackedJobAssets = {};
           const [emailRes, resumeRes, interviewRes] = results;
@@ -260,24 +240,19 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           if (Object.keys(generatedAssets).length > 0) {
             await persistTrackedJobAssets(docRef.id, generatedAssets);
             toast.success('AI assets ready for ' + job.company);
-          } else {
-            console.error('Background AI generation failed:', results);
           }
-        }).catch(err => {
-          console.error('Background AI generation failed:', err);
-        });
+        }).catch(console.error);
 
-        // Trigger Self-Learning Background Process
+        // Trigger self-learning
         if (profile) {
-          const actionData = `Saved job: ${job.title} at ${job.company}`;
-          updateLearningProfile('save_job', actionData, profile.learningProfile?.jobPreferences)
-            .then(newPrefs => {
-              updateProfile({
-                learningProfile: { ...profile.learningProfile, jobPreferences: newPrefs }
-              });
-            }).catch(err => console.error('Self-learning failed:', err));
+          updateLearningProfile('save_job', `Saved job: ${job.title} at ${job.company}`, profile.learningProfile?.jobPreferences)
+            .then((newPrefs) => {
+              updateProfile({ learningProfile: { ...profile.learningProfile, jobPreferences: newPrefs } });
+            })
+            .catch(console.error);
         }
       }
+
       return true;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'trackedJobs');
@@ -286,12 +261,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
-  const dismissJob = async (job: Job) => {
-    const fingerprint = jobFingerprint(job.title, job.company);
-    setDismissedFingerprints((current) =>
-      current.includes(fingerprint) ? current : [...current, fingerprint]
-    );
+  // ── Dismiss / track click ───────────────────────────────────────────────────
 
+  const dismissJob = async (job: Job) => {
+    const fp = jobFingerprint(job.title, job.company);
+    setDismissedFingerprints((cur) => (cur.includes(fp) ? cur : [...cur, fp]));
     try {
       await recordLearningEvent('dismissed', {
         title: job.title,
@@ -299,8 +273,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         description: job.description,
         requirements: job.requirements,
       });
-    } catch (learningError) {
-      console.error('Failed to record dismissed-job learning event:', learningError);
+    } catch (err) {
+      console.error('Failed to record dismissed-job learning event:', err);
     }
   };
 
@@ -312,31 +286,29 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         description: job.description,
         requirements: job.requirements,
       });
-    } catch (learningError) {
-      console.error('Failed to record clicked-job learning event:', learningError);
+    } catch (err) {
+      console.error('Failed to record clicked-job learning event:', err);
     }
-
-    window.open(job.url, '_blank');
   };
 
-  // Memoize filtered and sorted jobs for performance
+  // ── Memoized filtered + sorted list ────────────────────────────────────────
+
   const filteredAndSortedJobs = useMemo(() => {
     return jobs
       .filter((job) => {
-        const fingerprint = jobFingerprint(job.title, job.company);
-        const notDismissed = !dismissedFingerprints.includes(fingerprint);
-        const matchCompany = job.company.toLowerCase().includes(filterCompany.toLowerCase());
-        const matchLocation = job.location.toLowerCase().includes(filterLocation.toLowerCase());
-        const matchSalary = job.salary.toLowerCase().includes(filterSalary.toLowerCase());
-        return notDismissed && matchCompany && matchLocation && matchSalary;
+        const fp = jobFingerprint(job.title, job.company);
+        return (
+          !dismissedFingerprints.includes(fp) &&
+          job.company.toLowerCase().includes(filterCompany.toLowerCase()) &&
+          job.location.toLowerCase().includes(filterLocation.toLowerCase()) &&
+          job.salary.toLowerCase().includes(filterSalary.toLowerCase())
+        );
       })
       .sort((a, b) => {
-        if (sortBy === 'matchScore') return (b.matchScore || 0) - (a.matchScore || 0);
+        if (sortBy === 'matchScore') return (b.matchScore ?? 0) - (a.matchScore ?? 0);
         if (sortBy === 'company') return a.company.localeCompare(b.company);
         if (sortBy === 'datePosted') {
-          const dateA = a.datePosted ? new Date(a.datePosted).getTime() : 0;
-          const dateB = b.datePosted ? new Date(b.datePosted).getTime() : 0;
-          return dateB - dateA;
+          return new Date(b.postedAt ?? 0).getTime() - new Date(a.postedAt ?? 0).getTime();
         }
         return 0;
       });
@@ -349,13 +321,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     stats,
     statsLoading,
     fetchJobs,
-    lastFetchTime: profile?.lastJobFetchTime,
+    lastFetchTime,
     saveJob,
     dismissJob,
     trackJobClick,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
-    sortBy, setSortBy
+    sortBy, setSortBy,
   };
 }

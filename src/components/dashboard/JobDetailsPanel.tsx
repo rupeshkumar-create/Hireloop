@@ -191,7 +191,7 @@ export function JobDetailsPanel({
 
                             toast.success('Tailored resume downloaded. Please attach it to your email.');
 
-                            const mailBody = encodeURIComponent(`${aiResult}\n\nJob URL: ${selectedJob.url}`);
+                            const mailBody = encodeURIComponent(`${aiResult}\n\nJob URL: ${(selectedJob as any).applyUrl || ''}`);
                             window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=Application for ${selectedJob.title}&body=${mailBody}`, '_blank');
                           }}
                         >

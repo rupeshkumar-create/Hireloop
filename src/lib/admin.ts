@@ -1,13 +1,6 @@
-export const SUPER_ADMIN_EMAILS = [
-  'rupesh7126@gmail.com',
-  'kv3244@gmail.com',
-  'rupesh7128@gmail.com',
-];
+import type { IdTokenResult } from 'firebase/auth';
 
-export function normalizeEmail(email: string | null | undefined): string {
-  return (email || '').trim().toLowerCase();
-}
-
-export function isAllowedAdminEmail(email: string | null | undefined): boolean {
-  return SUPER_ADMIN_EMAILS.includes(normalizeEmail(email));
+/** Returns true if the Firebase ID token carries the superAdmin custom claim. */
+export function hasSuperAdminClaim(tokenResult: IdTokenResult): boolean {
+  return tokenResult.claims.superAdmin === true;
 }

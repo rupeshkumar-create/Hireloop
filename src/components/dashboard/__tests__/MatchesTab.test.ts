@@ -18,14 +18,24 @@ vi.mock('framer-motion', () => ({
 }));
 
 const sampleJob: Job = {
+  id: 'frontend engineer::acme',
+  fingerprint: 'frontend engineer::acme',
   title: 'Frontend Engineer',
   company: 'Acme',
   location: 'Remote',
+  workType: 'remote',
   salary: '$120k',
   description: 'Build product UI',
-  url: 'https://example.com/jobs/1',
+  source: 'remotive',
+  applyUrl: 'https://example.com/jobs/1',
+  postedAt: new Date().toISOString(),
   requirements: ['React', 'TypeScript'],
   matchScore: 92,
+  finalScore: 92,
+  matchReasons: [],
+  skillGaps: [],
+  aiSummary: '',
+  isHotJob: false,
 };
 
 function renderMatches(
@@ -73,7 +83,7 @@ describe('MatchesTab paywall rendering', () => {
   it('does not show locked placeholders for pro users', () => {
     const html = renderMatches('pro', [
       sampleJob,
-      { ...sampleJob, title: 'Platform Engineer', url: 'https://example.com/jobs/2' },
+      { ...sampleJob, title: 'Platform Engineer', id: 'platform engineer::acme', fingerprint: 'platform engineer::acme', applyUrl: 'https://example.com/jobs/2' },
     ]);
 
     expect(html).not.toContain('Upgrade to Pro');

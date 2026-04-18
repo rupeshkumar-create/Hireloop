@@ -262,7 +262,7 @@ export function GhostModeModal({
                   Deduped: {result.debug.dedupedCount}
                 </p>
                 <p className="text-sm text-foreground">
-                  Validated: {result.debug.validatedCount}
+                  Scored: {result.debug.scoredCount}
                 </p>
               </div>
 
@@ -283,56 +283,11 @@ export function GhostModeModal({
 
               <div className="rounded-2xl border border-border bg-background/60 p-4">
                 <p className="text-xs uppercase tracking-wider text-foreground-muted">
-                  Rejected Codes
+                  Source Breakdown
                 </p>
                 <pre className="mt-2 whitespace-pre-wrap text-xs text-foreground">
-                  {JSON.stringify(result.debug.rejectionCodeCounts, null, 2)}
+                  {JSON.stringify(result.debug.sourceBreakdown, null, 2)}
                 </pre>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
-                Queries Used
-              </p>
-              <div className="space-y-1 text-sm text-foreground">
-                {result.debug.queries.map((query) => (
-                  <p key={query}>{query}</p>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="rounded-2xl border border-border bg-background/60 p-4">
-                <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
-                  Accepted Jobs
-                </p>
-                <div className="space-y-2 text-sm text-foreground">
-                  {result.debug.acceptedJobs.map((job) => (
-                    <p key={`${job.title}-${job.company}`}>
-                      {job.title} @ {job.company} ({job.location})
-                    </p>
-                  ))}
-                  {result.debug.acceptedJobs.length === 0 && (
-                    <p className="text-foreground-muted">No accepted jobs.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-background/60 p-4">
-                <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
-                  Rejected Jobs
-                </p>
-                <div className="space-y-2 text-sm text-foreground">
-                  {result.debug.rejectedJobs.map((entry) => (
-                    <p key={`${entry.job.title}-${entry.job.company}-${entry.code}`}>
-                      {entry.job.title} @ {entry.job.company} - {entry.code}
-                    </p>
-                  ))}
-                  {result.debug.rejectedJobs.length === 0 && (
-                    <p className="text-foreground-muted">No rejected jobs.</p>
-                  )}
-                </div>
               </div>
             </div>
 

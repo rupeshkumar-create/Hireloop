@@ -1,5 +1,5 @@
 import { getDailyMatchLimit } from '../lib/planLimits';
-import { jobFingerprint } from './serperService';
+import { jobFingerprint } from './jobHarvester';
 import type {
   DailyJobsDebugResult,
   GhostModeInputMode,
@@ -9,12 +9,9 @@ import type {
   GhostModeRunResult,
   GhostModeTargetUser,
 } from '../types/adminGhostMode';
+import type { DailyJob } from '../types/dailyJob';
 
-const MAX_SEEN_FINGERPRINTS = 300;
-
-function buildFingerprint(job: { title: string; company: string }) {
-  return jobFingerprint(job.title, job.company);
-}
+const MAX_SEEN_FINGERPRINTS = 500;
 
 export function buildGhostModeProfileInput(
   targetUser: GhostModeTargetUser,
@@ -34,16 +31,13 @@ export function buildGhostModeProfileInput(
     learningSignals: targetUser.learningSignals,
   };
 
-  if (inputMode === 'saved' || !overrides) {
-    return base;
-  }
+  if (inputMode === 'saved' || !overrides) return base;
 
   return {
     ...base,
     careerPaths: overrides.careerPaths ?? base.careerPaths,
     jobType: overrides.jobType ?? base.jobType,
-    minSalary:
-      overrides.minSalary !== undefined ? overrides.minSalary : base.minSalary,
+    minSalary: overrides.minSalary !== undefined ? overrides.minSalary : base.minSalary,
     resumeText: overrides.resumeText ?? base.resumeText,
     location: overrides.location ?? base.location,
     learningContext: overrides.learningContext ?? base.learningContext,
@@ -55,7 +49,6 @@ export function assertGhostModeProfileReady(profile: GhostModeProfileInput) {
   if (!profile.careerPaths.length) {
     throw new Error('Career paths are required before running Ghost Mode.');
   }
-
   if (!profile.resumeText.trim()) {
     throw new Error('Resume text is required before running Ghost Mode.');
   }
@@ -63,10 +56,7 @@ export function assertGhostModeProfileReady(profile: GhostModeProfileInput) {
 
 interface RunAdminGhostModeRequest {
   targetUser: GhostModeTargetUser;
-  admin: {
-    uid: string;
-    email: string;
-  };
+  admin: { uid: string; email: string };
   runMode: GhostModeRunMode;
   inputMode: GhostModeInputMode;
   overrides?: GhostModeOverrides;
@@ -78,7 +68,7 @@ interface RunAdminGhostModeDeps {
   ) => Promise<DailyJobsDebugResult>;
   persistDailyJobs: (payload: {
     userId: string;
-    jobs: DailyJobsDebugResult['finalJobs'];
+    jobs: DailyJob[];
     lastJobFetchTime: string;
     seenJobFingerprints: string[];
     runDate: string;
@@ -99,10 +89,7 @@ export async function runAdminGhostMode(
   assertGhostModeProfileReady(effectiveProfile);
 
   const requestedLimit = getDailyMatchLimit(effectiveProfile.plan);
-  const debug = await deps.generateDebugResult({
-    ...effectiveProfile,
-    limit: requestedLimit,
-  });
+  const debug = await deps.generateDebugResult({ ...effectiveProfile, limit: requestedLimit });
 
   const timestamp = deps.now ? deps.now() : new Date().toISOString();
   const runDate = timestamp.split('T')[0];
@@ -111,7 +98,7 @@ export async function runAdminGhostMode(
     const nextSeenFingerprints = [
       ...new Set([
         ...effectiveProfile.seenFingerprints,
-        ...debug.finalJobs.map((job) => buildFingerprint(job)),
+        ...debug.finalJobs.map((job) => jobFingerprint(job.title, job.company)),
       ]),
     ].slice(-MAX_SEEN_FINGERPRINTS);
 
@@ -128,24 +115,18 @@ export async function runAdminGhostMode(
       adminEmail: request.admin.email,
       targetUserId: request.targetUser.id,
       targetUserEmail: request.targetUser.email || '',
-      action: 'simulate_daily_jobs',
+      action: 'simulate_daily_jobs_v2',
       runMode: request.runMode,
       inputMode: request.inputMode,
-      overrideKeys: Object.keys(request.overrides || {}).filter((key) => {
-        const value = request.overrides?.[key as keyof GhostModeOverrides];
-        return value !== undefined;
-      }),
-      acceptedCount: debug.acceptedJobs.length,
-      rejectedCount: debug.rejectedJobs.length,
+      overrideKeys: Object.keys(request.overrides || {}).filter(
+        (key) => request.overrides?.[key as keyof GhostModeOverrides] !== undefined
+      ),
       finalCount: debug.finalJobs.length,
+      scoredCount: debug.scoredCount,
+      harvestedCount: debug.harvestedCount,
       timestamp,
     });
   }
 
-  return {
-    persisted: request.runMode === 'persist',
-    requestedLimit,
-    effectiveProfile,
-    debug,
-  };
+  return { persisted: request.runMode === 'persist', requestedLimit, effectiveProfile, debug };
 }

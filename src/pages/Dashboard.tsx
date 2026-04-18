@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, List, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,10 +10,9 @@ import { ResumeUploader } from '../components/dashboard/ResumeUploader';
 import { OverviewTab } from '../components/dashboard/OverviewTab';
 import { MatchesTab } from '../components/dashboard/MatchesTab';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
-import { Button } from '../components/ui/button';
 import { PageShell } from '../components/ui/page-shell';
-import { Job } from '../types/dashboard';
-import { jobFingerprint } from '../services/serperService';
+import type { Job } from '../types/dashboard';
+import { jobFingerprint } from '../services/jobHarvester';
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
@@ -28,7 +27,7 @@ export function Dashboard() {
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
     sortBy, setSortBy,
-    lastFetchTime
+    lastFetchTime,
   } = useDashboardJobs(user, profile, updateProfile);
 
   const {
@@ -36,7 +35,7 @@ export function Dashboard() {
     aiResult,
     actionLoading,
     handleAiAction,
-    downloadResume
+    downloadResume,
   } = useDashboardAI(profile);
 
   useEffect(() => {
@@ -47,28 +46,11 @@ export function Dashboard() {
     }
   }, []);
 
-  // Automatically fetch jobs if moving to matches and no jobs yet
-  useEffect(() => {
-    if (profile?.careerPaths && profile.careerPaths.length > 0 && filteredAndSortedJobs.length === 0 && activeTab === 'matches' && !loadingJobs) {
-      fetchJobs();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, activeTab, loadingJobs]);
-
-  const isRefreshAvailable = () => {
-    if (!lastFetchTime) return true;
-    const hoursSinceLastFetch = (Date.now() - new Date(lastFetchTime).getTime()) / (1000 * 60 * 60);
-    return hoursSinceLastFetch >= 24;
-  };
-
   const handleSaveJob = async (job: Job) => {
     const didSave = await saveJob(job);
     if (!didSave) return false;
-
-    const fingerprint = jobFingerprint(job.title, job.company);
-    setSavedJobFingerprints((current) =>
-      current.includes(fingerprint) ? current : [...current, fingerprint]
-    );
+    const fp = jobFingerprint(job.title, job.company);
+    setSavedJobFingerprints((cur) => (cur.includes(fp) ? cur : [...cur, fp]));
     return true;
   };
 
@@ -79,22 +61,17 @@ export function Dashboard() {
   return (
     <PageShell
       title="Dashboard"
-      description={`Welcome back, ${user?.displayName?.split(' ')[0] || 'Candidate'}. Here are your latest remote matches.`}
-      actions={isRefreshAvailable() ? (
-        <Button variant="secondary" onClick={() => fetchJobs(true)} disabled={loadingJobs}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
-          {loadingJobs ? 'Scanning...' : 'Refresh Matches'}
-        </Button>
-      ) : undefined}
+      description={`Welcome back, ${user?.displayName?.split(' ')[0] || 'Candidate'}. Here are your latest AI-curated matches.`}
     >
       <div className="flex flex-col h-full">
+        {/* Tab switcher */}
         <div className="mb-8 flex items-center gap-3">
           <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
             <button
               onClick={() => setActiveTab('overview')}
               className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all duration-200 ${
-                activeTab === 'overview' 
-                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]' 
+                activeTab === 'overview'
+                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]'
                   : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
               }`}
             >
@@ -104,8 +81,8 @@ export function Dashboard() {
             <button
               onClick={() => setActiveTab('matches')}
               className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all duration-200 ${
-                activeTab === 'matches' 
-                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]' 
+                activeTab === 'matches'
+                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]'
                   : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
               }`}
             >
@@ -117,21 +94,21 @@ export function Dashboard() {
 
         <div className="relative flex min-h-0 flex-1 flex-col">
           {activeTab === 'overview' && (
-            <OverviewTab 
-              stats={stats} 
-              statsLoading={statsLoading} 
-              profile={profile} 
-              setActiveTab={setActiveTab} 
+            <OverviewTab
+              stats={stats}
+              statsLoading={statsLoading}
+              profile={profile}
+              setActiveTab={setActiveTab}
             />
           )}
 
           {activeTab === 'matches' && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <MatchesTab 
+              <MatchesTab
                 plan={profile?.plan}
                 jobs={filteredAndSortedJobs}
                 loadingJobs={loadingJobs}
@@ -145,13 +122,14 @@ export function Dashboard() {
                 saveJob={handleSaveJob}
                 savedJobFingerprints={savedJobFingerprints}
                 dismissJob={dismissJob}
+                lastFetchTime={lastFetchTime}
               />
             </motion.div>
           )}
 
           <AnimatePresence>
             {selectedJob && (
-              <JobDetailsPanel 
+              <JobDetailsPanel
                 selectedJob={selectedJob}
                 saveJob={handleSaveJob}
                 dismissJob={dismissJob}

@@ -41,13 +41,10 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Super Admin Check
+    // Super Admin Check — verified via Firebase custom claim set server-side.
+    // To grant access: POST /api/admin/bootstrap with ADMIN_BOOTSTRAP_SECRET.
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.email != null && (
-        request.auth.token.email.lower() == 'rupesh7126@gmail.com' ||
-        request.auth.token.email.lower() == 'kv3244@gmail.com' ||
-        request.auth.token.email.lower() == 'rupesh7128@gmail.com'
-      );
+      return isAuthenticated() && request.auth.token.superAdmin == true;
     }
     
     function isOwner(userId) {
@@ -125,6 +122,16 @@ service cloud.firestore {
       allow delete: if isDocOwner() || isSuperAdmin();
     }
     
+    // ── Daily job matches (v2) ───────────────────────────────────────────────
+    // Full DailyJob objects are stored per date by the server-side cron via
+    // Firebase Admin SDK (which bypasses client rules). Clients may only read
+    // their own records. Direct client writes are blocked — all writes go
+    // through the cron pipeline.
+    match /users/{userId}/daily_matches/{date} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow write: if isSuperAdmin(); // admin SDK bypasses this entirely
+    }
+
     match /admin_logs/{logId} {
       allow read, create: if isSuperAdmin();
     }

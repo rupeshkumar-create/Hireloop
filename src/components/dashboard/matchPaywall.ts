@@ -1,4 +1,5 @@
 import { PRO_DAILY_MATCH_LIMIT, isProPlan } from '../../lib/planLimits';
+import type { DailyJob } from '../../types/dailyJob';
 import type { Job } from '../../types/dashboard';
 
 export interface LockedMatchSlot {
