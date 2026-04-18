@@ -116,35 +116,37 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const today = getTodayIST();
       const limit = getDailyMatchLimit(profile?.plan);
 
-      // 1. Try today's pre-computed record first
-      const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
-      const dailySnap = await getDoc(dailyRef);
-
-      if (dailySnap.exists()) {
-        const record = dailySnap.data();
-        const fetched: DailyJob[] = (record.jobs || []).slice(0, limit);
-        setJobs(fetched);
-        setLastFetchTime(record.generatedAt || today);
-        return;
+      // 1. Try today's pre-computed record from the daily_matches subcollection.
+      //    Read errors (e.g. rules not yet deployed) are caught separately so they
+      //    never block the fallback paths below.
+      let foundInDaily = false;
+      try {
+        const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
+        const dailySnap = await getDoc(dailyRef);
+        if (dailySnap.exists()) {
+          const record = dailySnap.data();
+          const fetched: DailyJob[] = (record.jobs || []).slice(0, limit);
+          setJobs(fetched);
+          setLastFetchTime(record.generatedAt || today);
+          foundInDaily = true;
+        }
+      } catch (subErr) {
+        // Permission-denied or network error on the subcollection — fall through
+        console.warn('[useDashboardJobs] daily_matches read failed, trying profile cache:', subErr);
       }
+      if (foundInDaily) return;
 
       // 2. Fall back to last-cached batch on the user doc
       if (profile.dailyJobs && profile.dailyJobs.length > 0) {
         const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
         setJobs(cached);
         setLastFetchTime(profile.lastJobFetchTime || null);
-
-        if (cached.length < limit) {
-          toast.info("Today's jobs are being prepared. Showing your most recent matches for now.");
-        }
         return;
       }
 
-      // 3. No jobs at all — prompt user to wait
-      toast.info("Your daily job matches are being prepared. Check back soon!", { duration: 5000 });
+      // 3. No jobs at all — show empty state (handled in the UI via jobs.length === 0)
     } catch (error) {
-      console.error('Error loading daily jobs:', error);
-      toast.error('Failed to load your daily job matches.');
+      console.error('[useDashboardJobs] loadJobs failed:', error);
     } finally {
       setLoadingJobs(false);
     }
@@ -153,6 +155,52 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   // Kept for Dashboard backward-compat (called when tab switches to Matches)
   const fetchJobs = async (_forceRefresh: boolean = false) => {
     await loadJobs();
+  };
+
+  // ── On-demand job generation ────────────────────────────────────────────────
+
+  const [generatingJobs, setGeneratingJobs] = useState(false);
+
+  const requestJobs = async () => {
+    if (!user || generatingJobs) return;
+    setGeneratingJobs(true);
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/jobs/trigger', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        const msg = (err as any).error || 'Job generation failed';
+        // If already run today, just reload from Firestore
+        if (response.status === 200 || msg.includes('skipped')) {
+          await loadJobs();
+          return;
+        }
+        toast.error(msg);
+        return;
+      }
+
+      const data = await response.json();
+      const generated: DailyJob[] = data.jobs || [];
+      if (generated.length > 0) {
+        const limit = getDailyMatchLimit(profile?.plan);
+        setJobs(generated.slice(0, limit));
+        toast.success(`${generated.length} jobs curated for you!`);
+      } else {
+        toast.info("We couldn't find matching jobs right now. Try updating your career paths or resume.");
+      }
+    } catch (err) {
+      console.error('[useDashboardJobs] requestJobs failed:', err);
+      toast.error('Failed to generate jobs. Please try again.');
+    } finally {
+      setGeneratingJobs(false);
+    }
   };
 
   // ── Learning signal persistence ─────────────────────────────────────────────
@@ -318,6 +366,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     jobs,
     filteredAndSortedJobs,
     loadingJobs,
+    generatingJobs,
+    requestJobs,
     stats,
     statsLoading,
     fetchJobs,

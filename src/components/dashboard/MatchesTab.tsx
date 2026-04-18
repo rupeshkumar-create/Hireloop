@@ -22,6 +22,8 @@ interface MatchesTabProps {
   plan?: string;
   jobs: Job[];
   loadingJobs: boolean;
+  generatingJobs?: boolean;
+  onRequestJobs?: () => void;
   fetchJobs: (force?: boolean) => void;
   filterCompany: string;
   setFilterCompany: (v: string) => void;
@@ -296,7 +298,7 @@ function JobCard({
 // ── MatchesTab (main export) ─────────────────────────────────────────────────
 export function MatchesTab({
   plan,
-  jobs, loadingJobs, fetchJobs,
+  jobs, loadingJobs, generatingJobs, onRequestJobs, fetchJobs,
   filterCompany, setFilterCompany,
   filterLocation, setFilterLocation,
   filterSalary, setFilterSalary,
@@ -386,12 +388,32 @@ export function MatchesTab({
             <p className="text-foreground-muted font-medium animate-pulse">Loading your curated job matches…</p>
           </div>
         ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-            <Calendar className="h-10 w-10 text-foreground-muted/40" />
-            <p className="font-medium text-foreground-muted">Your daily matches are being prepared</p>
-            <p className="text-sm text-foreground-muted/70 max-w-xs">
-              Jobs are curated every day at 8:00 AM IST and delivered automatically. Check back soon!
-            </p>
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+            {generatingJobs ? (
+              <>
+                <Loader2 className="h-10 w-10 animate-spin text-foreground" />
+                <p className="font-medium text-foreground-muted">Finding the best jobs for you…</p>
+                <p className="text-sm text-foreground-muted/70 max-w-xs">
+                  Perplexity is searching live job boards and Claude is scoring each match. This takes about 60–90 seconds.
+                </p>
+              </>
+            ) : (
+              <>
+                <Calendar className="h-10 w-10 text-foreground-muted/40" />
+                <p className="font-medium text-foreground-muted">No jobs curated yet for today</p>
+                <p className="text-sm text-foreground-muted/70 max-w-xs">
+                  {isProPlan(plan)
+                    ? 'Generate your 10 personalised matches right now, or wait for the daily cron at 8 AM IST.'
+                    : 'Your 1 daily match will appear automatically at 8 AM IST.'}
+                </p>
+                {isProPlan(plan) && onRequestJobs && (
+                  <Button variant="action" onClick={onRequestJobs} className="mt-2">
+                    <Zap className="mr-2 h-4 w-4" />
+                    Generate my jobs now
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         ) : (
           <AnimatePresence>

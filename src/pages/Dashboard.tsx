@@ -21,7 +21,7 @@ export function Dashboard() {
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
 
   const {
-    filteredAndSortedJobs, loadingJobs,
+    filteredAndSortedJobs, loadingJobs, generatingJobs, requestJobs,
     stats, statsLoading, fetchJobs, saveJob, dismissJob, trackJobClick,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
@@ -112,6 +112,8 @@ export function Dashboard() {
                 plan={profile?.plan}
                 jobs={filteredAndSortedJobs}
                 loadingJobs={loadingJobs}
+                generatingJobs={generatingJobs}
+                onRequestJobs={requestJobs}
                 fetchJobs={fetchJobs}
                 filterCompany={filterCompany} setFilterCompany={setFilterCompany}
                 filterLocation={filterLocation} setFilterLocation={setFilterLocation}
