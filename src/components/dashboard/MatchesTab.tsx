@@ -16,7 +16,7 @@ import type { Job, SortOption } from '../../types/dashboard';
 import { cn } from '../../lib/utils';
 import { isProPlan } from '../../lib/planLimits';
 import { buildMatchFeedItems } from './matchPaywall';
-import { jobFingerprint } from '../../services/jobHarvester';
+import { jobFingerprint } from '../../services/jobResearcher';
 
 interface MatchesTabProps {
   plan?: string;

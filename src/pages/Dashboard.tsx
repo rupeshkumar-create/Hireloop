@@ -12,7 +12,7 @@ import { MatchesTab } from '../components/dashboard/MatchesTab';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { PageShell } from '../components/ui/page-shell';
 import type { Job } from '../types/dashboard';
-import { jobFingerprint } from '../services/jobHarvester';
+import { jobFingerprint } from '../services/jobResearcher';
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();

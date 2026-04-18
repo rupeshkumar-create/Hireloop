@@ -26,7 +26,7 @@ const sampleJob: Job = {
   workType: 'remote',
   salary: '$120k',
   description: 'Build product UI',
-  source: 'remotive',
+  source: 'perplexity',
   applyUrl: 'https://example.com/jobs/1',
   postedAt: new Date().toISOString(),
   requirements: ['React', 'TypeScript'],

@@ -1,0 +1,107 @@
+<h2>Which edit layout feels right?</h2>
+<p class="subtitle">Pick the option that best matches how the Superadmin edit section should look and behave.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option A: Compact Centered Modal</div>
+        <div class="mockup-body">
+          <div style="width: 92%; max-width: 480px; margin: 0 auto; border: 1px solid #d4d4d8; border-radius: 24px; background: white; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 22px 14px;border-bottom:1px solid #e4e4e7;">
+              <div>
+                <div class="label">Edit User</div>
+                <div style="font-weight:700;">supercoolescape@gmail.com</div>
+                <div style="margin-top:6px;"><span style="display:inline-block;background:#fff7ed;color:#c2410c;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;">Pro</span></div>
+              </div>
+              <div style="font-size:20px;color:#71717a;">×</div>
+            </div>
+            <div style="padding:18px 22px 22px; display:grid; gap:14px;">
+              <div>
+                <div class="label" style="margin-bottom:6px;">Plan</div>
+                <div class="mock-input">Free</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Job Type</div>
+                <div class="mock-input">Remote</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Location</div>
+                <div class="mock-input">New York, NY</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Min Salary</div>
+                <div class="mock-input">45000</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Career Paths</div>
+                <div class="mock-input">Remote Customer Success Manager, Product Operations</div>
+              </div>
+              <div style="display:flex;gap:10px;padding-top:4px;">
+                <button class="mock-button" style="flex:1;">Save Changes</button>
+                <button class="mock-button" style="background:#f4f4f5;color:#18181b;">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Compact Modal</h3>
+      <p>Centered dialog, stronger spacing, user summary in header, stacked fields, clear footer actions.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option B: Two-Column Admin Sheet</div>
+        <div class="mockup-body">
+          <div style="width: 94%; max-width: 680px; margin: 0 auto; border: 1px solid #d4d4d8; border-radius: 24px; background: white; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 22px;border-bottom:1px solid #e4e4e7;">
+              <div>
+                <div class="label">Edit User</div>
+                <div style="font-weight:700;">supercoolescape@gmail.com</div>
+              </div>
+              <div style="font-size:20px;color:#71717a;">×</div>
+            </div>
+            <div style="padding:18px 22px 22px; display:grid; grid-template-columns: 1fr 1fr; gap:14px 16px;">
+              <div>
+                <div class="label" style="margin-bottom:6px;">Plan</div>
+                <div class="mock-input">Free</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Job Type</div>
+                <div class="mock-input">Remote</div>
+              </div>
+              <div style="grid-column:1 / -1;">
+                <div class="label" style="margin-bottom:6px;">Location</div>
+                <div class="mock-input">New York, NY</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Min Salary</div>
+                <div class="mock-input">45000</div>
+              </div>
+              <div>
+                <div class="label" style="margin-bottom:6px;">Current Plan</div>
+                <div class="mock-input">Pro</div>
+              </div>
+              <div style="grid-column:1 / -1;">
+                <div class="label" style="margin-bottom:6px;">Career Paths</div>
+                <div class="mock-input">Remote Customer Success Manager, Product Operations</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;padding:0 22px 22px;">
+              <button class="mock-button" style="background:#f4f4f5;color:#18181b;">Cancel</button>
+              <button class="mock-button">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Two-Column Sheet</h3>
+      <p>Wider admin dialog with denser form layout and desktop-first spacing.</p>
+    </div>
+  </div>
+</div>

@@ -1,5 +1,5 @@
 import { getDailyMatchLimit } from '../lib/planLimits';
-import { jobFingerprint } from './jobHarvester';
+import { jobFingerprint } from './jobResearcher';
 import type {
   DailyJobsDebugResult,
   GhostModeInputMode,

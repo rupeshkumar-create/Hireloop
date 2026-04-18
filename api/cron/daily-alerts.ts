@@ -2,14 +2,16 @@
  * /api/cron/daily-alerts
  *
  * Dispatcher: runs once daily (Vercel Cron / external scheduler).
- * Fetches every active Pro user and fires off /api/cron/process-user for each.
+ * Fetches active users and fires off /api/cron/process-user for each.
  *
  * A user is "active" when:
- *   - plan === 'pro'
- *   - receiveDailyAlerts !== false
+ *   - plan is set (any value) AND receiveDailyAlerts !== false
  *
- * Free users get 1 match; Pro users get 10.
- * The per-user work (harvest → rank → store → email) happens in process-user.ts.
+ * Pro users  → 10 jobs/day
+ * Free users →  1 job/day
+ *
+ * Users are ordered by lastJobFetchTime ascending so those who haven't
+ * received jobs recently are always prioritised in each batch.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../_lib/firebaseAdmin.js';
@@ -36,7 +38,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const runDate = getCronRunDateIST();
     const baseUrl = getBaseUrl(req);
 
-    const snapshot = await db.collection('users').limit(DISPATCH_BATCH_SIZE).get();
+    // Order by lastJobFetchTime ascending so users who haven't been served
+    // recently are always first in each batch (prevents the same top-20 users
+    // by document ID from monopolising every cron run).
+    const snapshot = await db
+      .collection('users')
+      .orderBy('lastJobFetchTime', 'asc')
+      .limit(DISPATCH_BATCH_SIZE)
+      .get();
 
     let queued = 0;
     let skipped = 0;

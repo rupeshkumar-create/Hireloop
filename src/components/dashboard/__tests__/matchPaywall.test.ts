@@ -11,7 +11,7 @@ const sampleJob: Job = {
   id: 'frontend engineer::acme',
   fingerprint: 'frontend engineer::acme',
   workType: 'remote' as const,
-  source: 'remotive' as const,
+  source: 'perplexity' as const,
   applyUrl: 'https://example.com/jobs/1',
   postedAt: new Date().toISOString(),
   matchReasons: [],

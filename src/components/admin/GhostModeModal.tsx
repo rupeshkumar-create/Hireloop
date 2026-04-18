@@ -63,20 +63,21 @@ export function GhostModeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-md">
-      <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-[28px] border border-border bg-surface p-6 shadow-[0_24px_80px_rgba(0,0,0,0.12)]">
-        <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-[28px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div>
             <h3 className="text-xl font-bold text-foreground">Simulate for User</h3>
             <p className="mt-1 text-sm text-foreground-muted">
               {user.email || 'Unknown user'}
             </p>
           </div>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground-muted">
               Run Mode
@@ -104,10 +105,10 @@ export function GhostModeModal({
               <option value="override">Use Overrides</option>
             </select>
           </div>
-        </div>
+          </div>
 
-        {inputMode === 'override' && (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {inputMode === 'override' && (
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-foreground-muted">
                 Career Paths
@@ -211,31 +212,31 @@ export function GhostModeModal({
                 }
               />
             </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={onClose} disabled={running}>
+              Cancel
+            </Button>
+            <Button
+              variant="action"
+              onClick={() =>
+                onRun({
+                  runMode,
+                  inputMode,
+                  overrides: inputMode === 'override' ? overrides : undefined,
+                })
+              }
+              disabled={running}
+            >
+              {running ? 'Running...' : runMode === 'persist' ? 'Run + Persist' : 'Preview Run'}
+            </Button>
           </div>
-        )}
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={running}>
-            Cancel
-          </Button>
-          <Button
-            variant="action"
-            onClick={() =>
-              onRun({
-                runMode,
-                inputMode,
-                overrides: inputMode === 'override' ? overrides : undefined,
-              })
-            }
-            disabled={running}
-          >
-            {running ? 'Running...' : runMode === 'persist' ? 'Run + Persist' : 'Preview Run'}
-          </Button>
-        </div>
-
-        {result && (
-          <div className="mt-6 space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {result && (
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-border bg-background/60 p-4">
                 <p className="text-xs uppercase tracking-wider text-foreground-muted">
                   Run Summary
@@ -289,25 +290,26 @@ export function GhostModeModal({
                   {JSON.stringify(result.debug.sourceBreakdown, null, 2)}
                 </pre>
               </div>
-            </div>
+              </div>
 
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
-                Final Selected Jobs
-              </p>
-              <div className="space-y-2 text-sm text-foreground">
-                {result.debug.finalJobs.map((job) => (
-                  <p key={`${job.title}-${job.company}`}>
-                    {job.title} @ {job.company} {typeof job.finalScore === 'number' ? `- score ${job.finalScore}` : ''}
-                  </p>
-                ))}
-                {result.debug.finalJobs.length === 0 && (
-                  <p className="text-foreground-muted">No final jobs selected.</p>
-                )}
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
+                  Final Selected Jobs
+                </p>
+                <div className="space-y-2 text-sm text-foreground">
+                  {result.debug.finalJobs.map((job) => (
+                    <p key={`${job.title}-${job.company}`}>
+                      {job.title} @ {job.company} {typeof job.finalScore === 'number' ? `- score ${job.finalScore}` : ''}
+                    </p>
+                  ))}
+                  {result.debug.finalJobs.length === 0 && (
+                    <p className="text-foreground-muted">No final jobs selected.</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

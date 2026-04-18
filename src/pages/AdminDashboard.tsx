@@ -5,7 +5,8 @@ import { Button } from '../components/ui/button';
 import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { runAdminGhostMode } from '../services/adminGhostMode';
-import { harvestJobs, buildSearchTerms } from '../services/jobHarvester';
+import { researchJobs } from '../services/jobResearcher';
+import type { CallAIFn } from '../services/jobResearcher';
 import { matchAndRankJobs } from '../services/jobMatchingEngine';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
 import type {
@@ -70,6 +71,55 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+function AdminModalFrame({
+  children,
+  onClose,
+  maxWidth = 'max-w-2xl',
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  maxWidth?: string;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        className={`max-h-[90vh] w-full ${maxWidth} overflow-y-auto rounded-[28px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AdminModalHeader({
+  title,
+  subtitle,
+  aside,
+  onClose,
+}: {
+  title: string;
+  subtitle?: string;
+  aside?: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+      <div className="min-w-0 flex-1">
+        <h2 className="text-xl font-bold text-foreground">{title}</h2>
+        {subtitle ? <p className="mt-1 break-all text-sm text-foreground-muted">{subtitle}</p> : null}
+        {aside ? <div className="mt-3">{aside}</div> : null}
+      </div>
+      <Button variant="ghost" size="sm" onClick={onClose}>
+        Close
+      </Button>
+    </div>
+  );
+}
+
 // ── User Detail Modal ────────────────────────────────────────────────────────
 
 function UserDetailModal({
@@ -96,27 +146,36 @@ function UserDetailModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-lg rounded-xl border bg-card shadow-xl max-h-[80vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="font-semibold">User Detail</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
-        </div>
-        <dl className="divide-y px-6 py-2">
+    <AdminModalFrame onClose={onClose} maxWidth="max-w-4xl">
+      <AdminModalHeader
+        title="User Details"
+        subtitle={user.email || 'Unknown user'}
+        aside={<PlanBadge plan={user.plan ?? 'free'} />}
+        onClose={onClose}
+      />
+
+      <div className="space-y-4 px-6 py-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {fields.map(([label, val]) =>
             val != null && val !== '' ? (
-              <div key={label} className="flex gap-4 py-2.5 text-sm">
-                <dt className="w-36 shrink-0 text-muted-foreground">{label}</dt>
-                <dd className="break-all font-medium">{String(val)}</dd>
+              <div key={label} className="rounded-2xl border border-border bg-background/60 p-4">
+                <p className="text-xs uppercase tracking-wider text-foreground-muted">{label}</p>
+                <p className="mt-2 break-words text-sm text-foreground">{String(val)}</p>
               </div>
             ) : null
           )}
-        </dl>
+        </div>
+
+        {user.resumeText ? (
+          <div className="rounded-2xl border border-border bg-background/60 p-4">
+            <p className="text-xs uppercase tracking-wider text-foreground-muted">Resume Text</p>
+            <pre className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap break-words text-sm text-foreground">
+              {user.resumeText}
+            </pre>
+          </div>
+        ) : null}
       </div>
-    </div>
+    </AdminModalFrame>
   );
 }
 
@@ -147,33 +206,33 @@ function EditUserModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border bg-card shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="font-semibold">Edit {user.email}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Plan</label>
+    <AdminModalFrame onClose={onClose} maxWidth="max-w-xl">
+      <AdminModalHeader
+        title="Edit User"
+        subtitle={user.email || 'Unknown user'}
+        aside={<PlanBadge plan={plan} />}
+        onClose={onClose}
+      />
+
+      <form onSubmit={handleSubmit} className="px-6 py-5">
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground-muted">Plan</label>
             <select
               value={plan}
               onChange={e => setPlan(e.target.value as Plan)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
             >
               <option value="free">Free</option>
               <option value="pro">Pro</option>
             </select>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Job Type</label>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground-muted">Job Type</label>
             <select
               value={jobType}
               onChange={e => setJobType(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
             >
               <option value="both">Both</option>
               <option value="remote">Remote</option>
@@ -181,45 +240,46 @@ function EditUserModal({
               <option value="hybrid">Hybrid</option>
             </select>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Location</label>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground-muted">Location</label>
             <input
               value={location}
               onChange={e => setLocation(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
               placeholder="e.g. New York, NY"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Min Salary (USD)</label>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground-muted">Min Salary (USD)</label>
             <input
               type="number"
               value={minSalary}
               onChange={e => setMinSalary(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="e.g. 80000"
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
+              placeholder="e.g. 45000"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Career Paths (comma-separated)</label>
-            <input
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground-muted">Career Paths</label>
+            <textarea
               value={careerPaths}
               onChange={e => setCareerPaths(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="Software Engineer, Product Manager"
+              className="min-h-[110px] w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
+              placeholder="Remote Customer Success Manager, Product Operations"
             />
           </div>
-          <div className="flex gap-2 pt-1">
-            <Button type="submit" disabled={saving} className="flex-1">
-              {saving ? 'Saving…' : 'Save Changes'}
-            </Button>
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="action" disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </AdminModalFrame>
   );
 }
 
@@ -237,26 +297,56 @@ function DeleteConfirm({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-xl border bg-card shadow-xl p-6"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-destructive">Delete User</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This will permanently delete <span className="font-medium text-foreground">{user.email}</span> from
-          Firebase Auth, Firestore, and all their tracked jobs. This cannot be undone.
+    <AdminModalFrame onClose={onClose} maxWidth="max-w-md">
+      <AdminModalHeader
+        title="Delete User"
+        subtitle={user.email || 'Unknown user'}
+        onClose={onClose}
+      />
+
+      <div className="px-6 py-5">
+        <p className="text-sm leading-6 text-foreground-muted">
+          This will permanently delete{' '}
+          <span className="font-medium text-foreground">{user.email || 'this user'}</span> from Firebase
+          Auth, Firestore, and all tracked jobs. This action cannot be undone.
         </p>
-        <div className="mt-5 flex gap-2">
-          <Button variant="destructive" onClick={onConfirm} disabled={deleting} className="flex-1">
-            {deleting ? 'Deleting…' : 'Yes, Delete'}
-          </Button>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onClose} disabled={deleting}>
             Cancel
           </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete User'}
+          </Button>
         </div>
       </div>
-    </div>
+    </AdminModalFrame>
+  );
+}
+
+function ActionButton({
+  label,
+  variant,
+  onClick,
+}: {
+  label: string;
+  variant: 'outline' | 'ghost' | 'destructive';
+  onClick: () => void;
+}) {
+  const variantClasses = {
+    outline: 'border-border bg-surface text-foreground hover:bg-surface-hover',
+    ghost: 'bg-[rgba(128,90,213,0.08)] text-[rgb(109,40,217)] shadow-[0_0_0_1px_rgba(109,40,217,0.16)] hover:bg-[rgba(128,90,213,0.14)]',
+    destructive: 'bg-[rgba(220,38,38,0.08)] text-[rgb(185,28,28)] shadow-[0_0_0_1px_rgba(220,38,38,0.14)] hover:bg-[rgba(220,38,38,0.14)]',
+  } as const;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-semibold transition-colors ${variantClasses[variant]}`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -417,27 +507,51 @@ export function AdminDashboard() {
         },
         {
           generateDebugResult: async (input) => {
-            const searchTerms = buildSearchTerms(input.careerPaths);
-            const { jobs: rawJobs, stats } = await harvestJobs(searchTerms, {
-              jobType: input.jobType,
-              location: input.location,
-              maxPerSource: 30,
-              maxTotal: 80,
-            });
-            const matchResult = await matchAndRankJobs(rawJobs, {
-              careerPaths: input.careerPaths,
-              resumeText: input.resumeText,
-              jobType: input.jobType,
-              seenFingerprints: input.seenFingerprints,
-              limit: input.limit,
-            });
+            // Client-side proxy — routes through /api/openai → OpenRouter
+            const clientCallAI: CallAIFn = async (messages, model) => {
+              const resp = await fetch('/api/openai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages, model }),
+              });
+              if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error((err as any).error || `AI call failed: ${resp.status}`);
+              }
+              const data = await resp.json();
+              return (data as any).choices?.[0]?.message?.content?.trim() || '';
+            };
+
+            const { jobs: discovered, sources: sourceBreakdown, totalFound } = await researchJobs(
+              {
+                careerPaths: input.careerPaths,
+                resumeText: input.resumeText,
+                jobType: input.jobType,
+                location: input.location,
+                targetCount: 30,
+              },
+              clientCallAI
+            );
+
+            const matchResult = await matchAndRankJobs(
+              discovered,
+              {
+                careerPaths: input.careerPaths,
+                resumeText: input.resumeText,
+                jobType: input.jobType,
+                seenFingerprints: input.seenFingerprints,
+                limit: input.limit,
+              },
+              clientCallAI
+            );
+
             return {
-              harvestedCount: rawJobs.length,
-              dedupedCount: stats.deduplicated,
+              harvestedCount: totalFound,
+              dedupedCount: totalFound - discovered.length,
               unseenCount: matchResult.scoredCount,
               seenCount: 0,
               usedBackfill: matchResult.usedFallback,
-              sourceBreakdown: stats.bySource,
+              sourceBreakdown: sourceBreakdown as Record<string, number>,
               scoredCount: matchResult.scoredCount,
               enrichedCount: matchResult.enrichedCount,
               finalJobs: matchResult.jobs,
@@ -527,31 +641,11 @@ export function AdminDashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewDetail(u)}
-                          className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => setEditUser(u)}
-                          className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleOpenGhost(u)}
-                          className="rounded px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
-                        >
-                          Ghost
-                        </button>
-                        <button
-                          onClick={() => setDeleteUser(u)}
-                          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                        >
-                          Delete
-                        </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ActionButton label="View" variant="outline" onClick={() => handleViewDetail(u)} />
+                        <ActionButton label="Edit" variant="outline" onClick={() => setEditUser(u)} />
+                        <ActionButton label="Ghost" variant="ghost" onClick={() => handleOpenGhost(u)} />
+                        <ActionButton label="Delete" variant="destructive" onClick={() => setDeleteUser(u)} />
                       </div>
                     </td>
                   </tr>

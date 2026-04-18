@@ -1,17 +1,16 @@
 /**
  * /api/cron/process-user
  *
- * Per-user job generation pipeline (new v2 architecture):
+ * Per-user job generation pipeline:
  *
  *  1. Load user profile from Firestore
- *  2. Build search terms from careerPaths + resumeText
- *  3. Harvest jobs from Remotive, Arbeitnow, Jobicy (+ JSearch if key present)
- *  4. Deduplicate against user's seen fingerprints
- *  5. AI batch scoring (Gemini 2.5 Pro) → pick top-N candidates
- *  6. AI enrichment (Claude claude-sonnet-4-6) → matchReasons, skillGaps, aiSummary per job
- *  7. Store complete job objects in Firestore (inline, no redirects)
- *  8. Update seenJobFingerprints (capped at MAX_SEEN)
- *  9. Send email digest via Resend
+ *  2. AI deep research (Perplexity Sonar Pro → Gemini 2.5 Pro fallback)
+ *  3. Deduplicate against user's seen fingerprints
+ *  4. AI batch scoring (Gemini 2.5 Pro) → pick top-N candidates
+ *  5. AI enrichment (Claude claude-sonnet-4-6) → matchReasons, skillGaps, aiSummary per job
+ *  6. Store complete job objects in Firestore (inline, no redirects)
+ *  7. Update seenJobFingerprints (capped at MAX_SEEN)
+ *  8. Send email digest via Resend
  *
  * Pro users  → 10 jobs/day
  * Free users →  1 job/day
@@ -20,17 +19,45 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../_lib/firebaseAdmin.js';
 import { requireInternalCronSecret } from '../_lib/cronAuth.js';
 import { processUserCronRun } from '../../src/services/cronEngine';
-import {
-  harvestJobs,
-  buildSearchTerms,
-  jobFingerprint,
-} from '../../src/services/jobHarvester';
+import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
+import type { CallAIFn } from '../../src/services/jobResearcher';
 import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
-import { getDailyMatchLimit } from '../../src/lib/planLimits';
 import type { DailyJob } from '../../src/types/dailyJob';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Direct OpenRouter caller — used server-side (no browser fetch proxy needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function makeServerCallAI(): CallAIFn {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY environment variable is not set');
+
+  return async (messages, model) => {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'https://hireschema.com',
+        'X-Title': 'HireSchema Cron',
+      },
+      body: JSON.stringify({ model, messages }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).error?.message || `OpenRouter error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data as any).choices?.[0]?.message?.content?.trim() || '';
+  };
+}
 
 function getBaseUrl(req: VercelRequest): string {
   const proto =
@@ -54,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = getAdminDb();
     const baseUrl = getBaseUrl(req);
-    const rapidApiKey = process.env.RAPIDAPI_KEY;
+    const callAI = makeServerCallAI();
 
     const result = await processUserCronRun(
       { userId, runDate },
@@ -85,40 +112,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const location: string = profile.location || '';
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-          // Extract basic skills from resume for augmented search terms
-          const SKILL_KEYWORDS = [
-            'python', 'javascript', 'typescript', 'react', 'node', 'golang', 'java',
-            'rust', 'aws', 'gcp', 'azure', 'docker', 'kubernetes', 'sql', 'graphql',
-            'machine learning', 'data science', 'devops', 'product management',
-          ];
-          const lowerResume = resumeText.toLowerCase();
-          const extractedSkills = SKILL_KEYWORDS.filter((s) => lowerResume.includes(s));
-
-          const searchTerms = buildSearchTerms(careerPaths, extractedSkills);
-
-          // Harvest from all sources in parallel
-          const { jobs: rawJobs, stats: harvestStats } = await harvestJobs(
-            searchTerms,
-            { jobType, location, maxPerSource: 30, maxTotal: 90 },
-            rapidApiKey
+          // Stage 1: AI deep research (Perplexity → Gemini fallback)
+          const { jobs: discovered, sources } = await researchJobs(
+            { careerPaths, resumeText, jobType, location, targetCount: 30 },
+            callAI
           );
 
-          console.log(`[process-user] ${userId}: harvested ${rawJobs.length} raw jobs`, harvestStats);
+          console.log(
+            `[process-user] ${userId}: discovered ${discovered.length} jobs`,
+            sources
+          );
 
-          if (rawJobs.length === 0) {
-            return { jobs: [], requestedLimit: limit, usedBackfill: false, totalValidatedJobs: 0, unseenCount: 0, seenCount: 0 };
+          if (discovered.length === 0) {
+            return {
+              jobs: [],
+              requestedLimit: limit,
+              usedBackfill: false,
+              totalValidatedJobs: 0,
+              unseenCount: 0,
+              seenCount: 0,
+            };
           }
 
-          // AI matching: score → enrich → rank → top-N
-          const matchResult = await matchAndRankJobs(rawJobs, {
-            careerPaths,
-            resumeText,
-            jobType,
-            seenFingerprints,
-            limit,
-          });
+          // Stage 2: AI scoring + enrichment → top-N
+          const matchResult = await matchAndRankJobs(
+            discovered,
+            { careerPaths, resumeText, jobType, seenFingerprints, limit },
+            callAI
+          );
 
-          console.log(`[process-user] ${userId}: matched ${matchResult.jobs.length} jobs (fallback=${matchResult.usedFallback})`);
+          console.log(
+            `[process-user] ${userId}: matched ${matchResult.jobs.length} jobs ` +
+            `(fallback=${matchResult.usedFallback})`
+          );
 
           return {
             jobs: matchResult.jobs,
@@ -135,13 +161,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const fetchedAt = new Date().toISOString();
           const jobs: DailyJob[] = generated.jobs || [];
 
-          // Build updated fingerprint set, cap at MAX_SEEN_FINGERPRINTS
           const newFingerprints = jobs.map((j) => jobFingerprint(j.title, j.company));
           const nextFingerprints = [
             ...new Set([...(profile.seenJobFingerprints || []), ...newFingerprints]),
           ].slice(-MAX_SEEN_FINGERPRINTS);
 
-          // Store on the user doc (last-fetched cache)
           await db.collection('users').doc(uid).set(
             {
               dailyJobs: jobs,
@@ -151,7 +175,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { merge: true }
           );
 
-          // Store in historical daily_matches subcollection (full record)
           if (jobs.length > 0) {
             const sources: Record<string, number> = {};
             for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;

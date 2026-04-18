@@ -2,7 +2,7 @@
  * aiService.ts
  *
  * AI-powered asset generation agents (email, resume, interview, analysis).
- * Job generation has been moved to jobHarvester.ts + jobMatchingEngine.ts.
+ * Job generation has been moved to jobResearcher.ts + jobMatchingEngine.ts.
  *
  * All LLM calls are proxied through /api/openai (OpenRouter) so API keys
  * stay server-side.

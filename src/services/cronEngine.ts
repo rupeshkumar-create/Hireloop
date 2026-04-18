@@ -115,6 +115,13 @@ export async function processUserCronRun(
     return { runId, status: 'skipped' as const };
   }
 
+  if (!profile.resumeText || profile.resumeText.trim().length < 50) {
+    console.warn(
+      `[cronEngine] ${input.userId}: resumeText is missing or too short — ` +
+      'AI relevance will be limited to career paths only.'
+    );
+  }
+
   await deps.markRun(runId, {
     status: 'processing',
     startedAt: new Date().toISOString(),

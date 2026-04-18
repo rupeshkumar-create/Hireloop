@@ -33,7 +33,7 @@ import {
   generateInterviewQuestions,
   updateLearningProfile,
 } from '../services/aiService';
-import { jobFingerprint } from '../services/jobHarvester';
+import { jobFingerprint } from '../services/jobResearcher';
 import {
   applyLearningEvent,
   type LearningEventJob,

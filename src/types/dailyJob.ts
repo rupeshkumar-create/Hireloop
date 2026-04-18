@@ -1,5 +1,5 @@
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
-export type JobSource = 'remotive' | 'arbeitnow' | 'jsearch' | 'jobicy';
+export type JobSource = 'perplexity' | 'gemini-fallback';
 
 /**
  * A fully enriched, AI-matched daily job.
@@ -14,18 +14,13 @@ export interface DailyJob {
   // ── Core listing ────────────────────────────────────────────────────────────
   title: string;
   company: string;
-  companyLogo?: string;      // URL if provided by source API
   location: string;
   workType: JobWorkType;
   salary: string;            // human-readable string, e.g. "$120k – $160k"
-  salaryMin?: number;
-  salaryMax?: number;
-  salaryCurrency?: string;
 
   // ── Full content (stored inline so users never leave the app) ────────────────
   description: string;       // full plain-text job description
   requirements: string[];    // extracted key requirements
-  benefits?: string[];       // perks / benefits if listed
 
   // ── Source metadata ─────────────────────────────────────────────────────────
   source: JobSource;

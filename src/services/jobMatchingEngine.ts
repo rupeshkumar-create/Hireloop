@@ -4,49 +4,25 @@
  * AI-powered job matching pipeline:
  *
  *  STAGE 1 – Batch scoring (Google Gemini 2.5 Pro)
- *    Sends all 50–80 harvested jobs + user profile in one call.
+ *    Sends all discovered jobs + user profile in one call.
  *    Returns matchScore (0–100) for each job.
- *    Gemini is chosen for its long-context capability and accuracy on
- *    structured JSON tasks.
  *
  *  STAGE 2 – Enrichment (Anthropic Claude claude-sonnet-4-6 via OpenRouter)
  *    For the top-ranked 15 candidates, generate per-job insights:
  *    matchReasons, skillGaps, aiSummary, isHotJob, hotSignals, companyStage.
- *    Claude is chosen for nuanced language understanding and precise output.
  *
  *  STAGE 3 – Final ranking + selection
  *    Composite score: matchScore × 0.50 + freshnessScore × 0.20 +
  *    qualityScore × 0.20 + hotJobBonus × 0.10
  *    Pick top 10 (or fewer if the user is on free plan).
  *
- * Falls back to pure keyword scoring if any AI call fails.
+ * The `callAI` function is injected by the caller so this module works both
+ * in the server-side cron (direct OpenRouter call) and in the admin ghost-mode
+ * UI (via the /api/openai browser proxy).
  */
 
-import type { RawJob } from './jobHarvester';
+import type { DiscoveredJob, CallAIFn } from './jobResearcher';
 import type { DailyJob } from '../types/dailyJob';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared AI caller (proxied through /api/openai which routes via OpenRouter)
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function callAI(
-  messages: { role: string; content: string }[],
-  model: string
-): Promise<string> {
-  const response = await fetch('/api/openai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, model }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `AI call failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || '';
-}
 
 function parseJson<T>(raw: string): T | null {
   const cleaned = raw
@@ -66,7 +42,7 @@ function parseJson<T>(raw: string): T | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scoring helpers (used as fallback and in composite score)
+// Scoring helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function freshnessScore(daysOld: number): number {
@@ -79,22 +55,19 @@ function freshnessScore(daysOld: number): number {
 
 function sourceQualityScore(source: string): number {
   switch (source) {
-    case 'jsearch':   return 95;
-    case 'remotive':  return 85;
-    case 'jobicy':    return 80;
-    case 'arbeitnow': return 75;
-    default:          return 70;
+    case 'perplexity':      return 95;
+    case 'gemini-fallback': return 80;
+    default:                return 70;
   }
 }
 
-function keywordMatchScore(job: RawJob, careerPaths: string[], resumeText: string): number {
-  const haystack = `${job.title} ${job.description} ${(job.tags || []).join(' ')}`.toLowerCase();
+function keywordMatchScore(job: DiscoveredJob, careerPaths: string[], resumeText: string): number {
+  const haystack = `${job.title} ${job.description} ${job.requirements.join(' ')}`.toLowerCase();
   const pathKeywords = careerPaths.flatMap((p) => p.toLowerCase().split(/\s+/));
   const skillKeywords = (resumeText.toLowerCase().match(/\b[a-z]{3,}\b/g) || []).slice(0, 40);
 
   let score = 40;
-  const titleMatch = pathKeywords.some((kw) => job.title.toLowerCase().includes(kw));
-  if (titleMatch) score += 35;
+  if (pathKeywords.some((kw) => job.title.toLowerCase().includes(kw))) score += 35;
   let skillHits = 0;
   for (const kw of skillKeywords) {
     if (haystack.includes(kw)) skillHits++;
@@ -103,17 +76,12 @@ function keywordMatchScore(job: RawJob, careerPaths: string[], resumeText: strin
   return Math.min(100, score);
 }
 
-function compositeScore(
-  matchScore: number,
-  days: number,
-  source: string,
-  isHot: boolean
-): number {
+function compositeScore(matchScore: number, days: number, source: string, isHot: boolean): number {
   return (
-    matchScore           * 0.50 +
-    freshnessScore(days) * 0.20 +
-    sourceQualityScore(source) * 0.20 +
-    (isHot ? 10 : 0)   * 0.10
+    matchScore                  * 0.50 +
+    freshnessScore(days)        * 0.20 +
+    sourceQualityScore(source)  * 0.20 +
+    (isHot ? 10 : 0)            * 0.10
   );
 }
 
@@ -127,16 +95,17 @@ interface ScoredJob {
 }
 
 async function batchScoreJobs(
-  jobs: RawJob[],
+  jobs: DiscoveredJob[],
   careerPaths: string[],
   resumeText: string,
-  jobType: string
+  jobType: string,
+  callAI: CallAIFn
 ): Promise<ScoredJob[]> {
   const jobList = jobs
     .map(
       (j, i) =>
         `[${i}] ${j.title} @ ${j.company} | ${j.location} | ${j.workType}\n` +
-        `Tags: ${(j.tags || []).join(', ')}\n` +
+        `Requirements: ${j.requirements.slice(0, 5).join(', ')}\n` +
         `Description (first 400 chars): ${j.description.slice(0, 400)}`
     )
     .join('\n\n---\n\n');
@@ -162,15 +131,10 @@ Scoring rules:
 - 30–49 : Weak fit – role adjacent but key gaps
 - 0–29  : Poor fit – wrong domain, seniority, or work type
 
-Penalize heavily for:
-- Wrong work type (e.g. on-site only when candidate wants remote)
-- Large seniority mismatch (intern vs staff, etc.)
-- Completely unrelated domain
-
 Return ONLY a JSON array:
 [{"index": 0, "matchScore": 85}, {"index": 1, "matchScore": 72}, ...]
 
-Include ALL ${jobs.length} entries in the same order. No explanation.`;
+Include ALL ${jobs.length} entries. No explanation.`;
 
   try {
     const raw = await callAI(
@@ -178,9 +142,7 @@ Include ALL ${jobs.length} entries in the same order. No explanation.`;
       'google/gemini-2.5-pro-preview-03-25'
     );
     const parsed = parseJson<ScoredJob[]>(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
   } catch (err) {
     console.error('[jobMatchingEngine] Batch scoring failed:', err);
   }
@@ -207,10 +169,11 @@ interface JobInsights {
 }
 
 async function enrichJob(
-  job: RawJob,
+  job: DiscoveredJob,
   matchScore: number,
   careerPaths: string[],
-  resumeText: string
+  resumeText: string,
+  callAI: CallAIFn
 ): Promise<JobInsights> {
   const prompt = `You are a concise career advisor. Analyze this job listing for the candidate.
 
@@ -219,7 +182,7 @@ Title: ${job.title}
 Company: ${job.company}
 Location: ${job.location} (${job.workType})
 Salary: ${job.salary || 'Not listed'}
-Tags: ${(job.tags || []).join(', ')}
+Requirements: ${job.requirements.join(', ')}
 Description:
 ${job.description.slice(0, 2000)}
 
@@ -244,7 +207,7 @@ Be specific and evidence-based. No generic filler.`;
   try {
     const raw = await callAI(
       [{ role: 'user', content: prompt }],
-      'anthropic/claude-sonnet-4-5'
+      'anthropic/claude-sonnet-4-6'
     );
     const parsed = parseJson<JobInsights>(raw);
     if (parsed && Array.isArray(parsed.matchReasons)) {
@@ -262,7 +225,6 @@ Be specific and evidence-based. No generic filler.`;
     console.error(`[jobMatchingEngine] Enrichment failed for ${job.title} @ ${job.company}:`, err);
   }
 
-  // Fallback: minimal insights
   return {
     matchReasons: [
       careerPaths[0]
@@ -280,11 +242,7 @@ Be specific and evidence-based. No generic filler.`;
 // Stage 3: Final ranking
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildDailyJob(
-  raw: RawJob,
-  matchScore: number,
-  insights: JobInsights
-): DailyJob {
+function buildDailyJob(raw: DiscoveredJob, matchScore: number, insights: JobInsights): DailyJob {
   const fScore = Math.round(
     compositeScore(matchScore, raw.daysOld ?? 0, raw.source, insights.isHotJob)
   );
@@ -294,20 +252,15 @@ function buildDailyJob(
     fingerprint: raw.fingerprint,
     title: raw.title,
     company: raw.company,
-    companyLogo: raw.companyLogo,
     location: raw.location,
     workType: raw.workType,
     salary: raw.salary,
-    salaryMin: raw.salaryMin,
-    salaryMax: raw.salaryMax,
-    salaryCurrency: raw.salaryCurrency,
     description: raw.description,
-    requirements: raw.tags || [],
+    requirements: raw.requirements,
     source: raw.source,
     applyUrl: raw.applyUrl,
     postedAt: raw.postedAt,
     daysOld: raw.daysOld,
-    // AI enrichment
     matchScore,
     finalScore: fScore,
     matchReasons: insights.matchReasons,
@@ -329,7 +282,8 @@ export interface MatchOptions {
   resumeText: string;
   jobType?: string;
   seenFingerprints?: string[];
-  limit?: number;         // defaults to 10 (pro), 1 (free)
+  limit?: number;
+  minMatchScore?: number;  // jobs below this score are excluded (default: 50)
 }
 
 export interface MatchResult {
@@ -342,11 +296,14 @@ export interface MatchResult {
 /**
  * Full pipeline: score → filter seen → enrich top-N → rank → slice.
  *
- * Called from the server-side cron only.
+ * @param discoveredJobs  - Jobs from researchJobs()
+ * @param opts            - Candidate matching options
+ * @param callAI          - Injected AI caller (direct OpenRouter on server, proxy on client)
  */
 export async function matchAndRankJobs(
-  rawJobs: RawJob[],
-  opts: MatchOptions
+  discoveredJobs: DiscoveredJob[],
+  opts: MatchOptions,
+  callAI: CallAIFn
 ): Promise<MatchResult> {
   const {
     careerPaths,
@@ -354,30 +311,31 @@ export async function matchAndRankJobs(
     jobType = 'both',
     seenFingerprints = [],
     limit = 10,
+    minMatchScore = 50,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
   let usedFallback = false;
 
-  // Remove already-seen jobs from this batch
-  const unseenJobs = rawJobs.filter((j) => !seenSet.has(j.fingerprint));
+  // Remove already-seen jobs
+  const unseenJobs = discoveredJobs.filter((j) => !seenSet.has(j.fingerprint));
 
   // Stage 1: Batch score all unseen jobs
-  const scores = await batchScoreJobs(unseenJobs, careerPaths, resumeText, jobType);
+  const scores = await batchScoreJobs(unseenJobs, careerPaths, resumeText, jobType, callAI);
 
-  // Map scores back to jobs and pre-sort by matchScore descending
   const scored = unseenJobs
     .map((job, idx) => ({
       job,
       matchScore: scores[idx]?.matchScore ?? keywordMatchScore(job, careerPaths, resumeText),
     }))
+    .filter(({ matchScore }) => matchScore >= minMatchScore)
     .sort((a, b) => b.matchScore - a.matchScore);
 
-  // Backfill from seen jobs if we don't have enough
+  // Backfill from seen jobs if not enough
   let backfillJobs: typeof scored = [];
   if (scored.length < limit) {
-    const seenJobs = rawJobs.filter((j) => seenSet.has(j.fingerprint));
-    const seenScores = await batchScoreJobs(seenJobs, careerPaths, resumeText, jobType);
+    const seenJobs = discoveredJobs.filter((j) => seenSet.has(j.fingerprint));
+    const seenScores = await batchScoreJobs(seenJobs, careerPaths, resumeText, jobType, callAI);
     backfillJobs = seenJobs
       .map((job, idx) => ({
         job,
@@ -389,14 +347,14 @@ export async function matchAndRankJobs(
 
   const candidates = [...scored, ...backfillJobs].slice(0, Math.max(limit, 15));
 
-  // Stage 2: Enrich top candidates (run in parallel, max 5 concurrent)
+  // Stage 2: Enrich top candidates (batches of 5)
   const enriched: DailyJob[] = [];
   const batchSize = 5;
   for (let i = 0; i < candidates.length; i += batchSize) {
     const batch = candidates.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(({ job, matchScore }) =>
-        enrichJob(job, matchScore, careerPaths, resumeText).then((insights) =>
+        enrichJob(job, matchScore, careerPaths, resumeText, callAI).then((insights) =>
           buildDailyJob(job, matchScore, insights)
         )
       )
@@ -406,7 +364,7 @@ export async function matchAndRankJobs(
     }
   }
 
-  // Stage 3: Final sort by composite finalScore, take top `limit`
+  // Stage 3: Final sort by composite finalScore
   const final = enriched
     .sort((a, b) => b.finalScore - a.finalScore)
     .slice(0, limit);
