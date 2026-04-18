@@ -56,7 +56,16 @@ export function JobDetailsPanel({
             <p className="text-xl font-medium text-foreground-muted mb-6">{selectedJob.company}</p>
             
             <div className="flex gap-3 mb-8">
-              <Button variant="action" className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]" size="lg" onClick={() => trackJobClick(selectedJob)}>
+              <Button
+                variant="action"
+                className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]"
+                size="lg"
+                onClick={() => {
+                  trackJobClick(selectedJob);
+                  const url = (selectedJob as any).applyUrl;
+                  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                }}
+              >
                 Apply Now <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
               <Button variant="outline" size="lg" className="border-border bg-surface" onClick={() => saveJob(selectedJob)} title="Save to Tracker">

@@ -283,7 +283,7 @@ export interface MatchOptions {
   jobType?: string;
   seenFingerprints?: string[];
   limit?: number;
-  minMatchScore?: number;  // jobs below this score are excluded (default: 50)
+  minMatchScore?: number;  // jobs below this score are excluded (default: 30)
 }
 
 export interface MatchResult {
@@ -311,7 +311,7 @@ export async function matchAndRankJobs(
     jobType = 'both',
     seenFingerprints = [],
     limit = 10,
-    minMatchScore = 50,
+    minMatchScore = 30,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
