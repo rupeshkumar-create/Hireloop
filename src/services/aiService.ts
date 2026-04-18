@@ -569,7 +569,19 @@ Return ONLY a JSON array of exactly 10 query strings.`;
   return buildFallbackScoutQueries(context, minSalary, jobType, location);
 }
 
-const TRUSTED_ATS_DOMAINS = ['greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com', 'workday.com'];
+const TRUSTED_ATS_DOMAINS = [
+  'greenhouse.io',
+  'lever.co',
+  'ashbyhq.com',
+  'workable.com',
+  'workday.com',
+  'jobvite.com',
+  'smartrecruiters.com',
+  'rippling.com',
+  'recruitee.com',
+  'bamboohr.com',
+  'myworkdayjobs.com',
+];
 
 async function harvestJobs(
   queries: string[],
@@ -585,7 +597,9 @@ async function harvestJobs(
     // validated by domain name. Real HEAD/GET requests to Greenhouse/Lever often
     // return 403, incorrectly filtering out valid jobs.
     skipNetworkFetchForDomains: TRUSTED_ATS_DOMAINS,
-    allowCompanyCareerPages: false,
+    // Allow company career pages as a fallback when ATS-hosted links aren't
+    // available — dramatically increases valid job count.
+    allowCompanyCareerPages: true,
     maxDaysOld: 14,
     maxQueries: 10,
     maxJobs: 40,

@@ -252,16 +252,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const limit = getListLimit(req.query.limit);
-      // Order by createdAt desc at the DB level so the limit captures the most
-      // recent users (not just whoever happens to sort first by document ID).
-      const snapshot = await withTimeout(
-        db.collection('users').orderBy('createdAt', 'desc').select(...LIST_FIELDS).limit(limit).get(),
-        timeoutMs,
-        'Admin users list query'
-      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let snapshot: any;
+      try {
+        // Prefer ordered query so the limit captures the most recent users.
+        // Falls back to unordered if the index is missing.
+        snapshot = await withTimeout(
+          db.collection('users').orderBy('createdAt', 'desc').select(...LIST_FIELDS).limit(limit).get(),
+          timeoutMs,
+          'Admin users list query (ordered)'
+        );
+      } catch (orderedError: any) {
+        const msg: string = orderedError?.message || '';
+        const isIndexError =
+          msg.includes('requires an index') ||
+          msg.includes('FAILED_PRECONDITION') ||
+          msg.includes('index');
+        if (!isIndexError) throw orderedError;
+        console.warn('[Admin List] orderBy index missing, falling back to unordered query', msg);
+        snapshot = await withTimeout(
+          db.collection('users').select(...LIST_FIELDS).limit(limit).get(),
+          timeoutMs,
+          'Admin users list query (unordered fallback)'
+        );
+      }
+
       const users = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
-        .map(buildAdminUserListItem);
+        .map((doc: any) => ({ id: doc.id, ...doc.data() }) as AdminUserRecord)
+        .map(buildAdminUserListItem)
+        .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt));
 
       return res.status(200).json({
         users,

@@ -47,9 +47,20 @@ function resolveFirestoreDatabaseIdFromEnv(): string | undefined {
 async function initFirebaseAdmin() {
   if (cache.app) return cache.app;
 
-  cache.appModPromise ||= import('firebase-admin/app');
-  const { cert, getApps, initializeApp } = await cache.appModPromise;
-  
+  if (!cache.appModPromise) {
+    cache.appModPromise = import('firebase-admin/app');
+  }
+
+  let appModule: any;
+  try {
+    appModule = await cache.appModPromise;
+  } catch (err) {
+    // Clear the poisoned promise so subsequent cold-start retries can try again
+    cache.appModPromise = null;
+    throw err;
+  }
+
+  const { cert, getApps, initializeApp } = appModule;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw || !raw.trim()) {
     throw new Error('Server Configuration Error: Missing FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
@@ -81,9 +92,19 @@ export async function getAdminDb() {
     return cache.db;
   }
 
-  cache.firestoreModPromise ||= import('firebase-admin/firestore');
-  const { getFirestore } = await cache.firestoreModPromise;
-  
+  if (!cache.firestoreModPromise) {
+    cache.firestoreModPromise = import('firebase-admin/firestore');
+  }
+
+  let firestoreModule: any;
+  try {
+    firestoreModule = await cache.firestoreModPromise;
+  } catch (err) {
+    cache.firestoreModPromise = null;
+    throw err;
+  }
+
+  const { getFirestore } = firestoreModule;
   cache.db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
   cache.dbId = cacheKey;
   return cache.db;
@@ -95,8 +116,19 @@ export async function getAdminAuth() {
     return cache.auth;
   }
 
-  cache.authModPromise ||= import('firebase-admin/auth');
-  const { getAuth } = await cache.authModPromise;
+  if (!cache.authModPromise) {
+    cache.authModPromise = import('firebase-admin/auth');
+  }
+
+  let authModule: any;
+  try {
+    authModule = await cache.authModPromise;
+  } catch (err) {
+    cache.authModPromise = null;
+    throw err;
+  }
+
+  const { getAuth } = authModule;
   cache.auth = getAuth(app);
   return cache.auth;
 }
