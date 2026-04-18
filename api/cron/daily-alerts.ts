@@ -12,8 +12,8 @@
  * The per-user work (harvest → rank → store → email) happens in process-user.ts.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { requireCronSecret } from '../_lib/cronAuth';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { requireCronSecret } from '../_lib/cronAuth.js';
 import { getCronRunDateIST, isActiveCronUser, queueCronRun } from '../../src/services/cronEngine';
 
 const DISPATCH_BATCH_SIZE = 20;
