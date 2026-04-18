@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const db = await getAdminDb();
+    const db = getAdminDb();
     const runDate = getCronRunDateIST();
     const baseUrl = getRequestBaseUrl(req);
     const snapshot = await db.collection('users').limit(DISPATCH_BATCH_SIZE).get();

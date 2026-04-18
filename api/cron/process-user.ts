@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const db = await getAdminDb();
+    const db = getAdminDb();
     const baseUrl = getRequestBaseUrl(req);
 
     const result = await processUserCronRun(

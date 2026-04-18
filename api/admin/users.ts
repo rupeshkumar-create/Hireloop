@@ -196,9 +196,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const timeoutMs = 8000;
 
-    let auth: Awaited<ReturnType<typeof getAdminAuth>>;
+    let auth: ReturnType<typeof getAdminAuth>;
     try {
-      auth = await withTimeout(getAdminAuth(), timeoutMs, 'Admin auth initialization');
+      auth = getAdminAuth();
     } catch (initError: any) {
       console.error('[Admin Auth Init Failed]', initError);
       return res.status(500).json({ error: `Backend initialization failed: ${initError.message}` });
@@ -216,9 +216,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Not authorized as super admin' });
     }
 
-    let db: Awaited<ReturnType<typeof getAdminDb>>;
+    let db: ReturnType<typeof getAdminDb>;
     try {
-      db = await withTimeout(getAdminDb(), timeoutMs, 'Admin Firestore initialization');
+      db = getAdminDb();
     } catch (dbInitError: any) {
       console.error('[Admin Firestore Init Failed]', dbInitError);
       return res.status(500).json({ error: `Backend initialization failed: ${dbInitError.message}` });
