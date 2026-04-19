@@ -115,12 +115,18 @@ export async function runAdminGhostMode(
       adminEmail: request.admin.email,
       targetUserId: request.targetUser.id,
       targetUserEmail: request.targetUser.email || '',
-      action: 'simulate_daily_jobs_v2',
+      action: 'simulate_daily_jobs',
       runMode: request.runMode,
       inputMode: request.inputMode,
       overrideKeys: Object.keys(request.overrides || {}).filter(
         (key) => request.overrides?.[key as keyof GhostModeOverrides] !== undefined
       ),
+      acceptedCount: Array.isArray((debug as Partial<DailyJobsDebugResult> & { acceptedJobs?: unknown[] }).acceptedJobs)
+        ? ((debug as Partial<DailyJobsDebugResult> & { acceptedJobs: unknown[] }).acceptedJobs.length)
+        : undefined,
+      rejectedCount: Array.isArray((debug as Partial<DailyJobsDebugResult> & { rejectedJobs?: unknown[] }).rejectedJobs)
+        ? ((debug as Partial<DailyJobsDebugResult> & { rejectedJobs: unknown[] }).rejectedJobs.length)
+        : undefined,
       finalCount: debug.finalJobs.length,
       scoredCount: debug.scoredCount,
       harvestedCount: debug.harvestedCount,

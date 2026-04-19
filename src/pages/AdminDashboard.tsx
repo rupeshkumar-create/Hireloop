@@ -353,7 +353,7 @@ function ActionButton({
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export function AdminDashboard() {
-  const { realUser } = useAuth();
+  const { realUser, user } = useAuth();
 
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -494,13 +494,20 @@ export function AdminDashboard() {
     inputMode: GhostModeInputMode;
     overrides?: GhostModeOverrides;
   }) => {
-    if (!ghostUser || !realUser) return;
+    const adminUser = realUser ?? user;
+    if (!ghostUser || !adminUser) {
+      toast.error('Admin identity is required before running Ghost Mode.');
+      return;
+    }
+
     setGhostRunning(true);
+    setGhostResult(null);
+
     try {
       const result = await runAdminGhostMode(
         {
           targetUser: ghostUser,
-          admin: { uid: realUser.uid, email: realUser.email ?? '' },
+          admin: { uid: adminUser.uid, email: adminUser.email ?? '' },
           runMode: payload.runMode,
           inputMode: payload.inputMode,
           overrides: payload.overrides,
@@ -567,6 +574,11 @@ export function AdminDashboard() {
         }
       );
       setGhostResult(result);
+      toast.success(
+        result.persisted
+          ? `Persisted ${result.debug.finalJobs.length} job${result.debug.finalJobs.length === 1 ? '' : 's'} for ${ghostUser.email || 'user'}`
+          : `Preview ready for ${ghostUser.email || 'user'}`
+      );
     } catch (err: any) {
       toast.error('Ghost Mode failed: ' + err.message);
     } finally {

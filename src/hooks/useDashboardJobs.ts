@@ -76,13 +76,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     if (user) fetchStats();
   }, [user]);
 
-  // Auto-load jobs when the profile is ready
+  // Auto-load jobs when the profile is ready, or when the cron updates lastJobFetchTime
   useEffect(() => {
-    if (profile && user && jobs.length === 0 && !loadingJobs) {
+    if (profile && user && !loadingJobs) {
       loadJobs();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.uid ?? profile?.email]);
+  }, [profile?.uid ?? profile?.email, profile?.lastJobFetchTime]);
 
   // ── Stats ───────────────────────────────────────────────────────────────────
 
@@ -164,10 +164,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   // ── Reactive: show jobs as soon as Firestore delivers them ─────────────────
   // AuthContext's onSnapshot keeps `profile` in sync with Firestore.
-  // When GitHub Actions (or any server process) writes new dailyJobs to the
-  // user document, this effect picks them up immediately — no page refresh.
+  // When the scheduled cron or the "Generate now" button writes new dailyJobs
+  // to the user document, this effect picks them up immediately — no page refresh.
   useEffect(() => {
-    if (!profile || !generatingJobs) return;
+    if (!profile) return;
 
     const today = getTodayIST();
     const fetchDate = profile.lastJobFetchTime
@@ -179,8 +179,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const freshJobs = (profile.dailyJobs as DailyJob[]).slice(0, limit);
       setJobs(freshJobs);
       setLastFetchTime(profile.lastJobFetchTime || null);
-      setGeneratingJobs(false);
-      toast.success(`${freshJobs.length} jobs curated for you!`);
+      if (generatingJobs) {
+        setGeneratingJobs(false);
+        toast.success(`${freshJobs.length} jobs curated for you!`);
+      }
     }
   }, [profile?.lastJobFetchTime]);
 
@@ -189,6 +191,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const requestJobs = async () => {
     if (!user || generatingJobs) return;
     setGeneratingJobs(true);
+
+    // Track whether we handed off to GitHub Actions async pipeline.
+    // If true we must NOT clear generatingJobs in finally — the reactive
+    // useEffect above will clear it when Firestore delivers the jobs.
+    let asyncDispatched = false;
 
     try {
       const idToken = await user.getIdToken();
@@ -202,6 +209,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       });
 
       if (requestResponse.status === 202) {
+        asyncDispatched = true;
         toast.info(
           'Searching live job boards for your top matches… ' +
           'Your dashboard will update automatically in about 2 minutes.',
@@ -209,6 +217,15 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         );
         // Safety valve: clear spinner after 6 minutes regardless
         setTimeout(() => setGeneratingJobs(false), 6 * 60 * 1000);
+        return;
+      }
+
+      // 503 = GitHub Actions not configured → fall through to sync trigger
+      // Any other error (502 = GitHub API rejected the dispatch, 401, etc.)
+      // → surface the error directly; don't attempt the slow sync trigger
+      if (requestResponse.status !== 503) {
+        const reqErr = await requestResponse.json().catch(() => ({}));
+        toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
         return;
       }
 
@@ -221,8 +238,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       });
 
       if (!triggerResponse.ok) {
-        const err = await triggerResponse.json().catch(() => ({}));
-        toast.error((err as any).error || 'Job generation failed');
+        const errBody = await triggerResponse.json().catch(() => ({}));
+        const msg = (errBody as any).error || `Job generation failed (HTTP ${triggerResponse.status})`;
+        toast.error(msg);
         return;
       }
 
@@ -242,7 +260,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       console.error('[useDashboardJobs] requestJobs failed:', err);
       toast.error('Failed to generate jobs. Please try again.');
     } finally {
-      setGeneratingJobs(false);
+      // Only clear the spinner here if we did NOT hand off to the async pipeline.
+      // On the async (202) path the spinner is cleared by the reactive effect
+      // (or the 6-minute safety-valve timeout set above).
+      if (!asyncDispatched) {
+        setGeneratingJobs(false);
+      }
     }
   };
 

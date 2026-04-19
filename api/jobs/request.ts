@@ -70,7 +70,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!ghResponse.ok) {
     const body = await ghResponse.text().catch(() => '');
     console.error('[jobs/request] GitHub dispatch failed:', ghResponse.status, body);
-    return res.status(502).json({ error: 'Failed to dispatch job generation workflow' });
+
+    let hint = '';
+    if (ghResponse.status === 401 || ghResponse.status === 403) {
+      hint = ' — check that GITHUB_DISPATCH_TOKEN has the "repo" scope';
+    } else if (ghResponse.status === 404) {
+      hint = ` — repo "${githubRepo}" not found or token lacks access`;
+    } else if (ghResponse.status === 422) {
+      hint = ' — workflow file may be missing the repository_dispatch trigger';
+    }
+
+    return res.status(502).json({
+      error: `GitHub dispatch failed (HTTP ${ghResponse.status})${hint}`,
+      githubStatus: ghResponse.status,
+    });
   }
 
   // 202: client should now listen to Firestore for the result
