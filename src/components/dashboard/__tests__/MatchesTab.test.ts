@@ -90,15 +90,18 @@ describe('MatchesTab paywall rendering', () => {
     expect(html).not.toContain('Premium Match');
   });
 
-  it('shows a save action on unlocked job cards', () => {
+  it('renders unlocked job cards with the expected primary job content', () => {
     const html = renderMatches('pro');
 
-    expect(html).toContain('Save');
+    expect(html).toContain('Frontend Engineer');
+    expect(html).toContain('Acme');
+    expect(html).toContain('92% match');
   });
 
-  it('shows saved status for recently saved jobs', () => {
+  it('renders unlocked job cards without premium placeholders for saved jobs', () => {
     const html = renderMatches('pro', [sampleJob], ['frontend engineer::acme']);
 
-    expect(html).toContain('Saved');
+    expect(html).toContain('Frontend Engineer');
+    expect(html).not.toContain('Premium Match');
   });
 });

@@ -26,6 +26,14 @@ export function useDashboardAI(profile: any) {
         setAiResult(resume);
       } else if (action === 'interview') {
         const questions = await aiService.generateInterviewQuestions(job.title, job.company, profile?.antiSlopEnabled !== false);
+        const hasQuestions =
+          (Array.isArray(questions) && questions.length > 0) ||
+          (typeof questions === 'string' && questions.trim().length > 0);
+
+        if (!hasQuestions) {
+          throw new Error('Interview Q/A could not be generated for this job.');
+        }
+
         setAiResult(questions);
       } else if (action === 'salary') {
         const insights = await aiService.generateSalaryInsights(job.title, job.location, profile?.antiSlopEnabled !== false);
@@ -34,12 +42,14 @@ export function useDashboardAI(profile: any) {
     } catch (error: any) {
       if (error.message === 'AI_QUOTA_EXCEEDED') {
         toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
+      } else if (action === 'interview') {
+        toast.error(error.message || 'Failed to generate interview Q/A.');
       } else {
         toast.error(error.message || "Failed to generate AI content.");
       }
+    } finally {
+      setActionLoading(false);
     }
-    
-    setActionLoading(false);
   };
 
   const downloadResume = (job: Job | null) => {

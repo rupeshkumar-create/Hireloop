@@ -19,6 +19,7 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'matches'>('overview');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
+  const [savingJobFingerprints, setSavingJobFingerprints] = useState<string[]>([]);
 
   const {
     filteredAndSortedJobs, loadingJobs, generatingJobs, requestJobs,
@@ -47,11 +48,20 @@ export function Dashboard() {
   }, []);
 
   const handleSaveJob = async (job: Job) => {
+    const fp = jobFingerprint(job.title, job.company);
+    if (savingJobFingerprints.includes(fp) || savedJobFingerprints.includes(fp)) {
+      return false;
+    }
+
+    setSavingJobFingerprints((cur) => [...cur, fp]);
+    try {
     const didSave = await saveJob(job);
     if (!didSave) return false;
-    const fp = jobFingerprint(job.title, job.company);
     setSavedJobFingerprints((cur) => (cur.includes(fp) ? cur : [...cur, fp]));
     return true;
+    } finally {
+      setSavingJobFingerprints((cur) => cur.filter((value) => value !== fp));
+    }
   };
 
   if (!profile?.resumeText) {
@@ -142,6 +152,8 @@ export function Dashboard() {
                 actionLoading={actionLoading}
                 downloadResume={downloadResume}
                 onClose={() => setSelectedJob(null)}
+                isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
+                isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
               />
             )}
           </AnimatePresence>

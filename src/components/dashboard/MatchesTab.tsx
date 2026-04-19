@@ -17,6 +17,7 @@ import { cn } from '../../lib/utils';
 import { isProPlan } from '../../lib/planLimits';
 import { buildMatchFeedItems } from './matchPaywall';
 import { jobFingerprint } from '../../services/jobResearcher';
+import { resolveJobApplicationUrl } from '../../lib/jobLinks';
 
 interface MatchesTabProps {
   plan?: string;
@@ -66,6 +67,8 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
   isSaving: boolean;
   onDismiss: () => void;
 }) {
+  const applyUrl = resolveJobApplicationUrl(job);
+
   return (
     <div className="mt-4 border-t border-border pt-4 space-y-4">
 
@@ -152,12 +155,12 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
           className="flex-1"
         >
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookmarkPlus className="mr-2 h-4 w-4" />}
-          {isSaved ? 'Saved to Tracker' : isSaving ? 'Saving…' : 'Save to Tracker'}
+          {isSaved ? 'Saved' : isSaving ? 'Saving...' : 'Save Job'}
         </Button>
 
-        {job.applyUrl && (
+        {applyUrl && (
           <a
-            href={job.applyUrl}
+            href={applyUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:border-border-strong transition-colors"

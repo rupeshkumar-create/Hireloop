@@ -40,6 +40,7 @@ import {
   type LearningSignals,
 } from '../services/learningSignals';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
+import { resolveJobApplicationUrl } from '../lib/jobLinks';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -245,6 +246,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const saveJob = async (job: Job): Promise<boolean> => {
     if (!user) return false;
     try {
+      const applicationUrl = resolveJobApplicationUrl(job);
       const docRef = await addDoc(collection(db, 'trackedJobs'), {
         userId: user.uid,
         title: job.title,
@@ -252,7 +254,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         location: job.location,
         salary: job.salary,
         status: 'saved',
-        url: (job as DailyJob).applyUrl || '',
+        url: applicationUrl || '',
         notes: job.description,
         createdAt: new Date().toISOString(),
       });

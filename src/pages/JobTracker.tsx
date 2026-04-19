@@ -91,6 +91,24 @@ export function JobTracker() {
     return hasValidText(value);
   };
 
+  const ensureGeneratedContent = (
+    type: 'email' | 'resume' | 'interview',
+    value: string | string[]
+  ) => {
+    const isValid =
+      type === 'interview'
+        ? hasValidInterview(value)
+        : hasValidText(typeof value === 'string' ? value : value.join('\n\n'));
+
+    if (!isValid) {
+      const label =
+        type === 'email' ? 'cold email' : type === 'resume' ? 'tailored resume' : 'interview Q/A';
+      throw new Error(`Failed to generate ${label}.`);
+    }
+
+    return value;
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -152,13 +170,22 @@ export function JobTracker() {
       let updateData: Partial<TrackedJob> = {};
       
       if (type === 'email') {
-        const email = await generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle);
+        const email = ensureGeneratedContent(
+          'email',
+          await generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle)
+        ) as string;
         updateData = { coldEmail: email };
       } else if (type === 'resume') {
-        const resume = await tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle);
+        const resume = ensureGeneratedContent(
+          'resume',
+          await tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle)
+        ) as string;
         updateData = { tailoredResume: resume };
       } else if (type === 'interview') {
-        const questions = await generateInterviewQuestions(job.title, job.company, true);
+        const questions = ensureGeneratedContent(
+          'interview',
+          await generateInterviewQuestions(job.title, job.company, true)
+        );
         updateData = { interviewQuestions: questions };
       }
 
@@ -166,12 +193,15 @@ export function JobTracker() {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
+      toast.success(
+        type === 'interview' ? 'Interview Q/A generated.' : type === 'resume' ? 'Tailored resume generated.' : 'Cold email generated.'
+      );
     } catch (error: any) {
       console.error("Error generating asset:", error);
       if (error.message === 'AI_QUOTA_EXCEEDED') {
         toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
       } else {
-        toast.error("Failed to generate content. Please try again.");
+        toast.error(error.message || "Failed to generate content. Please try again.");
       }
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
@@ -193,12 +223,27 @@ export function JobTracker() {
       const [emailRes, resumeRes, interviewRes] = results;
       const updateData: Partial<TrackedJob> = {};
       let failed = 0;
-      if (emailRes.status === 'fulfilled') updateData.coldEmail = emailRes.value;
-      else failed++;
-      if (resumeRes.status === 'fulfilled') updateData.tailoredResume = resumeRes.value;
-      else failed++;
-      if (interviewRes.status === 'fulfilled') updateData.interviewQuestions = interviewRes.value;
-      else failed++;
+      if (emailRes.status === 'fulfilled') {
+        try {
+          updateData.coldEmail = ensureGeneratedContent('email', emailRes.value) as string;
+        } catch {
+          failed++;
+        }
+      } else failed++;
+      if (resumeRes.status === 'fulfilled') {
+        try {
+          updateData.tailoredResume = ensureGeneratedContent('resume', resumeRes.value) as string;
+        } catch {
+          failed++;
+        }
+      } else failed++;
+      if (interviewRes.status === 'fulfilled') {
+        try {
+          updateData.interviewQuestions = ensureGeneratedContent('interview', interviewRes.value);
+        } catch {
+          failed++;
+        }
+      } else failed++;
 
       if (Object.keys(updateData).length > 0) {
         await updateDoc(doc(db, 'trackedJobs', job.id), {
