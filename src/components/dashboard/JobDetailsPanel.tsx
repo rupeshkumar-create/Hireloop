@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, MessageSquare, TrendingUp, Sparkles, Download, Loader2, X } from 'lucide-react';
+import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, MessageSquare, TrendingUp, Sparkles, Download, Loader2, X, Eye } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import ReactMarkdown from 'react-markdown';
@@ -10,6 +10,7 @@ import { AiActionType } from '../../hooks/useDashboardAI';
 import { useAuth } from '../../contexts/AuthContext';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
+import { ResumePreviewModal } from './ResumePreviewModal';
 
 interface JobDetailsPanelProps {
   selectedJob: Job;
@@ -28,6 +29,7 @@ export function JobDetailsPanel({
   selectedJob, saveJob, dismissJob, trackJobClick, handleAiAction, aiAction, aiResult, actionLoading, downloadResume, onClose
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
+  const [showResumePreview, setShowResumePreview] = useState(false);
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 sm:p-6">
@@ -153,19 +155,56 @@ export function JobDetailsPanel({
                 </div>
                 
                 {actionLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-foreground" /></div>
+                  <div className="flex flex-col items-center justify-center py-12 gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-foreground" />
+                    <p className="text-sm text-foreground-muted">
+                      {aiAction === 'resume' ? 'Tailoring your resume to this role…' : 'Generating…'}
+                    </p>
+                  </div>
                 ) : (
-                  <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border shadow-inner">
-                    {aiAction === 'interview' && Array.isArray(aiResult) ? (
-                      <ul className="list-decimal pl-5 space-y-3">
-                        {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
-                      </ul>
+                  <div>
+                    {/* Resume action: show a styled preview button + mini preview */}
+                    {aiAction === 'resume' && typeof aiResult === 'string' && aiResult ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="action"
+                            size="sm"
+                            onClick={() => setShowResumePreview(true)}
+                            className="shadow-sm"
+                          >
+                            <Eye className="mr-2 h-4 w-4" /> Preview & Download Resume
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadResume(selectedJob)}
+                            className="shadow-sm"
+                          >
+                            <Download className="mr-2 h-4 w-4" /> Download .md
+                          </Button>
+                        </div>
+                        {/* Compact text preview */}
+                        <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background p-4">
+                          <pre className="whitespace-pre-wrap text-xs text-foreground-muted leading-relaxed font-mono">
+                            {aiResult.slice(0, 1200)}{aiResult.length > 1200 ? '\n\n…[open full preview]' : ''}
+                          </pre>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="markdown-body prose prose-sm max-w-none prose-zinc">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult as string}</ReactMarkdown>
+                      <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border shadow-inner">
+                        {aiAction === 'interview' && Array.isArray(aiResult) ? (
+                          <ul className="list-decimal pl-5 space-y-3">
+                            {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="prose prose-sm max-w-none prose-zinc">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult as string}</ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                     )}
-                    
+
                     {aiAction === 'email' && (
                       <div className="mt-8 border-t border-border pt-6 space-y-4">
                         <Button 
@@ -218,6 +257,15 @@ export function JobDetailsPanel({
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* Resume full-screen preview modal */}
+      <ResumePreviewModal
+        isOpen={showResumePreview}
+        onClose={() => setShowResumePreview(false)}
+        resumeText={typeof aiResult === 'string' ? aiResult : ''}
+        companyName={selectedJob.company}
+        jobTitle={selectedJob.title}
+      />
     </AnimatePresence>
   );
 }

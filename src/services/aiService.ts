@@ -628,34 +628,70 @@ export async function tailorResume(
   return runWithGuardrails(
     'resume_tailoring',
     async () => {
-      const prompt = `You are an expert resume writer and technical recruiter.
-Tailor the following resume for a ${jobTitle} position.
+      const prompt = `You are an expert resume writer and ATS specialist.
+Rewrite the provided resume, fully tailored for the "${jobTitle}" role described below.
 
-User's specific writing style preferences: ${writingStyleContext}
+${writingStyleContext ? `Writing style notes: ${writingStyleContext}\n` : ''}
 
-# STRICT ATS FORMATTING RULES
-Output the resume in clean, standard Markdown:
-1. Header: Name as H1, Contact Info on a single line.
-2. Summary: 2-3 sentence professional summary tailored to the job.
-3. Skills: Grouped list of technical and soft skills relevant to the job.
-4. Experience: H3 for "Company - Title" + dates, standard bullet points for achievements.
-5. Education: H3 for Degree and University.
+════════════════════════════════════════
+MANDATORY OUTPUT FORMAT (strict Markdown)
+════════════════════════════════════════
 
-Instructions:
-1. Highlight the most relevant skills and experiences for this specific role.
-2. Inject keywords from the job description naturally to pass ATS filters.
-3. Strengthen bullet points with metrics and impact wherever the original has them.
-4. Do NOT fabricate experience or skills absent from the original resume.
+# Full Name
+
+Email | Phone | City, Country | linkedin.com/in/handle
+
+## SUMMARY
+2–3 sentence professional summary targeting this specific role and company context. Lead with seniority and strongest relevant skill. No filler phrases.
+
+## EXPERIENCE
+
+### Company Name — Job Title
+*Month Year – Month Year (or Present)*
+
+- Strong past-tense verb + what you did + measurable result (if original has numbers, keep them)
+- [2–5 bullets per role, each on its own line]
+
+### Next Company — Previous Role
+*Month Year – Month Year*
+
+- [Bullets]
+
+## EDUCATION
+
+### Degree in Field of Study
+*Institution | Graduation Year*
+
+## SKILLS
+
+**Technical:** skill1, skill2, skill3, skill4
+**Tools & Platforms:** tool1, tool2, tool3
+**Soft Skills:** skill1, skill2
+
+════════════════════════════════════════
+RULES
+════════════════════════════════════════
+1. NEVER invent experience, companies, degrees, or metrics absent from the original resume.
+2. Inject relevant keywords from the job description naturally into bullets and summary.
+3. Strengthen weak bullets: "worked on X" → "Rebuilt X, reducing load time by Y%".
+4. Remove irrelevant experience sections entirely if they add zero signal for this role.
+5. Dates must be in "Mon Year" format (e.g. "Jan 2022 – Mar 2024").
+6. Contact line must be a single line using "|" as separator.
+7. Do NOT include any preamble, explanation, or commentary — output the resume only.
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
-Job Description:
-${jobDescription}
+────────────────────────────────────────
+JOB DESCRIPTION
+────────────────────────────────────────
+${jobDescription.slice(0, 3000)}
 
-Original Resume:
+────────────────────────────────────────
+ORIGINAL RESUME
+────────────────────────────────────────
 ${resumeText}
 
-Return ONLY the tailored resume in clean Markdown format.`;
+Return ONLY the tailored resume in the exact Markdown format above.`;
 
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
