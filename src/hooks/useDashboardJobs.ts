@@ -162,39 +162,81 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   const [generatingJobs, setGeneratingJobs] = useState(false);
 
+  // ── Reactive: show jobs as soon as Firestore delivers them ─────────────────
+  // AuthContext's onSnapshot keeps `profile` in sync with Firestore.
+  // When GitHub Actions (or any server process) writes new dailyJobs to the
+  // user document, this effect picks them up immediately — no page refresh.
+  useEffect(() => {
+    if (!profile || !generatingJobs) return;
+
+    const today = getTodayIST();
+    const fetchDate = profile.lastJobFetchTime
+      ? profile.lastJobFetchTime.split('T')[0]
+      : null;
+
+    if (fetchDate === today && profile.dailyJobs && profile.dailyJobs.length > 0) {
+      const limit = getDailyMatchLimit(profile?.plan);
+      const freshJobs = (profile.dailyJobs as DailyJob[]).slice(0, limit);
+      setJobs(freshJobs);
+      setLastFetchTime(profile.lastJobFetchTime || null);
+      setGeneratingJobs(false);
+      toast.success(`${freshJobs.length} jobs curated for you!`);
+    }
+  }, [profile?.lastJobFetchTime]);
+
+  // ── On-demand job generation ────────────────────────────────────────────────
+
   const requestJobs = async () => {
     if (!user || generatingJobs) return;
     setGeneratingJobs(true);
+
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/jobs/trigger', {
+
+      // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
+      // Returns 202 immediately; GitHub Actions runs the full pipeline and
+      // writes results to Firestore; the useEffect above displays them.
+      const requestResponse = await fetch('/api/jobs/request', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        const msg = (err as any).error || 'Job generation failed';
-        // If already run today, just reload from Firestore
-        if (response.status === 200 || msg.includes('skipped')) {
-          await loadJobs();
-          return;
-        }
-        toast.error(msg);
+      if (requestResponse.status === 202) {
+        toast.info(
+          'Searching live job boards for your top matches… ' +
+          'Your dashboard will update automatically in about 2 minutes.',
+          { duration: 10000 }
+        );
+        // Safety valve: clear spinner after 6 minutes regardless
+        setTimeout(() => setGeneratingJobs(false), 6 * 60 * 1000);
         return;
       }
 
-      const data = await response.json();
+      // ── Path B: synchronous fallback (GitHub Actions not configured) ───────
+      // Falls back to /api/jobs/trigger which runs inline. Works on Vercel Pro
+      // or any plan with a function timeout ≥ 90 seconds.
+      const triggerResponse = await fetch('/api/jobs/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      });
+
+      if (!triggerResponse.ok) {
+        const err = await triggerResponse.json().catch(() => ({}));
+        toast.error((err as any).error || 'Job generation failed');
+        return;
+      }
+
+      const data = await triggerResponse.json();
       const generated: DailyJob[] = data.jobs || [];
       if (generated.length > 0) {
         const limit = getDailyMatchLimit(profile?.plan);
         setJobs(generated.slice(0, limit));
         toast.success(`${generated.length} jobs curated for you!`);
       } else {
-        toast.info("We couldn't find matching jobs right now. Try updating your career paths or resume.");
+        toast.info(
+          "We couldn't find matching jobs right now. " +
+          'Try adding career paths or uploading a more detailed resume.'
+        );
       }
     } catch (err) {
       console.error('[useDashboardJobs] requestJobs failed:', err);

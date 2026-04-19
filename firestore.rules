@@ -132,6 +132,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin(); // admin SDK bypasses this entirely
     }
 
+    // Daily job matches — written server-side via Admin SDK, read by the owner
+    match /users/{userId}/daily_matches/{matchId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      // Writes always come from the server (Admin SDK bypasses rules), so no
+      // client write rule is needed here.
+    }
+
     match /admin_logs/{logId} {
       allow read, create: if isSuperAdmin();
     }

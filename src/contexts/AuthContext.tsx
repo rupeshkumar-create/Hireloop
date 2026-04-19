@@ -129,6 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 antiSlopEnabled: true,
                 createdAt: new Date().toISOString(),
                 lastActiveAt: new Date().toISOString(),
+                // Sentinel so the daily-alerts cron (orderBy lastJobFetchTime asc)
+                // always includes this user. Without this field Firestore's orderBy
+                // silently excludes the document.
+                lastJobFetchTime: '1970-01-01T00:00:00.000Z',
               };
               setDoc(doc(db, 'users', currentUser.uid), newProfile)
                 .then(() => {

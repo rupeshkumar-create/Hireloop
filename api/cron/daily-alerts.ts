@@ -18,7 +18,7 @@ import { getAdminDb } from '../_lib/firebaseAdmin.js';
 import { requireCronSecret } from '../_lib/cronAuth.js';
 import { getCronRunDateIST, isActiveCronUser, queueCronRun } from '../../src/services/cronEngine';
 
-const DISPATCH_BATCH_SIZE = 20;
+const DISPATCH_BATCH_SIZE = 50;
 
 function getBaseUrl(req: VercelRequest): string {
   const proto =
@@ -38,14 +38,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const runDate = getCronRunDateIST();
     const baseUrl = getBaseUrl(req);
 
-    // Order by lastJobFetchTime ascending so users who haven't been served
-    // recently are always first in each batch (prevents the same top-20 users
-    // by document ID from monopolising every cron run).
-    const snapshot = await db
-      .collection('users')
-      .orderBy('lastJobFetchTime', 'asc')
-      .limit(DISPATCH_BATCH_SIZE)
-      .get();
+    // Primary query: users WITH lastJobFetchTime, stale-first.
+    // Secondary query: users WITHOUT lastJobFetchTime (new accounts that were
+    // created before the sentinel value was introduced). Firestore's orderBy
+    // silently excludes documents that don't have the ordered field, so these
+    // users would never appear in the primary query alone.
+    const [primarySnapshot, secondarySnapshot] = await Promise.all([
+      db.collection('users').orderBy('lastJobFetchTime', 'asc').limit(DISPATCH_BATCH_SIZE).get(),
+      db.collection('users').orderBy('createdAt', 'asc').limit(DISPATCH_BATCH_SIZE).get(),
+    ]);
+
+    // Merge: primary first (stale-first ordering), then fill with secondary
+    // results that weren't already included (users without lastJobFetchTime).
+    const seenIds = new Set<string>();
+    const mergedDocs: typeof primarySnapshot.docs = [];
+    for (const docSnap of [...primarySnapshot.docs, ...secondarySnapshot.docs]) {
+      if (!seenIds.has(docSnap.id)) {
+        seenIds.add(docSnap.id);
+        mergedDocs.push(docSnap);
+      }
+    }
+    const snapshot = { docs: mergedDocs.slice(0, DISPATCH_BATCH_SIZE) };
 
     let queued = 0;
     let skipped = 0;

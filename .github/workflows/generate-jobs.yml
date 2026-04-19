@@ -1,0 +1,51 @@
+name: Generate Daily Jobs
+
+on:
+  # ── Scheduled: daily at 2:30 AM UTC (8:00 AM IST) ────────────────────────
+  schedule:
+    - cron: '30 2 * * *'
+
+  # ── Manual: run from the GitHub Actions UI (optionally for one user) ──────
+  workflow_dispatch:
+    inputs:
+      user_id:
+        description: 'User ID to process (leave empty to process all active users)'
+        required: false
+        default: ''
+
+  # ── User-triggered: dispatched from the dashboard "Generate my jobs" button ─
+  repository_dispatch:
+    types: [generate-jobs-for-user]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # pipeline per user ~2 min; 100 users = well within 120 min
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate daily jobs
+        env:
+          OPENROUTER_API_KEY:           ${{ secrets.OPENROUTER_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          FIRESTORE_DATABASE_ID:        ${{ secrets.FIRESTORE_DATABASE_ID }}
+          RESEND_API_KEY:               ${{ secrets.RESEND_API_KEY }}
+          # USER_ID is set for single-user mode (user-triggered or manual dispatch)
+          USER_ID: >-
+            ${{
+              github.event.inputs.user_id ||
+              github.event.client_payload.userId ||
+              ''
+            }}
+        run: npx tsx scripts/generate-daily-jobs.ts
