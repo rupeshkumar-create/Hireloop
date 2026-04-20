@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -30,7 +30,7 @@ export function BlogPost() {
 
   useEffect(() => {
     if (!slug) return;
-    fetch(`/api/blog/post?slug=${encodeURIComponent(slug)}`)
+    fetch(`/api/blog?slug=${encodeURIComponent(slug)}`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); setLoading(false); return null; }
         return r.json();

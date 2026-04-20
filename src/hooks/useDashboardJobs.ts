@@ -203,9 +203,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
       // Returns 202 immediately; GitHub Actions runs the full pipeline and
       // writes results to Firestore; the useEffect above displays them.
-      const requestResponse = await fetch('/api/jobs/request', {
+      const requestResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ mode: 'request' }),
       });
 
       if (requestResponse.status === 202) {
@@ -230,11 +231,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       }
 
       // ── Path B: synchronous fallback (GitHub Actions not configured) ───────
-      // Falls back to /api/jobs/trigger which runs inline. Works on Vercel Pro
+      // Falls back to the merged /api/jobs endpoint in trigger mode and runs inline. Works on Vercel Pro
       // or any plan with a function timeout ≥ 90 seconds.
-      const triggerResponse = await fetch('/api/jobs/trigger', {
+      const triggerResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ mode: 'trigger' }),
       });
 
       if (!triggerResponse.ok) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Tag } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export function Blog() {
 
   useEffect(() => {
     document.title = 'Blog — Remote Job Search & Career Advice | HireSchema';
-    fetch('/api/blog/posts')
+    fetch('/api/blog')
       .then((r) => r.json())
       .then((data) => {
         setPosts(data.posts ?? []);
