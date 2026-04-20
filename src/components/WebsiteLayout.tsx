@@ -24,6 +24,9 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <div className="flex items-center gap-3">
+            <Link to="/blog" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
+              Blog
+            </Link>
             <ThemeToggle isCollapsed={true} />
             {user ? (
               <Link to="/dashboard">
@@ -67,6 +70,9 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
                 <Link to={user ? "/dashboard" : "/login"} className="transition-colors hover:text-foreground">
                   {user ? "Dashboard" : "Sign In"}
                 </Link>
+              </li>
+              <li>
+                <Link to="/blog" className="transition-colors hover:text-foreground">Blog</Link>
               </li>
             </ul>
           </div>

@@ -1,0 +1,50 @@
+# HireSchema
+
+> HireSchema is an AI-powered remote job matching platform that sends job seekers daily personalized job alerts matched to their resume and preferences — then helps them apply faster with AI-generated tailored resumes, cold emails, and interview prep.
+
+## What HireSchema Does
+
+HireSchema runs a nightly AI pipeline that:
+1. Discovers real remote job listings via live web search
+2. Scores each job against the user's resume and preferences using AI
+3. Selects the top matches (up to 10 for Pro users, 1 for Free)
+4. Delivers a daily email with curated job matches
+5. Provides an application dashboard to track every role
+
+Users can then take AI-powered actions on any job:
+- **Resume tailoring**: Automatically customize their resume for a specific role
+- **Cold email generation**: Generate a personalized outreach email to the hiring manager
+- **Interview prep**: Generate role-specific interview questions and answers
+- **Job tracking**: Track jobs through the pipeline (saved → applied → interviewing → offered)
+
+## Who Uses HireSchema
+
+Remote job seekers — software engineers, product managers, designers, marketers, and other knowledge workers who want to find and land remote roles faster using AI tools.
+
+## Key Facts
+
+- Platform type: AI job matching + application workflow
+- Job type: Remote jobs only
+- Frequency: Daily personalized job alerts
+- AI features: Resume tailoring, cold email generation, interview question generation
+- Plans: Free (1 job/day), Pro (10 jobs/day)
+- Stack: React, Firebase, OpenRouter (Claude, GPT-4, Gemini)
+- Website: https://hireschema.com
+- Blog: https://hireschema.com/blog
+
+## Blog
+
+HireSchema publishes practical guides for remote job seekers covering:
+- Remote job search tactics and strategies
+- AI tools for job applications
+- Resume writing for remote roles
+- Salary negotiation for remote jobs
+- Interview preparation
+- Company spotlights and remote-first culture
+
+New posts are published daily at: https://hireschema.com/blog
+
+## Contact
+
+- Website: https://hireschema.com
+- Support: support@hireschema.com

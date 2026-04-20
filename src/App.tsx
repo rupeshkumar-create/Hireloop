@@ -12,6 +12,8 @@ import { Onboarding } from './pages/Onboarding';
 import { LandingPage } from './pages/LandingPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
+import { Blog } from './pages/Blog';
+import { BlogPost } from './pages/BlogPost';
 import { Toaster } from 'sonner';
 import { ThemeToggle } from './components/ui/theme-toggle';
 import { useState, useEffect } from 'react';
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/privacy" element={<WebsiteLayout><PrivacyPolicy /></WebsiteLayout>} />
           <Route path="/terms" element={<WebsiteLayout><TermsOfService /></WebsiteLayout>} />
+          <Route path="/blog" element={<WebsiteLayout><Blog /></WebsiteLayout>} />
+          <Route path="/blog/:slug" element={<WebsiteLayout><BlogPost /></WebsiteLayout>} />
           <Route path="/dashboard" element={
             <PrivateRoute>
               <AppLayout>

@@ -68,7 +68,7 @@ describe('queueCronRun', () => {
 });
 
 describe('processUserCronRun', () => {
-  it('marks incomplete users as skipped', async () => {
+  it('marks users without email or matching inputs as skipped', async () => {
     const deps = {
       loadUser: vi.fn().mockResolvedValue({
         id: 'user_123',
@@ -77,6 +77,7 @@ describe('processUserCronRun', () => {
           receiveDailyAlerts: true,
           email: 'person@example.com',
           careerPaths: [],
+          resumeText: '',
         },
       }),
       getExistingRun: vi.fn().mockResolvedValue({
@@ -97,6 +98,84 @@ describe('processUserCronRun', () => {
     expect(result.status).toBe('skipped');
     expect(deps.generateJobs).not.toHaveBeenCalled();
     expect(deps.sendDailyEmail).not.toHaveBeenCalled();
+  });
+
+  it('uses structured roles when career paths are missing', async () => {
+    const deps = {
+      loadUser: vi.fn().mockResolvedValue({
+        id: 'user_123',
+        data: {
+          plan: 'pro',
+          receiveDailyAlerts: true,
+          email: 'person@example.com',
+          careerPaths: [],
+          structuredProfile: {
+            roles: ['Frontend Engineer', 'UI Engineer'],
+          },
+          resumeText: '',
+          seenJobFingerprints: [],
+        },
+      }),
+      getExistingRun: vi.fn().mockResolvedValue({
+        id: 'user_123_2026-04-16',
+        status: 'queued',
+      } as CronRunRecord),
+      markRun: vi.fn().mockResolvedValue(undefined),
+      generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+      storeJobs: vi.fn().mockResolvedValue(undefined),
+      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const result = await processUserCronRun(
+      { userId: 'user_123', runDate: '2026-04-16' },
+      deps
+    );
+
+    expect(result.status).toBe('completed');
+    expect(deps.generateJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        careerPaths: ['Frontend Engineer', 'UI Engineer'],
+      }),
+      10
+    );
+  });
+
+  it('continues when resume text exists even without career paths', async () => {
+    const deps = {
+      loadUser: vi.fn().mockResolvedValue({
+        id: 'user_123',
+        data: {
+          plan: 'free',
+          receiveDailyAlerts: true,
+          email: 'person@example.com',
+          careerPaths: [],
+          resumeText: 'Senior frontend engineer with React, TypeScript, and design systems experience.',
+          seenJobFingerprints: [],
+        },
+      }),
+      getExistingRun: vi.fn().mockResolvedValue({
+        id: 'user_123_2026-04-16',
+        status: 'queued',
+      } as CronRunRecord),
+      markRun: vi.fn().mockResolvedValue(undefined),
+      generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+      storeJobs: vi.fn().mockResolvedValue(undefined),
+      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const result = await processUserCronRun(
+      { userId: 'user_123', runDate: '2026-04-16' },
+      deps
+    );
+
+    expect(result.status).toBe('completed');
+    expect(deps.generateJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        careerPaths: [],
+        resumeText: 'Senior frontend engineer with React, TypeScript, and design systems experience.',
+      }),
+      1
+    );
   });
 
   it('stores jobs before sending email', async () => {

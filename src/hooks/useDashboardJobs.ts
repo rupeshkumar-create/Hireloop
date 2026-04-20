@@ -221,9 +221,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       }
 
       // 503 = GitHub Actions not configured → fall through to sync trigger
+      // 500 = unexpected server crash in request.ts → fall through to sync trigger
       // Any other error (502 = GitHub API rejected the dispatch, 401, etc.)
-      // → surface the error directly; don't attempt the slow sync trigger
-      if (requestResponse.status !== 503) {
+      // → surface the error; don't attempt the slow sync trigger
+      if (requestResponse.status !== 503 && requestResponse.status !== 500) {
         const reqErr = await requestResponse.json().catch(() => ({}));
         toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
         return;
@@ -411,12 +412,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const filteredAndSortedJobs = useMemo(() => {
     return jobs
       .filter((job) => {
-        const fp = jobFingerprint(job.title, job.company);
+        const fp = jobFingerprint(job.title || '', job.company || '');
         return (
           !dismissedFingerprints.includes(fp) &&
-          job.company.toLowerCase().includes(filterCompany.toLowerCase()) &&
-          job.location.toLowerCase().includes(filterLocation.toLowerCase()) &&
-          job.salary.toLowerCase().includes(filterSalary.toLowerCase())
+          (job.company || '').toLowerCase().includes(filterCompany.toLowerCase()) &&
+          (job.location || '').toLowerCase().includes(filterLocation.toLowerCase()) &&
+          (job.salary || '').toLowerCase().includes(filterSalary.toLowerCase())
         );
       })
       .sort((a, b) => {

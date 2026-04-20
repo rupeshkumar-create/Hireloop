@@ -69,6 +69,21 @@ export function buildCronRunId(userId: string, runDate: string): string {
   return `${userId}_${runDate}`;
 }
 
+function resolveCareerPaths(profile: Record<string, any>): string[] {
+  const fromCareerPaths = Array.isArray(profile.careerPaths)
+    ? profile.careerPaths
+    : [];
+  const fromStructuredRoles = Array.isArray(profile.structuredProfile?.roles)
+    ? profile.structuredProfile.roles
+    : [];
+
+  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
 export async function queueCronRun(
   input: QueueCronRunInput,
   deps: {
@@ -106,19 +121,28 @@ export async function processUserCronRun(
   }
 
   const profile = loadedUser.data;
-  if (!profile.email || !Array.isArray(profile.careerPaths) || profile.careerPaths.length === 0) {
+  const effectiveCareerPaths = resolveCareerPaths(profile);
+  const hasResumeText =
+    typeof profile.resumeText === 'string' && profile.resumeText.trim().length > 0;
+
+  if (!profile.email || (!hasResumeText && effectiveCareerPaths.length === 0)) {
     await deps.markRun(runId, {
       status: 'skipped',
       completedAt: new Date().toISOString(),
-      failureReason: 'Profile missing email or career paths',
+      failureReason: 'Profile missing email or matching inputs',
     });
     return { runId, status: 'skipped' as const };
   }
 
+  const effectiveProfile =
+    effectiveCareerPaths.length > 0
+      ? { ...profile, careerPaths: effectiveCareerPaths }
+      : profile;
+
   if (!profile.resumeText || profile.resumeText.trim().length < 50) {
     console.warn(
       `[cronEngine] ${input.userId}: resumeText is missing or too short — ` +
-      'AI relevance will be limited to career paths only.'
+      'AI relevance will be limited to career paths and structured profile only.'
     );
   }
 
@@ -129,8 +153,8 @@ export async function processUserCronRun(
 
   try {
     const limit = getDailyMatchLimit(profile.plan);
-    const result = await deps.generateJobs(profile, limit);
-    await deps.storeJobs(input.userId, input.runDate, profile, result);
+    const result = await deps.generateJobs(effectiveProfile, limit);
+    await deps.storeJobs(input.userId, input.runDate, effectiveProfile, result);
 
     if (result.jobs.length > 0) {
       await deps.sendDailyEmail(profile.email, result.jobs);

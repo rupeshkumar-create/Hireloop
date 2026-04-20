@@ -79,8 +79,8 @@ service cloud.firestore {
              (!hasField(data, 'location') || data.location is string) &&
              (!hasField(data, 'minSalary') || data.minSalary == null || data.minSalary is number) &&
              (!hasField(data, 'resumeText') || (data.resumeText is string && data.resumeText.size() < 100000)) &&
-             data.createdAt is string &&
-             (!hasField(data, 'updatedAt') || data.updatedAt is string);
+             (data.createdAt is string || data.createdAt is timestamp) &&
+             (!hasField(data, 'updatedAt') || data.updatedAt is string || data.updatedAt is timestamp);
     }
 
     function isValidTrackedJob(data) {
@@ -141,6 +141,24 @@ service cloud.firestore {
 
     match /admin_logs/{logId} {
       allow read, create: if isSuperAdmin();
+    }
+
+    // ── Blog posts ────────────────────────────────────────────────────────────
+    // Written server-side via Admin SDK by the daily-blog cron.
+    // Published posts are publicly readable (no auth required) for SEO.
+    match /blog_posts/{postId} {
+      allow read: if resource.data.status == 'published' || isSuperAdmin();
+      allow write: if isSuperAdmin(); // Admin SDK bypasses this entirely
+    }
+
+    // ── Marketing strategy + run logs ────────────────────────────────────────
+    // Managed entirely server-side. No client reads needed.
+    match /marketing/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /marketing_runs/{runId} {
+      allow read: if isSuperAdmin();
     }
   }
 }

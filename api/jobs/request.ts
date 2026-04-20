@@ -51,21 +51,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── Dispatch repository_dispatch to GitHub Actions ────────────────────────
   const runDate = getCronRunDateIST();
 
-  const ghResponse = await fetch(
-    `https://api.github.com/repos/${githubRepo}/dispatches`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'generate-jobs-for-user',
-        client_payload: { userId: uid, runDate },
-      }),
-    }
-  );
+  let ghResponse: Response;
+  try {
+    ghResponse = await fetch(
+      `https://api.github.com/repos/${githubRepo}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `token ${githubToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_type: 'generate-jobs-for-user',
+          client_payload: { userId: uid, runDate },
+        }),
+      }
+    );
+  } catch (fetchErr) {
+    console.error('[jobs/request] GitHub fetch threw:', fetchErr);
+    return res.status(503).json({
+      error: 'async_not_configured',
+      message: 'GitHub Actions unreachable; use /api/jobs/trigger instead.',
+    });
+  }
 
   if (!ghResponse.ok) {
     const body = await ghResponse.text().catch(() => '');
