@@ -220,11 +220,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         return;
       }
 
-      // 503 = GitHub Actions not configured → fall through to sync trigger
-      // 500 = unexpected server crash in request.ts → fall through to sync trigger
-      // Any other error (502 = GitHub API rejected the dispatch, 401, etc.)
-      // → surface the error; don't attempt the slow sync trigger
-      if (requestResponse.status !== 503 && requestResponse.status !== 500) {
+      // Any 5xx here means the async dispatch path is unavailable, so fall back
+      // to the synchronous trigger endpoint instead of leaving the user stuck.
+      // Only non-server errors like 401/4xx should surface immediately.
+      if (requestResponse.status < 500) {
         const reqErr = await requestResponse.json().catch(() => ({}));
         toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
         return;
