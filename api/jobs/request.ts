@@ -16,7 +16,7 @@
  *   GITHUB_REPO            — e.g. "rupesh7128/hireschema"
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth } from '../_lib/firebaseAdmin.js';
+import { getAdminAuth } from '../../src/server/firebaseAdmin.js';
 import { getCronRunDateIST } from '../../src/services/cronEngine.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

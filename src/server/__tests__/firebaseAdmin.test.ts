@@ -42,7 +42,7 @@ describe('getAdminDb', () => {
   });
 
   it('uses the default Firestore database when no database id env var is set', async () => {
-    const { getAdminDb } = await import('./firebaseAdmin');
+    const { getAdminDb } = await import('../firebaseAdmin');
 
     const db = await getAdminDb();
 
@@ -53,7 +53,7 @@ describe('getAdminDb', () => {
 
   it('uses a named Firestore database when FIRESTORE_DATABASE_ID is set', async () => {
     process.env.FIRESTORE_DATABASE_ID = 'named-db';
-    const { getAdminDb } = await import('./firebaseAdmin');
+    const { getAdminDb } = await import('../firebaseAdmin');
 
     const db = await getAdminDb();
 
@@ -63,7 +63,7 @@ describe('getAdminDb', () => {
 
   it('treats "(default)" as the default Firestore database', async () => {
     process.env.FIRESTORE_DATABASE_ID = '(default)';
-    const { getAdminDb } = await import('./firebaseAdmin');
+    const { getAdminDb } = await import('../firebaseAdmin');
 
     const db = await getAdminDb();
 
@@ -73,7 +73,7 @@ describe('getAdminDb', () => {
 
   it('falls back to FIREBASE_FIRESTORE_DATABASE_ID when FIRESTORE_DATABASE_ID is unset', async () => {
     process.env.FIREBASE_FIRESTORE_DATABASE_ID = 'secondary-db';
-    const { getAdminDb } = await import('./firebaseAdmin');
+    const { getAdminDb } = await import('../firebaseAdmin');
 
     const db = await getAdminDb();
 
@@ -82,7 +82,7 @@ describe('getAdminDb', () => {
   });
 
   it('caches the Firestore client per resolved database id', async () => {
-    const { getAdminDb } = await import('./firebaseAdmin');
+    const { getAdminDb } = await import('../firebaseAdmin');
 
     const firstDb = await getAdminDb();
     const secondDb = await getAdminDb();

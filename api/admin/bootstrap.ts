@@ -13,7 +13,7 @@
  * Set ADMIN_BOOTSTRAP_SECRET in Vercel env vars — never expose it to the client.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth } from '../_lib/firebaseAdmin.js';
+import { getAdminAuth } from '../../src/server/firebaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

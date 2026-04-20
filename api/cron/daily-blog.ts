@@ -6,8 +6,8 @@
  * generates a full SEO + LLM-optimized blog post, and saves it to Firestore.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireCronSecret } from '../_lib/cronAuth.js';
-import { generateAndPublishPost } from '../_lib/marketingEngine.js';
+import { requireCronSecret } from '../../src/server/cronAuth.js';
+import { generateAndPublishPost } from '../../src/server/marketingEngine.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;

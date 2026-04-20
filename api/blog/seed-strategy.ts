@@ -4,8 +4,8 @@
  * Protected by CRON_SECRET. Call once after deploying.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireCronSecret } from '../_lib/cronAuth.js';
-import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../_lib/marketingEngine.js';
+import { requireCronSecret } from '../../src/server/cronAuth.js';
+import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../../src/server/marketingEngine.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

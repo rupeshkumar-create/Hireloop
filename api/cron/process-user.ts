@@ -16,8 +16,8 @@
  * Free users →  1 job/day
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin.js';
-import { requireInternalCronSecret } from '../_lib/cronAuth.js';
+import { getAdminDb } from '../../src/server/firebaseAdmin.js';
+import { requireInternalCronSecret } from '../../src/server/cronAuth.js';
 import { processUserCronRun } from '../../src/services/cronEngine';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';

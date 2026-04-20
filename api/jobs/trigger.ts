@@ -8,7 +8,7 @@
  * Rate-limit: one run per user per day enforced by cronRuns deduplication.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb, getAdminAuth } from '../_lib/firebaseAdmin.js';
+import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
 import { processUserCronRun, getCronRunDateIST } from '../../src/services/cronEngine';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
