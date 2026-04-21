@@ -51,10 +51,12 @@ service cloud.firestore {
              (!hasField(data, 'updatedAt') || data.updatedAt is string || data.updatedAt is timestamp);
     }
 
-    // Clients cannot change their own plan — it is set exclusively by the server.
-    // On create: plan must not be present. On update: plan must not change.
+    // Clients cannot upgrade their own plan — it is set exclusively by the server.
+    // On create: plan must be absent OR 'free' (AuthContext sets 'free' on signup).
+    // On update: plan must not change from its stored value.
     function planUnchanged(data) {
       return !hasField(data, 'plan') ||
+             (resource == null && data.plan == 'free') ||
              (resource != null && data.plan == resource.data.plan);
     }
 

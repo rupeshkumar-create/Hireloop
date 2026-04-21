@@ -189,6 +189,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         setGeneratingJobs(false);
         toast.success(`${freshJobs.length} jobs curated for you!`);
       }
+    } else if (fetchDate === today && generatingJobs) {
+      // Pipeline completed today but stored 0 jobs — clear spinner and inform user.
+      setGeneratingJobs(false);
+      toast.info(
+        "No matching jobs found this time. Try adding more career paths or uploading a more detailed resume.",
+        { duration: 8000 }
+      );
     }
   }, [profile?.lastJobFetchTime]);
 
