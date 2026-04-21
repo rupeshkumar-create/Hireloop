@@ -19,6 +19,8 @@ export interface LoadedCronUser {
 export interface ProcessUserCronRunInput {
   userId: string;
   runDate: string;
+  /** Skip the isActiveCronUser check — use for user-triggered on-demand runs */
+  bypassActiveCheck?: boolean;
 }
 
 export interface ProcessUserCronRunDeps {
@@ -111,11 +113,11 @@ export async function processUserCronRun(
   }
 
   const loadedUser = await deps.loadUser(input.userId);
-  if (!loadedUser || !isActiveCronUser(loadedUser.data)) {
+  if (!loadedUser || (!input.bypassActiveCheck && !isActiveCronUser(loadedUser.data))) {
     await deps.markRun(runId, {
       status: 'skipped',
       completedAt: new Date().toISOString(),
-      failureReason: 'Inactive or missing user',
+      failureReason: loadedUser ? 'Inactive or missing user' : 'User not found',
     });
     return { runId, status: 'skipped' as const };
   }
@@ -125,11 +127,11 @@ export async function processUserCronRun(
   const hasResumeText =
     typeof profile.resumeText === 'string' && profile.resumeText.trim().length > 0;
 
-  if (!profile.email || (!hasResumeText && effectiveCareerPaths.length === 0)) {
+  if (!hasResumeText && effectiveCareerPaths.length === 0) {
     await deps.markRun(runId, {
       status: 'skipped',
       completedAt: new Date().toISOString(),
-      failureReason: 'Profile missing email or matching inputs',
+      failureReason: 'Profile missing resume text and career paths',
     });
     return { runId, status: 'skipped' as const };
   }
@@ -156,7 +158,7 @@ export async function processUserCronRun(
     const result = await deps.generateJobs(effectiveProfile, limit);
     await deps.storeJobs(input.userId, input.runDate, effectiveProfile, result);
 
-    if (result.jobs.length > 0) {
+    if (result.jobs.length > 0 && profile.email) {
       await deps.sendDailyEmail(profile.email, result.jobs);
     }
 

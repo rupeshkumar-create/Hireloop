@@ -63,7 +63,7 @@ async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
   const callAI = makeServerCallAI();
 
   await processUserCronRun(
-    { userId: uid, runDate },
+    { userId: uid, runDate, bypassActiveCheck: true },
     {
       loadUser: async (userId) => {
         const snap = await db.collection('users').doc(userId).get();
@@ -186,7 +186,7 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
       });
     }
 
-    const body = await (ghResponse as Response).text?.().catch(() => '') ?? '';
+    const body = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
   }
 

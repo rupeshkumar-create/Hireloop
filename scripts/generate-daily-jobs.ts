@@ -116,7 +116,7 @@ async function processUser(
   const callAI = makeCallAI();
 
   const result = await processUserCronRun(
-    { userId, runDate },
+    { userId, runDate, bypassActiveCheck: force },
     {
       loadUser: async (uid) => {
         const snap = await db.collection('users').doc(uid).get();
@@ -127,7 +127,6 @@ async function processUser(
         const snap = await db.collection('cronRuns').doc(runId).get();
         if (!snap.exists) return null;
         const data = { id: snap.id, ...snap.data() } as any;
-        // When force=true (user-triggered), allow re-run unless actively processing.
         if (force && data.status !== 'processing') return null;
         return data;
       },
