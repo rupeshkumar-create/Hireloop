@@ -1,60 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId} (matches auth.uid)
-    // Fields:
-    //   - uid: string (required, immutable)
-    //   - email: string (required)
-    //   - displayName: string (optional)
-    //   - photoURL: string (optional)
-    //   - jobTitle: string (optional)
-    //   - jobType: string (optional, in ['remote', 'hybrid', 'onsite', 'any'])
-    //   - minSalary: number (optional)
-    //   - resumeText: string (optional)
-    //   - createdAt: timestamp (required, immutable)
-    //   - updatedAt: timestamp (optional)
-    //
-    // Collection: trackedJobs
-    // Document ID: {jobId}
-    // Fields:
-    //   - userId: string (required, immutable)
-    //   - title: string (required)
-    //   - company: string (required)
-    //   - location: string (optional)
-    //   - salary: string (optional)
-    //   - status: string (required, in ['saved', 'applied', 'interviewing', 'offered', 'rejected'])
-    //   - url: string (optional)
-    //   - notes: string (optional)
-    //   - createdAt: timestamp (required, immutable)
-    //   - updatedAt: timestamp (optional)
-    //
-    // ===============================================================
 
-    // Helper Functions
+    // ── Helper functions ─────────────────────────────────────────────────────
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Super Admin Check — verified via Firebase custom claim set server-side.
-    // To grant access: POST /api/admin/bootstrap with ADMIN_BOOTSTRAP_SECRET.
+
+    // Super Admin: custom claim set server-side via POST /api/admin/bootstrap
     function isSuperAdmin() {
       return isAuthenticated() && request.auth.token.superAdmin == true;
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isDocOwner() {
       return isAuthenticated() && request.auth.uid == resource.data.userId;
     }
-    
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -62,16 +28,18 @@ service cloud.firestore {
     function hasField(data, field) {
       return data.keys().hasAny([field]);
     }
-    
-    function isValidEmail(email) {
-      return email is string;
-    }
 
-    // Domain Validators
+    // ── User document validator ──────────────────────────────────────────────
+    //
+    // Validates only the fields the client is allowed to write.
+    // Server-written fields (dailyJobs, lastJobFetchTime, seenJobFingerprints,
+    // learningSignals, structuredProfile, plan, receiveDailyAlerts, etc.) are
+    // written via Admin SDK which bypasses these rules entirely — they are not
+    // restricted here and pass through silently.
     function isValidUser(data) {
       return hasRequiredFields(['uid', 'email', 'createdAt']) &&
              data.uid == request.auth.uid &&
-             isValidEmail(data.email) &&
+             data.email is string &&
              (!hasField(data, 'displayName') || data.displayName is string) &&
              (!hasField(data, 'photoURL') || data.photoURL is string) &&
              (!hasField(data, 'careerPaths') || (data.careerPaths is list && data.careerPaths.size() <= 10)) &&
@@ -81,6 +49,13 @@ service cloud.firestore {
              (!hasField(data, 'resumeText') || (data.resumeText is string && data.resumeText.size() < 100000)) &&
              (data.createdAt is string || data.createdAt is timestamp) &&
              (!hasField(data, 'updatedAt') || data.updatedAt is string || data.updatedAt is timestamp);
+    }
+
+    // Clients cannot change their own plan — it is set exclusively by the server.
+    // On create: plan must not be present. On update: plan must not change.
+    function planUnchanged(data) {
+      return !hasField(data, 'plan') ||
+             (resource != null && data.plan == resource.data.plan);
     }
 
     function isValidTrackedJob(data) {
@@ -103,56 +78,53 @@ service cloud.firestore {
              (!hasField(data, 'updatedAt') || data.updatedAt is string);
     }
 
-    // Rules
+    // ── Collections ──────────────────────────────────────────────────────────
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow create: if (isOwner(userId) && isValidUser(request.resource.data)) || isSuperAdmin();
-      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
-                    request.resource.data.uid == resource.data.uid &&
-                    request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
+
+      // Plan is set server-side only — clients cannot self-assign a paid plan.
+      allow create: if (isOwner(userId) && isValidUser(request.resource.data) && planUnchanged(request.resource.data)) || isSuperAdmin();
+      allow update: if (isOwner(userId) &&
+                        isValidUser(request.resource.data) &&
+                        planUnchanged(request.resource.data) &&
+                        request.resource.data.uid == resource.data.uid &&
+                        request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
       allow delete: if isOwner(userId) || isSuperAdmin();
+
+      // Daily job batches — written by server (Admin SDK bypasses rules).
+      // Clients may only read their own records.
+      match /daily_matches/{date} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow write: if isSuperAdmin();
+      }
     }
 
     match /trackedJobs/{jobId} {
       allow read: if isDocOwner() || isSuperAdmin();
       allow create: if (isAuthenticated() && isValidTrackedJob(request.resource.data)) || isSuperAdmin();
-      allow update: if (isDocOwner() && isValidTrackedJob(request.resource.data) &&
-                    request.resource.data.userId == resource.data.userId &&
-                    request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
+      allow update: if (isDocOwner() &&
+                        isValidTrackedJob(request.resource.data) &&
+                        request.resource.data.userId == resource.data.userId &&
+                        request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
       allow delete: if isDocOwner() || isSuperAdmin();
     }
-    
-    // ── Daily job matches (v2) ───────────────────────────────────────────────
-    // Full DailyJob objects are stored per date by the server-side cron via
-    // Firebase Admin SDK (which bypasses client rules). Clients may only read
-    // their own records. Direct client writes are blocked — all writes go
-    // through the cron pipeline.
-    match /users/{userId}/daily_matches/{date} {
-      allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if isSuperAdmin(); // admin SDK bypasses this entirely
-    }
 
-    // Daily job matches — written server-side via Admin SDK, read by the owner
-    match /users/{userId}/daily_matches/{matchId} {
-      allow read: if isOwner(userId) || isSuperAdmin();
-      // Writes always come from the server (Admin SDK bypasses rules), so no
-      // client write rule is needed here.
+    // cron run dedup guards — server-side only (Admin SDK). No client access.
+    match /cronRuns/{runId} {
+      allow read, write: if isSuperAdmin();
     }
 
     match /admin_logs/{logId} {
       allow read, create: if isSuperAdmin();
     }
 
-    // ── Blog posts ────────────────────────────────────────────────────────────
-    // Written server-side via Admin SDK by the daily-blog cron.
     // Published posts are publicly readable (no auth required) for SEO.
     match /blog_posts/{postId} {
       allow read: if resource.data.status == 'published' || isSuperAdmin();
-      allow write: if isSuperAdmin(); // Admin SDK bypasses this entirely
+      allow write: if isSuperAdmin();
     }
 
-    // ── Marketing strategy + run logs ────────────────────────────────────────
-    // Managed entirely server-side. No client reads needed.
     match /marketing/{docId} {
       allow read, write: if isSuperAdmin();
     }
