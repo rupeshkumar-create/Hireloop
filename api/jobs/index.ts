@@ -69,13 +69,9 @@ async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
         const snap = await db.collection('users').doc(userId).get();
         return snap.exists ? { id: snap.id, data: snap.data() || {} } : null;
       },
-      getExistingRun: async (runId) => {
-        const snap = await db.collection('cronRuns').doc(runId).get();
-        if (!snap.exists) return null;
-        const data = { id: snap.id, ...snap.data() } as any;
-        if (data.status === 'processing') return data;
-        return null;
-      },
+      // User-triggered runs always get a fresh attempt — never block on a
+      // stuck 'processing' record from a previous timeout or crash.
+      getExistingRun: async (_runId) => null,
       markRun: async (runId, patch) => {
         await db.collection('cronRuns').doc(runId).set(
           { userId: uid, runDate, dispatchSource: 'user-triggered', ...patch },
@@ -160,6 +156,8 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
 
   if (githubToken && githubRepo) {
     let ghResponse: Response;
+    const ghAbort = new AbortController();
+    const ghTimeout = setTimeout(() => ghAbort.abort(), 5000);
     try {
       ghResponse = await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
         method: 'POST',
@@ -172,10 +170,13 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
           event_type: 'generate-jobs-for-user',
           client_payload: { userId: uid, runDate, force: true },
         }),
+        signal: ghAbort.signal,
       });
     } catch (fetchErr) {
       console.error('[jobs/index] GitHub fetch threw:', fetchErr);
       ghResponse = { ok: false, status: 0 } as any;
+    } finally {
+      clearTimeout(ghTimeout);
     }
 
     if (ghResponse.ok) {
