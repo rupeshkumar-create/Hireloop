@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         generateJobs: async (profile, limit) => {
           const careerPaths: string[] = profile.careerPaths || [];
           const resumeText: string = profile.resumeText || '';
-          const jobType: string = profile.jobType || 'both';
+          const jobType: string = profile.jobType || 'remote';
           const location: string = profile.location || '';
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 

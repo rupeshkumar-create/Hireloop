@@ -58,6 +58,8 @@ function renderMatches(
         setFilterLocation: () => {},
         filterSalary: '',
         setFilterSalary: () => {},
+        filterWorkType: 'all',
+        setFilterWorkType: () => {},
         sortBy: 'matchScore',
         setSortBy: () => {},
         selectedJob: null,

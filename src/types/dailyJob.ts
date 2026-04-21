@@ -38,6 +38,7 @@ export interface DailyJob {
   hotSignals?: string[];     // e.g. ["Series B just closed", "Team doubling"]
   companyStage?: string;     // e.g. "Seed", "Series A", "Public"
   estimatedSalary?: string;  // AI estimate when salary not listed
+  matchedCareerPath?: string; // which career path triggered this match
 }
 
 /** Lightweight version returned in the daily batch stored on the user doc */

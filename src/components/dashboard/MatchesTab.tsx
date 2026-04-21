@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Loader2, MapPin, DollarSign, Calendar, ArrowUpDown,
+  Loader2, MapPin, DollarSign, Calendar,
   X, Lock, BookmarkPlus, ChevronDown, ChevronUp,
-  Zap, TrendingUp, AlertCircle, CheckCircle2, ExternalLink,
-  Clock, Briefcase,
+  Zap, AlertCircle, CheckCircle2, ExternalLink,
+  Clock, Wifi, Globe, ArrowUpDown,
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -32,6 +32,8 @@ interface MatchesTabProps {
   setFilterLocation: (v: string) => void;
   filterSalary: string;
   setFilterSalary: (v: string) => void;
+  filterWorkType: 'remote' | 'all';
+  setFilterWorkType: (v: 'remote' | 'all') => void;
   sortBy: SortOption;
   setSortBy: (v: SortOption) => void;
   selectedJob: Job | null;
@@ -43,19 +45,73 @@ interface MatchesTabProps {
   lastFetchTime?: string | null;
 }
 
-// ── Work-type badge colours ──────────────────────────────────────────────────
-function WorkTypeBadge({ workType }: { workType?: string }) {
-  if (!workType || workType === 'unknown') return null;
-  const styles: Record<string, string> = {
-    remote:  'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-    hybrid:  'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-    onsite:  'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  };
+// ── Work-type badge ──────────────────────────────────────────────────────────
+function WorkTypeBadge({ workType, location }: { workType?: string; location?: string }) {
+  const isRemote =
+    workType === 'remote' ||
+    (location || '').toLowerCase().includes('remote');
+
+  if (isRemote) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+        <Wifi className="h-3 w-3" />
+        Remote
+      </span>
+    );
+  }
+  if (workType === 'hybrid') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+        <Globe className="h-3 w-3" />
+        Hybrid
+      </span>
+    );
+  }
+  if (workType === 'onsite') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-900/40 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:text-orange-300">
+        <MapPin className="h-3 w-3" />
+        On-site
+      </span>
+    );
+  }
+  return null;
+}
+
+// ── Career path chip ─────────────────────────────────────────────────────────
+function CareerPathChip({ path }: { path: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', styles[workType] || 'bg-muted text-muted-foreground')}>
-      <Briefcase className="h-3 w-3" />
-      {workType.charAt(0).toUpperCase() + workType.slice(1)}
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
+      {path}
     </span>
+  );
+}
+
+// ── Match score bar ───────────────────────────────────────────────────────────
+function MatchScoreBar({ score }: { score: number }) {
+  const color =
+    score >= 80 ? 'bg-emerald-500' :
+    score >= 60 ? 'bg-blue-500' :
+    score >= 40 ? 'bg-amber-500' :
+    'bg-foreground-muted/40';
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 w-20 rounded-full bg-border overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', color)}
+          style={{ width: `${Math.min(100, score)}%` }}
+        />
+      </div>
+      <span className={cn(
+        'text-xs font-bold tabular-nums',
+        score >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+        score >= 60 ? 'text-blue-600 dark:text-blue-400' :
+        'text-foreground-muted'
+      )}>
+        {score}%
+      </span>
+    </div>
   );
 }
 
@@ -73,21 +129,19 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
   return (
     <div className="mt-4 border-t border-border pt-4 space-y-4">
 
-      {/* AI Summary */}
       {job.aiSummary && (
         <p className="text-sm text-foreground leading-relaxed">{job.aiSummary}</p>
       )}
 
-      {/* Match reasons + Skill gaps */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {job.matchReasons && job.matchReasons.length > 0 && (
-          <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-3">
-            <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-1">
+          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" /> Why you match
             </p>
             <ul className="space-y-1">
               {job.matchReasons.slice(0, 4).map((r, i) => (
-                <li key={i} className="text-xs text-green-900 dark:text-green-300 flex gap-1.5">
+                <li key={i} className="text-xs text-emerald-900 dark:text-emerald-300 flex gap-1.5">
                   <span className="mt-0.5 shrink-0">•</span>{r}
                 </li>
               ))}
@@ -110,7 +164,6 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
         )}
       </div>
 
-      {/* Requirements */}
       {job.requirements && job.requirements.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-foreground-muted mb-2">Key requirements</p>
@@ -124,7 +177,6 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
         </div>
       )}
 
-      {/* Full description */}
       <details className="group">
         <summary className="cursor-pointer text-xs font-medium text-foreground-muted hover:text-foreground list-none flex items-center gap-1 select-none">
           <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
@@ -135,7 +187,6 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
         </div>
       </details>
 
-      {/* Hot signals */}
       {job.isHotJob && job.hotSignals && job.hotSignals.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {job.hotSignals.map((s, i) => (
@@ -146,7 +197,6 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
         </div>
       )}
 
-      {/* CTA row */}
       <div className="flex items-center gap-2 pt-1">
         <Button
           variant={isSaved ? 'secondary' : 'action'}
@@ -178,15 +228,9 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
   );
 }
 
-// ── Main job card ────────────────────────────────────────────────────────────
+// ── Job card ─────────────────────────────────────────────────────────────────
 function JobCard({
-  job,
-  isSaved,
-  isSaving,
-  isExpanded,
-  onToggleExpand,
-  onSave,
-  onDismiss,
+  job, isSaved, isSaving, isExpanded, onToggleExpand, onSave, onDismiss,
 }: {
   job: DailyJob;
   isSaved: boolean;
@@ -209,47 +253,48 @@ function JobCard({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-border-strong',
+        'transition-all hover:-translate-y-0.5 hover:border-border-strong',
         isExpanded ? 'border-border-strong ring-1 ring-ring' : ''
       )}
     >
       <CardContent className="p-5">
-        {/* Header */}
-        <div className="flex justify-between items-start gap-3" onClick={onToggleExpand}>
+        {/* Top strip: work type + career path + hot badge */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
+          <WorkTypeBadge workType={job.workType} location={job.location} />
+          {job.matchedCareerPath && (
+            <CareerPathChip path={job.matchedCareerPath} />
+          )}
+          {job.isHotJob && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
+              <Zap className="h-3 w-3" /> Hot
+            </span>
+          )}
+        </div>
+
+        {/* Header row */}
+        <div className="flex justify-between items-start gap-3" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-bold text-foreground font-display text-lg leading-tight">{job.title}</h3>
-              {job.isHotJob && (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 shrink-0">
-                  <Zap className="h-3 w-3" /> Hot
-                </span>
-              )}
-            </div>
+            <h3 className="font-bold text-foreground font-display text-lg leading-tight">{job.title}</h3>
             <p className="text-foreground-muted font-medium mt-0.5">{job.company}</p>
           </div>
-          <div className="flex items-start gap-2 shrink-0">
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
             {job.matchScore !== undefined && (
-              <Badge
-                variant={job.matchScore >= 80 ? 'success' : job.matchScore >= 60 ? 'secondary' : 'outline'}
-                className="font-semibold"
-              >
-                {job.matchScore}% match
-              </Badge>
+              <MatchScoreBar score={job.matchScore} />
             )}
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-foreground-muted mt-1" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-foreground-muted mt-1" />
-            )}
+            {isExpanded
+              ? <ChevronUp className="h-4 w-4 text-foreground-muted" />
+              : <ChevronDown className="h-4 w-4 text-foreground-muted" />}
           </div>
         </div>
 
         {/* Meta row */}
-        <div className="flex flex-wrap gap-3 mt-3 text-sm text-foreground-muted" onClick={onToggleExpand}>
-          <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{job.location}</div>
+        <div className="flex flex-wrap gap-3 mt-3 text-sm text-foreground-muted" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
+          {job.location && (
+            <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" />{job.location}</div>
+          )}
           {(job.salary || job.estimatedSalary) && (
             <div className="flex items-center gap-1">
-              <DollarSign className="h-3.5 w-3.5" />
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
               {job.salary || job.estimatedSalary}
               {!job.salary && job.estimatedSalary && (
                 <span className="text-xs text-foreground-muted/70">(est.)</span>
@@ -257,17 +302,14 @@ function JobCard({
             </div>
           )}
           {postedLabel && (
-            <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{postedLabel}</div>
+            <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 shrink-0" />{postedLabel}</div>
           )}
-          <WorkTypeBadge workType={job.workType} />
           {job.companyStage && job.companyStage !== 'Unknown' && (
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-3.5 w-3.5" />{job.companyStage}
-            </div>
+            <div className="flex items-center gap-1 text-xs">{job.companyStage}</div>
           )}
         </div>
 
-        {/* Quick summary (collapsed state) */}
+        {/* Quick summary */}
         {!isExpanded && job.aiSummary && (
           <p className="mt-2 text-xs text-foreground-muted line-clamp-2 cursor-pointer" onClick={onToggleExpand}>
             {job.aiSummary}
@@ -300,11 +342,11 @@ function JobCard({
 
 // ── MatchesTab (main export) ─────────────────────────────────────────────────
 export function MatchesTab({
-  plan,
-  jobs, loadingJobs, generatingJobs, onRequestJobs, fetchJobs,
+  plan, jobs, loadingJobs, generatingJobs, onRequestJobs, fetchJobs,
   filterCompany, setFilterCompany,
   filterLocation, setFilterLocation,
   filterSalary, setFilterSalary,
+  filterWorkType, setFilterWorkType,
   sortBy, setSortBy,
   selectedJob, setSelectedJob, setAiAction,
   saveJob, savedJobFingerprints, dismissJob,
@@ -315,6 +357,7 @@ export function MatchesTab({
 
   const [savingFingerprints, setSavingFingerprints] = useState<string[]>([]);
   const [expandedFingerprint, setExpandedFingerprint] = useState<string | null>(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const handleSave = async (job: DailyJob) => {
     const fp = jobFingerprint(job.title, job.company);
@@ -339,52 +382,124 @@ export function MatchesTab({
     setAiAction(null);
   };
 
+  const remoteCount = jobs.filter(
+    (j) => j.workType === 'remote' || (j.location || '').toLowerCase().includes('remote')
+  ).length;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-5 flex-shrink-0">
         <div>
           <h2 className="text-2xl tracking-tight text-foreground">Your Daily Matches</h2>
-          <p className="mt-1 text-sm text-foreground-muted">
-            AI-curated jobs based on your resume and career goals.
+          <p className="mt-0.5 text-sm text-foreground-muted">
+            Remote-first · AI-curated from your resume &amp; career goals
             {lastFetchTime && (
               <span className="ml-2 text-foreground-muted/60">
-                Updated {new Date(lastFetchTime).toLocaleDateString()}
+                · Updated {new Date(lastFetchTime).toLocaleDateString()}
               </span>
             )}
           </p>
         </div>
         {showLockedCards && (
           <Link to="/settings#billing-plan">
-            <Button variant="action">Upgrade to Pro</Button>
+            <Button variant="action" size="sm">Upgrade to Pro</Button>
           </Link>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="mb-4 flex w-full flex-shrink-0 flex-col gap-3 rounded-[28px] border border-border bg-surface p-4 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
-        <div className="grid flex-1 w-full grid-cols-1 gap-3 md:grid-cols-3">
-          <Input placeholder="Filter by company…" value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="w-full text-sm" />
-          <Input placeholder="Filter by location…" value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="w-full text-sm" />
-          <Input placeholder="Filter by salary…" value={filterSalary} onChange={(e) => setFilterSalary(e.target.value)} className="w-full text-sm" />
-        </div>
-        <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-foreground-muted" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground-muted outline-none focus:ring-2 focus:ring-[#3898ec]"
+      {/* Work-type toggle + sort */}
+      <div className="mb-4 flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
+        {/* Remote / All tabs */}
+        <div className="flex rounded-xl border border-border bg-surface-hover p-0.5 gap-0.5">
+          <button
+            onClick={() => setFilterWorkType('remote')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-all',
+              filterWorkType === 'remote'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
+            )}
           >
-            <option value="matchScore">Match Score</option>
-            <option value="datePosted">Newest First</option>
-            <option value="company">Company (A–Z)</option>
-          </select>
+            <Wifi className="h-3.5 w-3.5" />
+            Remote
+            {remoteCount > 0 && (
+              <span className={cn(
+                'ml-1 rounded-full px-1.5 py-0.5 text-xs font-bold',
+                filterWorkType === 'remote' ? 'bg-emerald-700/50 text-white' : 'bg-border text-foreground-muted'
+              )}>
+                {remoteCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setFilterWorkType('all')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-all',
+              filterWorkType === 'all'
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
+            )}
+          >
+            All
+            {jobs.length > 0 && (
+              <span className={cn(
+                'ml-1 rounded-full px-1.5 py-0.5 text-xs font-bold',
+                filterWorkType === 'all' ? 'bg-border text-foreground-muted' : 'bg-border text-foreground-muted'
+              )}>
+                {jobs.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Sort + advanced filters toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ArrowUpDown className="h-3.5 w-3.5 text-foreground-muted" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="h-9 rounded-xl border border-border bg-surface px-3 text-sm text-foreground-muted outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="matchScore">Best match</option>
+              <option value="datePosted">Newest first</option>
+              <option value="company">Company A–Z</option>
+            </select>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-foreground-muted text-xs"
+            onClick={() => setShowAdvancedFilters((v) => !v)}
+          >
+            Filters {showAdvancedFilters ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />}
+          </Button>
         </div>
       </div>
 
+      {/* Advanced filters (collapsible) */}
+      <AnimatePresence>
+        {showAdvancedFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="mb-4 flex-shrink-0"
+          >
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3 rounded-2xl border border-border bg-surface p-3">
+              <Input placeholder="Filter by company…" value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="text-sm" />
+              <Input placeholder="Filter by location…" value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="text-sm" />
+              <Input placeholder="Filter by salary…" value={filterSalary} onChange={(e) => setFilterSalary(e.target.value)} className="text-sm" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Feed */}
-      <div className="flex-1 overflow-y-auto pr-2 space-y-3 pb-8">
+      <div className="flex-1 overflow-y-auto pr-1 space-y-3 pb-8">
         {loadingJobs && jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-foreground" />
@@ -394,29 +509,54 @@ export function MatchesTab({
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
             {generatingJobs ? (
               <>
-                <Loader2 className="h-10 w-10 animate-spin text-foreground" />
-                <p className="font-medium text-foreground-muted">Finding the best jobs for you…</p>
-                <p className="text-sm text-foreground-muted/70 max-w-xs">
-                  Perplexity is searching live job boards and Claude is scoring each match. This takes about 60–90 seconds.
-                </p>
+                <div className="relative">
+                  <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+                  <Wifi className="absolute inset-0 m-auto h-4 w-4 text-emerald-600 opacity-60" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Finding remote jobs for you…</p>
+                  <p className="mt-1 text-sm text-foreground-muted max-w-xs">
+                    Perplexity is scanning live job boards for each of your career paths. Claude is scoring and enriching every match. Takes about 60–90 seconds.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-foreground-muted/60">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Searching LinkedIn · Greenhouse · Lever · Wellfound · Remote.co
+                </div>
               </>
             ) : (
               <>
-                <Calendar className="h-10 w-10 text-foreground-muted/40" />
-                <p className="font-medium text-foreground-muted">No jobs curated yet for today</p>
-                <p className="text-sm text-foreground-muted/70 max-w-xs">
-                  {isProPlan(plan)
-                    ? 'Generate your 10 personalised matches right now, or wait for the daily cron at 8 AM IST.'
-                    : 'Your 1 daily match will appear automatically at 8 AM IST.'}
-                </p>
+                <div className="h-16 w-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                  <Wifi className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">No remote jobs curated yet today</p>
+                  <p className="mt-1 text-sm text-foreground-muted max-w-xs">
+                    {isProPlan(plan)
+                      ? 'Generate your 10 personalised remote matches right now, or wait for the daily cron at 8 AM IST.'
+                      : 'Your 1 daily remote match will appear automatically at 8 AM IST.'}
+                  </p>
+                </div>
                 {isProPlan(plan) && onRequestJobs && (
                   <Button variant="action" onClick={onRequestJobs} className="mt-2">
                     <Zap className="mr-2 h-4 w-4" />
-                    Generate my jobs now
+                    Find my remote jobs now
                   </Button>
                 )}
               </>
             )}
+          </div>
+        ) : feedItems.length === 0 ? (
+          /* All jobs filtered out by work-type toggle */
+          <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+            <Wifi className="h-8 w-8 text-foreground-muted/30" />
+            <p className="text-sm font-medium text-foreground-muted">No remote jobs in today's batch</p>
+            <button
+              onClick={() => setFilterWorkType('all')}
+              className="text-xs text-primary underline underline-offset-2"
+            >
+              Show all work types
+            </button>
           </div>
         ) : (
           <AnimatePresence>
@@ -448,6 +588,11 @@ export function MatchesTab({
                   <Card className="relative overflow-hidden border-border bg-surface/90">
                     <CardContent className="p-5">
                       <div className="pointer-events-none select-none blur-[3px] opacity-80">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            <Wifi className="h-3 w-3" /> Remote
+                          </span>
+                        </div>
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-bold text-foreground font-display text-lg">{item.slot.title}</h3>
@@ -455,7 +600,7 @@ export function MatchesTab({
                           </div>
                           <Badge variant="secondary" className="font-semibold">Locked</Badge>
                         </div>
-                        <div className="flex flex-wrap gap-4 mt-4 text-sm text-foreground-muted">
+                        <div className="flex flex-wrap gap-4 mt-3 text-sm text-foreground-muted">
                           <div className="flex items-center"><MapPin className="mr-1.5 h-4 w-4" /> {item.slot.location}</div>
                           <div className="flex items-center"><DollarSign className="mr-1.5 h-4 w-4" /> {item.slot.salary}</div>
                         </div>
@@ -464,7 +609,7 @@ export function MatchesTab({
                         <div className="mx-6 flex max-w-xs flex-col items-center rounded-2xl border border-border bg-background/95 px-5 py-4 text-center shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
                           <Lock className="mb-2 h-5 w-5 text-primary" />
                           <p className="text-sm font-medium text-foreground">{item.slot.teaser}</p>
-                          <p className="mt-1 text-xs text-foreground-muted">Go Pro to unlock 10 AI-curated matches daily.</p>
+                          <p className="mt-1 text-xs text-foreground-muted">Go Pro to unlock 10 remote matches daily.</p>
                           {item.slot.index === 0 && (
                             <Link to="/settings#billing-plan" className="mt-3">
                               <Button variant="action" size="sm">Upgrade to Pro</Button>

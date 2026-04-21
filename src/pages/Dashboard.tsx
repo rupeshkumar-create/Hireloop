@@ -27,6 +27,7 @@ export function Dashboard() {
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
+    filterWorkType, setFilterWorkType,
     sortBy, setSortBy,
     lastFetchTime,
   } = useDashboardJobs(user, profile, updateProfile);
@@ -128,6 +129,7 @@ export function Dashboard() {
                 filterCompany={filterCompany} setFilterCompany={setFilterCompany}
                 filterLocation={filterLocation} setFilterLocation={setFilterLocation}
                 filterSalary={filterSalary} setFilterSalary={setFilterSalary}
+                filterWorkType={filterWorkType} setFilterWorkType={setFilterWorkType}
                 sortBy={sortBy} setSortBy={setSortBy}
                 selectedJob={selectedJob} setSelectedJob={setSelectedJob}
                 setAiAction={setAiAction}

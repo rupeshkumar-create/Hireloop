@@ -69,6 +69,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [filterCompany, setFilterCompany] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterSalary, setFilterSalary] = useState('');
+  const [filterWorkType, setFilterWorkType] = useState<'remote' | 'all'>('remote');
   const [sortBy, setSortBy] = useState<SortOption>('matchScore');
 
   useEffect(() => {
@@ -428,8 +429,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     return jobs
       .filter((job) => {
         const fp = jobFingerprint(job.title || '', job.company || '');
+        const passesWorkType =
+          filterWorkType === 'all' ||
+          job.workType === 'remote' ||
+          (job.location || '').toLowerCase().includes('remote');
         return (
           !dismissedFingerprints.includes(fp) &&
+          passesWorkType &&
           (job.company || '').toLowerCase().includes(filterCompany.toLowerCase()) &&
           (job.location || '').toLowerCase().includes(filterLocation.toLowerCase()) &&
           (job.salary || '').toLowerCase().includes(filterSalary.toLowerCase())
@@ -443,7 +449,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
         return 0;
       });
-  }, [jobs, dismissedFingerprints, filterCompany, filterLocation, filterSalary, sortBy]);
+  }, [jobs, dismissedFingerprints, filterWorkType, filterCompany, filterLocation, filterSalary, sortBy]);
 
   return {
     jobs,
@@ -461,6 +467,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,
+    filterWorkType, setFilterWorkType,
     sortBy, setSortBy,
   };
 }

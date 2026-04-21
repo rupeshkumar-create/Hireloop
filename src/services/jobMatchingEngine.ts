@@ -6,6 +6,7 @@
  *  STAGE 1 – Batch scoring (Google Gemini 2.5 Pro)
  *    Sends all discovered jobs + user profile in one call.
  *    Returns matchScore (0–100) for each job.
+ *    Remote jobs receive a +8 bonus to surface them higher.
  *
  *  STAGE 2 – Enrichment (Anthropic Claude claude-sonnet-4-6 via OpenRouter)
  *    For the top-ranked 15 candidates, generate per-job insights:
@@ -14,11 +15,8 @@
  *  STAGE 3 – Final ranking + selection
  *    Composite score: matchScore × 0.50 + freshnessScore × 0.20 +
  *    qualityScore × 0.20 + hotJobBonus × 0.10
- *    Pick top 10 (or fewer if the user is on free plan).
- *
- * The `callAI` function is injected by the caller so this module works both
- * in the server-side cron (direct OpenRouter call) and in the admin ghost-mode
- * UI (via the /api/openai browser proxy).
+ *    Remote jobs get an additional +8 applied before final sort.
+ *    Pick top-N based on plan limit.
  */
 
 import type { DiscoveredJob, CallAIFn } from './jobResearcher';
@@ -61,6 +59,10 @@ function sourceQualityScore(source: string): number {
   }
 }
 
+function remoteBonus(workType: string): number {
+  return workType === 'remote' ? 8 : workType === 'hybrid' ? 3 : 0;
+}
+
 function keywordMatchScore(job: DiscoveredJob, careerPaths: string[], resumeText: string): number {
   const haystack = `${job.title} ${job.description} ${job.requirements.join(' ')}`.toLowerCase();
   const pathKeywords = careerPaths.flatMap((p) => p.toLowerCase().split(/\s+/));
@@ -76,12 +78,13 @@ function keywordMatchScore(job: DiscoveredJob, careerPaths: string[], resumeText
   return Math.min(100, score);
 }
 
-function compositeScore(matchScore: number, days: number, source: string, isHot: boolean): number {
+function compositeScore(matchScore: number, days: number, source: string, isHot: boolean, workType: string): number {
   return (
     matchScore                  * 0.50 +
     freshnessScore(days)        * 0.20 +
     sourceQualityScore(source)  * 0.20 +
-    (isHot ? 10 : 0)            * 0.10
+    (isHot ? 10 : 0)            * 0.10 +
+    remoteBonus(workType)
   );
 }
 
@@ -104,9 +107,10 @@ async function batchScoreJobs(
   const jobList = jobs
     .map(
       (j, i) =>
-        `[${i}] ${j.title} @ ${j.company} | ${j.location} | ${j.workType}\n` +
-        `Requirements: ${j.requirements.slice(0, 5).join(', ')}\n` +
-        `Description (first 400 chars): ${j.description.slice(0, 400)}`
+        `[${i}] ${j.title} @ ${j.company} | ${j.location} | ${j.workType}` +
+        (j.matchedCareerPath ? ` | Target: ${j.matchedCareerPath}` : '') +
+        `\nRequirements: ${j.requirements.slice(0, 5).join(', ')}\n` +
+        `Description (first 350 chars): ${j.description.slice(0, 350)}`
     )
     .join('\n\n---\n\n');
 
@@ -122,14 +126,14 @@ ${resumeText.slice(0, 1500)}
 ${jobList}
 
 ## Task
-For each job [index], assign a matchScore (0–100) measuring how well the job fits the candidate.
+For each job [index], assign a matchScore (0–100) measuring fit for this candidate.
 
 Scoring rules:
-- 90–100: Exceptional fit – title matches career goal, core skills align, correct work type
-- 70–89 : Good fit – strong overlap, minor gaps
-- 50–69 : Partial fit – some relevant overlap
-- 30–49 : Weak fit – role adjacent but key gaps
-- 0–29  : Poor fit – wrong domain, seniority, or work type
+- 90–100: Exceptional fit — title matches career goal, core skills align, correct work type
+- 70–89 : Good fit — strong overlap, minor gaps
+- 50–69 : Partial fit — some relevant overlap
+- 30–49 : Weak fit — role adjacent but key gaps
+- 0–29  : Poor fit — wrong domain, seniority, or work type
 
 Return ONLY a JSON array:
 [{"index": 0, "matchScore": 85}, {"index": 1, "matchScore": 72}, ...]
@@ -147,7 +151,6 @@ Include ALL ${jobs.length} entries. No explanation.`;
     console.error('[jobMatchingEngine] Batch scoring failed:', err);
   }
 
-  // Fallback: keyword scoring
   return jobs.map((job, index) => ({
     index,
     matchScore: keywordMatchScore(job, careerPaths, resumeText),
@@ -175,7 +178,11 @@ async function enrichJob(
   resumeText: string,
   callAI: CallAIFn
 ): Promise<JobInsights> {
-  const prompt = `You are a concise career advisor. Analyze this job listing for the candidate.
+  const careerPathContext = job.matchedCareerPath
+    ? `Specifically matched against career path: "${job.matchedCareerPath}"`
+    : `Career goals: ${careerPaths.join(', ')}`;
+
+  const prompt = `You are a concise career advisor. Analyze this remote job listing for the candidate.
 
 ## Job
 Title: ${job.title}
@@ -187,22 +194,22 @@ Description:
 ${job.description.slice(0, 2000)}
 
 ## Candidate
-Career goals: ${careerPaths.join(', ')}
+${careerPathContext}
 Resume summary (first 800 chars):
 ${resumeText.slice(0, 800)}
 
-## Return JSON only:
+## Return JSON only (no other text):
 {
-  "matchReasons": ["3-5 specific reasons why this fits the candidate (cite real evidence)"],
-  "skillGaps": ["2-4 skills/requirements in the job not evident in the resume"],
-  "aiSummary": "2-sentence plain-English summary of the role and why it is relevant",
-  "isHotJob": true,
-  "hotSignals": ["evidence of fast growth or urgency, if any"],
+  "matchReasons": ["3–5 specific reasons why this fits the candidate — cite real evidence from job and resume"],
+  "skillGaps": ["2–4 skills required by the job not evident in the resume"],
+  "aiSummary": "2-sentence plain-English summary of the role and why it's relevant to this candidate",
+  "isHotJob": true or false,
+  "hotSignals": ["evidence of fast growth, urgency, or notable company momentum — omit if none"],
   "companyStage": "Startup | Scale-up | Enterprise | Unknown",
-  "estimatedSalary": "$X–$Y/yr (only if not listed above, else omit)"
+  "estimatedSalary": "$X–$Y/yr (only if not already listed above, else omit this field)"
 }
 
-Be specific and evidence-based. No generic filler.`;
+Be specific and evidence-based. No generic filler. No invented data.`;
 
   try {
     const raw = await callAI(
@@ -227,7 +234,9 @@ Be specific and evidence-based. No generic filler.`;
 
   return {
     matchReasons: [
-      careerPaths[0]
+      job.matchedCareerPath
+        ? `Related to your "${job.matchedCareerPath}" career goal`
+        : careerPaths[0]
         ? `Related to your ${careerPaths[0]} career goal`
         : 'Matches your resume keywords',
     ],
@@ -244,7 +253,7 @@ Be specific and evidence-based. No generic filler.`;
 
 function buildDailyJob(raw: DiscoveredJob, matchScore: number, insights: JobInsights): DailyJob {
   const fScore = Math.round(
-    compositeScore(matchScore, raw.daysOld ?? 0, raw.source, insights.isHotJob)
+    compositeScore(matchScore, raw.daysOld ?? 0, raw.source, insights.isHotJob, raw.workType)
   );
 
   return {
@@ -270,6 +279,7 @@ function buildDailyJob(raw: DiscoveredJob, matchScore: number, insights: JobInsi
     hotSignals: insights.hotSignals,
     companyStage: insights.companyStage,
     estimatedSalary: insights.estimatedSalary,
+    matchedCareerPath: raw.matchedCareerPath,
   };
 }
 
@@ -283,7 +293,7 @@ export interface MatchOptions {
   jobType?: string;
   seenFingerprints?: string[];
   limit?: number;
-  minMatchScore?: number;  // jobs below this score are excluded (default: 30)
+  minMatchScore?: number;
 }
 
 export interface MatchResult {
@@ -295,10 +305,7 @@ export interface MatchResult {
 
 /**
  * Full pipeline: score → filter seen → enrich top-N → rank → slice.
- *
- * @param discoveredJobs  - Jobs from researchJobs()
- * @param opts            - Candidate matching options
- * @param callAI          - Injected AI caller (direct OpenRouter on server, proxy on client)
+ * Remote jobs receive a scoring bonus so they surface above equivalent non-remote matches.
  */
 export async function matchAndRankJobs(
   discoveredJobs: DiscoveredJob[],
@@ -308,16 +315,15 @@ export async function matchAndRankJobs(
   const {
     careerPaths,
     resumeText,
-    jobType = 'both',
+    jobType = 'remote',
     seenFingerprints = [],
     limit = 10,
-    minMatchScore = 30,
+    minMatchScore = 25,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
   let usedFallback = false;
 
-  // Remove already-seen jobs
   const unseenJobs = discoveredJobs.filter((j) => !seenSet.has(j.fingerprint));
 
   // Stage 1: Batch score all unseen jobs
@@ -335,19 +341,21 @@ export async function matchAndRankJobs(
   let backfillJobs: typeof scored = [];
   if (scored.length < limit) {
     const seenJobs = discoveredJobs.filter((j) => seenSet.has(j.fingerprint));
-    const seenScores = await batchScoreJobs(seenJobs, careerPaths, resumeText, jobType, callAI);
-    backfillJobs = seenJobs
-      .map((job, idx) => ({
-        job,
-        matchScore: seenScores[idx]?.matchScore ?? keywordMatchScore(job, careerPaths, resumeText),
-      }))
-      .sort((a, b) => b.matchScore - a.matchScore);
-    if (backfillJobs.length > 0) usedFallback = true;
+    if (seenJobs.length > 0) {
+      const seenScores = await batchScoreJobs(seenJobs, careerPaths, resumeText, jobType, callAI);
+      backfillJobs = seenJobs
+        .map((job, idx) => ({
+          job,
+          matchScore: seenScores[idx]?.matchScore ?? keywordMatchScore(job, careerPaths, resumeText),
+        }))
+        .sort((a, b) => b.matchScore - a.matchScore);
+      if (backfillJobs.length > 0) usedFallback = true;
+    }
   }
 
   const candidates = [...scored, ...backfillJobs].slice(0, Math.max(limit, 15));
 
-  // Stage 2: Enrich top candidates (batches of 5)
+  // Stage 2: Enrich top candidates in batches of 5
   const enriched: DailyJob[] = [];
   const batchSize = 5;
   for (let i = 0; i < candidates.length; i += batchSize) {
@@ -364,7 +372,7 @@ export async function matchAndRankJobs(
     }
   }
 
-  // Stage 3: Final sort by composite finalScore
+  // Stage 3: Final sort by composite finalScore (remote bonus already baked in)
   const final = enriched
     .sort((a, b) => b.finalScore - a.finalScore)
     .slice(0, limit);
