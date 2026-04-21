@@ -110,7 +110,8 @@ async function sendEmail(email: string, jobs: DailyJob[]) {
 async function processUser(
   userId: string,
   runDate: string,
-  db: FirebaseFirestore.Firestore
+  db: FirebaseFirestore.Firestore,
+  force = false
 ) {
   const callAI = makeCallAI();
 
@@ -124,7 +125,11 @@ async function processUser(
 
       getExistingRun: async (runId) => {
         const snap = await db.collection('cronRuns').doc(runId).get();
-        return snap.exists ? ({ id: snap.id, ...snap.data() } as any) : null;
+        if (!snap.exists) return null;
+        const data = { id: snap.id, ...snap.data() } as any;
+        // When force=true (user-triggered), allow re-run unless actively processing.
+        if (force && data.status !== 'processing') return null;
+        return data;
       },
 
       markRun: async (runId, patch) => {
@@ -220,11 +225,12 @@ async function main() {
   const { db } = initAdmin();
   const runDate = getCronRunDateIST();
   const specificUserId = process.env.USER_ID?.trim();
+  const forceRerun = process.env.FORCE_RERUN === 'true';
 
   if (specificUserId) {
     // ── Single-user mode (user-triggered or admin override) ──────────────────
-    console.log(`[generate-daily-jobs] Single-user mode: ${specificUserId}`);
-    const result = await processUser(specificUserId, runDate, db);
+    console.log(`[generate-daily-jobs] Single-user mode: ${specificUserId} (force=${forceRerun})`);
+    const result = await processUser(specificUserId, runDate, db, forceRerun);
     console.log('[generate-daily-jobs] Done:', result);
     return;
   }

@@ -154,9 +154,10 @@ In compact form, the live system is:
 ### Primary Runtime Path
 
 - Profile load and dashboard fetch orchestration: `src/hooks/useDashboardJobs.ts`
-- Query generation, harvesting, validation handoff, scoring, ranking, and final selection: `src/services/aiService.ts`
-- Rejection mapping and seen-fingerprint splitting: `src/services/dailyJobsEngine.ts`
+- Scout query generation + Harvester (Perplexity/Gemini search) + Deduplication: `src/services/jobResearcher.ts`
 - Deterministic hard validation: `src/services/validator.ts`
+- AI batch scoring + enrichment + final composite score + plan-capped selection: `src/services/jobMatchingEngine.ts`
+- User-facing AI tasks (email generation, resume tailoring, interview questions, career paths): `src/services/aiService.ts`
 - Learning signal extraction and Scout query rewrite: `src/services/learningSignals.ts`
 - Guardrail validation and AI logging: `src/services/systemEngine.ts`
 

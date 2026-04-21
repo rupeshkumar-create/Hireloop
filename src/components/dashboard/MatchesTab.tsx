@@ -17,7 +17,7 @@ import { cn } from '../../lib/utils';
 import { isProPlan } from '../../lib/planLimits';
 import { buildMatchFeedItems } from './matchPaywall';
 import { jobFingerprint } from '../../services/jobResearcher';
-import { resolveJobApplicationUrl } from '../../lib/jobLinks';
+import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
 interface MatchesTabProps {
   plan?: string;
@@ -67,7 +67,8 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
   isSaving: boolean;
   onDismiss: () => void;
 }) {
-  const applyUrl = resolveJobApplicationUrl(job);
+  const applyUrl = resolveJobApplicationUrlWithFallback(job);
+  const isFallbackUrl = isJobUrlFallback(job);
 
   return (
     <div className="mt-4 border-t border-border pt-4 space-y-4">
@@ -158,17 +159,16 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
           {isSaved ? 'Saved' : isSaving ? 'Saving...' : 'Save Job'}
         </Button>
 
-        {applyUrl && (
-          <a
-            href={applyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:border-border-strong transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            Apply externally
-          </a>
-        )}
+        <a
+          href={applyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:border-border-strong transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          {isFallbackUrl ? 'Find & Apply' : 'Apply'}
+        </a>
 
         <Button variant="ghost" size="icon" className="shrink-0 text-foreground-muted" onClick={onDismiss}>
           <X className="h-4 w-4" />

@@ -42,7 +42,6 @@ import {
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 import { resolveJobApplicationUrl } from '../lib/jobLinks';
 
-const MAX_SEEN_FINGERPRINTS = 500;
 
 type GeneratedTrackedJobAssets = {
   coldEmail?: string;
@@ -137,12 +136,18 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       }
       if (foundInDaily) return;
 
-      // 2. Fall back to last-cached batch on the user doc
+      // 2. Fall back to today's cached batch on the user doc — only if it's from today
       if (profile.dailyJobs && profile.dailyJobs.length > 0) {
-        const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
-        setJobs(cached);
-        setLastFetchTime(profile.lastJobFetchTime || null);
-        return;
+        const fetchDate = profile.lastJobFetchTime
+          ? profile.lastJobFetchTime.split('T')[0]
+          : null;
+        if (fetchDate === today) {
+          const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
+          setJobs(cached);
+          setLastFetchTime(profile.lastJobFetchTime || null);
+          return;
+        }
+        // stale cache from a previous day — fall through to empty state
       }
 
       // 3. No jobs at all — show empty state (handled in the UI via jobs.length === 0)

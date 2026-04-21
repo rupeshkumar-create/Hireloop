@@ -22,3 +22,17 @@ export function resolveJobApplicationUrl(job: Job | null | undefined): string | 
 
   return null;
 }
+
+/** Returns the direct apply URL if available, or a Google search for the job as fallback. */
+export function resolveJobApplicationUrlWithFallback(job: Job | null | undefined): string {
+  if (!job) return '#';
+  const direct = resolveJobApplicationUrl(job);
+  if (direct) return direct;
+  const query = encodeURIComponent(`${job.title} ${job.company} job apply`);
+  return `https://www.google.com/search?q=${query}`;
+}
+
+/** Returns true when the resolved URL is a fallback search (no direct apply link). */
+export function isJobUrlFallback(job: Job | null | undefined): boolean {
+  return resolveJobApplicationUrl(job) === null;
+}

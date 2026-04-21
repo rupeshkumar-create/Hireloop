@@ -48,4 +48,8 @@ jobs:
               github.event.client_payload.userId ||
               ''
             }}
+          FORCE_RERUN: >-
+            ${{
+              github.event.client_payload.force == true && 'true' || 'false'
+            }}
         run: npx tsx scripts/generate-daily-jobs.ts

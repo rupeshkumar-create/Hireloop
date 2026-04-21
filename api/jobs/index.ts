@@ -80,7 +80,7 @@ async function handleAsyncDispatch(uid: string, res: VercelResponse) {
       },
       body: JSON.stringify({
         event_type: 'generate-jobs-for-user',
-        client_payload: { userId: uid, runDate },
+        client_payload: { userId: uid, runDate, force: true },
       }),
     });
   } catch (fetchErr) {
@@ -130,9 +130,15 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
         const snap = await db.collection('users').doc(userId).get();
         return snap.exists ? { id: snap.id, data: snap.data() || {} } : null;
       },
+      // For user-triggered requests, allow re-runs even if already completed today.
       getExistingRun: async (runId) => {
         const snap = await db.collection('cronRuns').doc(runId).get();
-        return snap.exists ? ({ id: snap.id, ...snap.data() } as any) : null;
+        if (!snap.exists) return null;
+        const data = { id: snap.id, ...snap.data() } as any;
+        // Only block on active 'processing' runs to avoid double-processing.
+        // Completed or failed runs are reset so the user can regenerate on demand.
+        if (data.status === 'processing') return data;
+        return null;
       },
       markRun: async (runId, patch) => {
         await db.collection('cronRuns').doc(runId).set(

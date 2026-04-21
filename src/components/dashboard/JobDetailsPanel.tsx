@@ -11,7 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
 import { ResumePreviewModal } from './ResumePreviewModal';
-import { resolveJobApplicationUrl } from '../../lib/jobLinks';
+import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
 interface JobDetailsPanelProps {
   selectedJob: Job;
@@ -33,7 +33,8 @@ export function JobDetailsPanel({
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
   const [showResumePreview, setShowResumePreview] = useState(false);
-  const applyUrl = resolveJobApplicationUrl(selectedJob);
+  const applyUrl = resolveJobApplicationUrlWithFallback(selectedJob);
+  const isFallbackUrl = isJobUrlFallback(selectedJob);
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 sm:p-6">
@@ -66,18 +67,13 @@ export function JobDetailsPanel({
                 variant="action"
                 className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]"
                 size="lg"
-                disabled={!applyUrl}
-                title={applyUrl ? 'Open application link' : 'Application link unavailable'}
+                title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
                 onClick={() => {
                   trackJobClick(selectedJob);
-                  if (!applyUrl) {
-                    toast.error('Application link unavailable for this job.');
-                    return;
-                  }
                   window.open(applyUrl, '_blank', 'noopener,noreferrer');
                 }}
               >
-                Apply Now <ExternalLink className="ml-2 h-4 w-4" />
+                {isFallbackUrl ? 'Find & Apply' : 'Apply Now'} <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
               <Button
                 variant={isSaved ? 'secondary' : 'outline'}
