@@ -353,23 +353,19 @@ export async function matchAndRankJobs(
     }
   }
 
-  const candidates = [...scored, ...backfillJobs].slice(0, Math.max(limit, 15));
+  const candidates = [...scored, ...backfillJobs].slice(0, Math.min(Math.max(limit, 10), 15));
 
-  // Stage 2: Enrich top candidates in batches of 5
+  // Stage 2: Enrich top candidates — all in parallel to minimize wall-clock time
   const enriched: DailyJob[] = [];
-  const batchSize = 5;
-  for (let i = 0; i < candidates.length; i += batchSize) {
-    const batch = candidates.slice(i, i + batchSize);
-    const results = await Promise.allSettled(
-      batch.map(({ job, matchScore }) =>
-        enrichJob(job, matchScore, careerPaths, resumeText, callAI).then((insights) =>
-          buildDailyJob(job, matchScore, insights)
-        )
+  const enrichResults = await Promise.allSettled(
+    candidates.map(({ job, matchScore }) =>
+      enrichJob(job, matchScore, careerPaths, resumeText, callAI).then((insights) =>
+        buildDailyJob(job, matchScore, insights)
       )
-    );
-    for (const res of results) {
-      if (res.status === 'fulfilled') enriched.push(res.value);
-    }
+    )
+  );
+  for (const res of enrichResults) {
+    if (res.status === 'fulfilled') enriched.push(res.value);
   }
 
   // Stage 3: Final sort by composite finalScore (remote bonus already baked in)

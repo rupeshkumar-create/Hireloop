@@ -56,87 +56,23 @@ async function verifyUser(req: VercelRequest): Promise<string | null> {
   return decoded.uid;
 }
 
-async function handleAsyncDispatch(uid: string, res: VercelResponse) {
-  const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
-  const githubRepo = process.env.GITHUB_REPO;
-
-  if (!githubToken || !githubRepo) {
-    return res.status(503).json({
-      error: 'async_not_configured',
-      message: 'GitHub Actions dispatch is not set up; use sync trigger mode instead.',
-    });
-  }
-
-  const runDate = getCronRunDateIST();
-
-  let ghResponse: Response;
-  try {
-    ghResponse = await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'generate-jobs-for-user',
-        client_payload: { userId: uid, runDate, force: true },
-      }),
-    });
-  } catch (fetchErr) {
-    console.error('[jobs/index] GitHub fetch threw:', fetchErr);
-    return res.status(503).json({
-      error: 'async_not_configured',
-      message: 'GitHub Actions unreachable; use sync trigger mode instead.',
-    });
-  }
-
-  if (!ghResponse.ok) {
-    const body = await ghResponse.text().catch(() => '');
-    console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
-
-    let hint = '';
-    if (ghResponse.status === 401 || ghResponse.status === 403) {
-      hint = ' — check that GITHUB_DISPATCH_TOKEN has the "repo" scope';
-    } else if (ghResponse.status === 404) {
-      hint = ` — repo "${githubRepo}" not found or token lacks access`;
-    } else if (ghResponse.status === 422) {
-      hint = ' — workflow file may be missing the repository_dispatch trigger';
-    }
-
-    return res.status(502).json({
-      error: `GitHub dispatch failed (HTTP ${ghResponse.status})${hint}`,
-      githubStatus: ghResponse.status,
-    });
-  }
-
-  return res.status(202).json({
-    status: 'dispatched',
-    runDate,
-    message: 'Job generation started. Your dashboard will update automatically in ~2 minutes.',
-  });
-}
-
-async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelResponse) {
+async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
   const db = getAdminDb();
   const runDate = getCronRunDateIST();
   const baseUrl = getBaseUrl(req);
   const callAI = makeServerCallAI();
 
-  const result = await processUserCronRun(
+  await processUserCronRun(
     { userId: uid, runDate },
     {
       loadUser: async (userId) => {
         const snap = await db.collection('users').doc(userId).get();
         return snap.exists ? { id: snap.id, data: snap.data() || {} } : null;
       },
-      // For user-triggered requests, allow re-runs even if already completed today.
       getExistingRun: async (runId) => {
         const snap = await db.collection('cronRuns').doc(runId).get();
         if (!snap.exists) return null;
         const data = { id: snap.id, ...snap.data() } as any;
-        // Only block on active 'processing' runs to avoid double-processing.
-        // Completed or failed runs are reset so the user can regenerate on demand.
         if (data.status === 'processing') return data;
         return null;
       },
@@ -154,19 +90,12 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
         const { jobs: discovered } = await researchJobs(
-          { careerPaths, resumeText, jobType, location, targetCount: 30 },
+          { careerPaths, resumeText, jobType, location, targetCount: 20 },
           callAI
         );
 
         if (discovered.length === 0) {
-          return {
-            jobs: [],
-            requestedLimit: limit,
-            usedBackfill: false,
-            totalValidatedJobs: 0,
-            unseenCount: 0,
-            seenCount: 0,
-          };
+          return { jobs: [], requestedLimit: limit, usedBackfill: false, totalValidatedJobs: 0, unseenCount: 0, seenCount: 0 };
         }
 
         const matchResult = await matchAndRankJobs(
@@ -222,11 +151,66 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
       },
     }
   );
+}
 
+async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
+  const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
+  const githubRepo = process.env.GITHUB_REPO;
+  const runDate = getCronRunDateIST();
+
+  if (githubToken && githubRepo) {
+    let ghResponse: Response;
+    try {
+      ghResponse = await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
+        method: 'POST',
+        headers: {
+          Authorization: `token ${githubToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_type: 'generate-jobs-for-user',
+          client_payload: { userId: uid, runDate, force: true },
+        }),
+      });
+    } catch (fetchErr) {
+      console.error('[jobs/index] GitHub fetch threw:', fetchErr);
+      ghResponse = { ok: false, status: 0 } as any;
+    }
+
+    if (ghResponse.ok) {
+      return res.status(202).json({
+        status: 'dispatched',
+        runDate,
+        message: 'Job generation started. Your dashboard will update automatically in ~2 minutes.',
+      });
+    }
+
+    const body = await (ghResponse as Response).text?.().catch(() => '') ?? '';
+    console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
+  }
+
+  // GitHub not configured or unreachable — respond 202 immediately and run pipeline
+  // in-process. Vercel keeps the function alive until pipeline completes or maxDuration.
+  // The Firestore subscription on the dashboard picks up results when storeJobs writes.
+  res.status(202).json({
+    status: 'processing',
+    runDate,
+    message: 'Job generation started. Your dashboard will update automatically in a moment.',
+  });
+
+  await runPipeline(uid, req).catch((err) => {
+    console.error('[jobs/index] Inline pipeline error after 202:', err);
+  });
+}
+
+async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelResponse) {
+  await runPipeline(uid, req);
+  const db = getAdminDb();
+  const runDate = getCronRunDateIST();
   const snap = await db.collection('users').doc(uid).collection('daily_matches').doc(runDate).get();
   const jobs = snap.exists ? (snap.data()?.jobs || []) : [];
-
-  return res.status(200).json({ ...result, jobs });
+  return res.status(200).json({ jobs });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -243,7 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const mode = typeof req.body?.mode === 'string' ? req.body.mode.trim() : 'request';
 
   try {
-    if (mode === 'request') return await handleAsyncDispatch(uid, res);
+    if (mode === 'request') return await handleAsyncDispatch(uid, req, res);
     if (mode === 'trigger') return await handleSyncTrigger(uid, req, res);
     return res.status(400).json({ error: 'Invalid jobs mode. Use "request" or "trigger".' });
   } catch (error) {
