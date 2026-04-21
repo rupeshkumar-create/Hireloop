@@ -245,9 +245,18 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       });
 
       if (!triggerResponse.ok) {
-        const errBody = await triggerResponse.json().catch(() => ({}));
-        const msg = (errBody as any).error || `Job generation failed (HTTP ${triggerResponse.status})`;
-        toast.error(msg);
+        let msg = `Job generation failed (HTTP ${triggerResponse.status})`;
+        try {
+          const errBody = await triggerResponse.json();
+          if (errBody?.error) msg = errBody.error;
+        } catch {
+          // Non-JSON response (e.g. Vercel timeout page) — keep generic message
+          // but hint at the likely cause for common status codes
+          if (triggerResponse.status === 504 || triggerResponse.status === 500) {
+            msg = 'Job generation timed out. The AI pipeline needs up to 90 seconds — please try again in a moment.';
+          }
+        }
+        toast.error(msg, { duration: 8000 });
         return;
       }
 
