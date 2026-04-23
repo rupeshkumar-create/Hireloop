@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildCronRunId,
+  evaluateDueUsers,
   getCronRunDateIST,
   isActiveCronUser,
   processUserCronRun,
@@ -64,6 +65,39 @@ describe('queueCronRun', () => {
 
     expect(first.status).toBe('queued');
     expect(second.status).toBe('duplicate');
+  });
+});
+
+describe('evaluateDueUsers', () => {
+  it('selects only users whose next delivery time is due', () => {
+    const result = evaluateDueUsers(
+      [
+        {
+          id: 'due_user',
+          data: {
+            plan: 'pro',
+            receiveDailyAlerts: true,
+            deliveryTimezone: 'Asia/Kolkata',
+            preferredDeliveryHour: 8,
+            nextJobDeliveryAt: '2026-04-24T02:30:00.000Z',
+          },
+        },
+        {
+          id: 'later_user',
+          data: {
+            plan: 'pro',
+            receiveDailyAlerts: true,
+            deliveryTimezone: 'America/New_York',
+            preferredDeliveryHour: 12,
+            nextJobDeliveryAt: '2026-04-24T16:00:00.000Z',
+          },
+        },
+      ],
+      new Date('2026-04-24T03:00:00.000Z')
+    );
+
+    expect(result.due.map((user) => user.id)).toEqual(['due_user']);
+    expect(result.skipped.map((user) => user.id)).toEqual(['later_user']);
   });
 });
 

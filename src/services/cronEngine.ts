@@ -1,8 +1,13 @@
 import { getDailyMatchLimit } from '../lib/planLimits';
+import { evaluateDueDailyRun } from './jobDeliveryProfile';
 
 export interface CronEligibleUser {
   plan?: string;
   receiveDailyAlerts?: boolean;
+  deliveryTimezone?: string;
+  preferredDeliveryHour?: number;
+  nextJobDeliveryAt?: string;
+  lastSuccessfulJobRunLocalDate?: string;
 }
 
 export interface CronRunRecord {
@@ -99,6 +104,42 @@ export async function queueCronRun(
     runId,
     status: created ? ('queued' as const) : ('duplicate' as const),
   };
+}
+
+export function evaluateDueUsers(
+  users: LoadedCronUser[],
+  now: Date = new Date()
+) {
+  const due: LoadedCronUser[] = [];
+  const skipped: LoadedCronUser[] = [];
+
+  for (const user of users) {
+    if (!isActiveCronUser(user.data)) {
+      skipped.push(user);
+      continue;
+    }
+
+    if (user.data.nextJobDeliveryAt && user.data.nextJobDeliveryAt > now.toISOString()) {
+      skipped.push(user);
+      continue;
+    }
+
+    const dueResult = evaluateDueDailyRun(user.data, now);
+    if (dueResult.due) {
+      due.push({
+        ...user,
+        data: {
+          ...user.data,
+          deliveryLocalDate: dueResult.localDate,
+          nextJobDeliveryAt: dueResult.nextDeliveryAt,
+        },
+      });
+    } else {
+      skipped.push(user);
+    }
+  }
+
+  return { due, skipped };
 }
 
 export async function processUserCronRun(

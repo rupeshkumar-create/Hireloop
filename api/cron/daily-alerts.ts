@@ -16,7 +16,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
 import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { getCronRunDateIST, isActiveCronUser, queueCronRun } from '../../src/services/cronEngine';
+import { evaluateDueUsers, queueCronRun } from '../../src/services/cronEngine';
 
 const DISPATCH_BATCH_SIZE = 50;
 
@@ -35,46 +35,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const db = getAdminDb();
-    const runDate = getCronRunDateIST();
     const baseUrl = getBaseUrl(req);
+    const now = new Date();
+    const dueSnapshot = await db
+      .collection('users')
+      .where('nextJobDeliveryAt', '<=', now.toISOString())
+      .orderBy('nextJobDeliveryAt', 'asc')
+      .limit(DISPATCH_BATCH_SIZE)
+      .get();
 
-    // Primary query: users WITH lastJobFetchTime, stale-first.
-    // Secondary query: users WITHOUT lastJobFetchTime (new accounts that were
-    // created before the sentinel value was introduced). Firestore's orderBy
-    // silently excludes documents that don't have the ordered field, so these
-    // users would never appear in the primary query alone.
-    const [primarySnapshot, secondarySnapshot] = await Promise.all([
-      db.collection('users').orderBy('lastJobFetchTime', 'asc').limit(DISPATCH_BATCH_SIZE).get(),
-      db.collection('users').orderBy('createdAt', 'asc').limit(DISPATCH_BATCH_SIZE).get(),
-    ]);
-
-    // Merge: primary first (stale-first ordering), then fill with secondary
-    // results that weren't already included (users without lastJobFetchTime).
-    const seenIds = new Set<string>();
-    const mergedDocs: typeof primarySnapshot.docs = [];
-    for (const docSnap of [...primarySnapshot.docs, ...secondarySnapshot.docs]) {
-      if (!seenIds.has(docSnap.id)) {
-        seenIds.add(docSnap.id);
-        mergedDocs.push(docSnap);
-      }
-    }
-    const snapshot = { docs: mergedDocs.slice(0, DISPATCH_BATCH_SIZE) };
+    const { due, skipped: skippedUsers } = evaluateDueUsers(
+      dueSnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        data: docSnap.data(),
+      })),
+      now
+    );
 
     let queued = 0;
-    let skipped = 0;
+    let skipped = skippedUsers.length;
     let duplicates = 0;
     const errors: string[] = [];
 
-    for (const userDoc of snapshot.docs) {
-      const profile = userDoc.data();
-
-      if (!isActiveCronUser(profile)) {
-        skipped++;
-        continue;
-      }
-
+    for (const loadedUser of due) {
+      const profile = loadedUser.data;
       const queueResult = await queueCronRun(
-        { userId: userDoc.id, runDate, plan: profile.plan, email: profile.email },
+        {
+          userId: loadedUser.id,
+          runDate: profile.deliveryLocalDate,
+          plan: profile.plan,
+          email: profile.email,
+        },
         {
           createRun: async ({ runId, ...record }) => {
             const ref = db.collection('cronRuns').doc(runId);
@@ -83,7 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await ref.set({
               ...record,
               status: 'queued',
-              dispatchSource: 'daily-alerts-v2',
+              dispatchSource: 'daily-alerts-v3',
+              deliveryTimezone: profile.deliveryTimezone || 'UTC',
               createdAt: new Date().toISOString(),
             });
             return true;
@@ -105,13 +97,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.INTERNAL_CRON_SECRET || process.env.CRON_SECRET}`,
         },
-        body: JSON.stringify({ userId: userDoc.id, runDate }),
+        body: JSON.stringify({ userId: loadedUser.id, runDate: profile.deliveryLocalDate }),
       }).catch((err) => {
-        errors.push(`${userDoc.id}: ${err.message}`);
+        errors.push(`${loadedUser.id}: ${err.message}`);
       });
     }
 
-    return res.status(200).json({ queued, skipped, duplicates, runDate, errors });
+    return res.status(200).json({
+      queued,
+      skipped,
+      duplicates,
+      runDate: due[0]?.data.deliveryLocalDate || null,
+      errors,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return res.status(500).json({ error: message });
