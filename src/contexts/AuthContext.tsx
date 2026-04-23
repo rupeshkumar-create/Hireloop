@@ -26,6 +26,14 @@ export interface UserPreferences {
   locations: string[];
 }
 
+export interface MatchReadinessSnapshot {
+  status: 'ready' | 'partial' | 'blocked';
+  hasResume: boolean;
+  hasCareerPaths: boolean;
+  blockingReason: string | null;
+  qualityWarnings: string[];
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -41,11 +49,18 @@ export interface UserProfile {
   resumeSummary?: string;
   structuredProfile?: StructuredProfile;
   preferences?: UserPreferences;
+  matchingPreferences?: UserPreferences;
+  deliveryTimezone?: string;
+  preferredDeliveryHour?: number;
+  nextJobDeliveryAt?: string;
+  lastSuccessfulJobRunLocalDate?: string;
+  matchReadiness?: MatchReadinessSnapshot;
   resumeAnalysis?: ResumeAnalysis;
   plan?: 'free' | 'pro';
   receiveDailyAlerts?: boolean;
   antiSlopEnabled?: boolean;
   dailyJobs?: any[];
+  dailyJobsMeta?: Record<string, any>;
   lastJobFetchTime?: string;
   createdAt: string;
   updatedAt?: string;
@@ -119,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             } else {
               // Create initial profile
+              const browserTimeZone =
+                Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
               const newProfile: UserProfile = {
                 uid: currentUser.uid,
                 email: currentUser.email || '',
@@ -127,6 +144,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 plan: 'free',
                 receiveDailyAlerts: true,
                 antiSlopEnabled: true,
+                deliveryTimezone: browserTimeZone,
+                preferredDeliveryHour: 8,
+                nextJobDeliveryAt: new Date().toISOString(),
+                matchReadiness: {
+                  status: 'blocked',
+                  hasResume: false,
+                  hasCareerPaths: false,
+                  blockingReason: 'Profile missing usable resume text and career paths.',
+                  qualityWarnings: [],
+                },
                 createdAt: new Date().toISOString(),
                 lastActiveAt: new Date().toISOString(),
                 // Sentinel so the daily-alerts cron (orderBy lastJobFetchTime asc)

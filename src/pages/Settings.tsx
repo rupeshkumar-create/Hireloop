@@ -13,12 +13,19 @@ import {
   normalizeUserPreferences,
   syncLegacyPreferenceFields,
 } from '../services/validator';
+import {
+  computeMatchReadiness,
+  computeNextJobDeliveryAt,
+  normalizeDeliverySettings,
+} from '../services/jobDeliveryProfile';
 
 const PREDEFINED_PATHS = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
   "Product Manager", "Project Manager", "Data Scientist", "Data Analyst",
   "UX Designer", "UI Designer", "DevOps Engineer", "Marketing Manager"
 ];
+
+const DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 export function Settings() {
   const { profile, updateProfile } = useAuth();
@@ -35,6 +42,8 @@ export function Settings() {
     resumeAnalysis: undefined as any,
     receiveDailyAlerts: true,
     antiSlopEnabled: true,
+    deliveryTimezone: DEFAULT_TIMEZONE,
+    preferredDeliveryHour: '8',
   });
 
   useEffect(() => {
@@ -54,6 +63,8 @@ export function Settings() {
         resumeAnalysis: profile.resumeAnalysis,
         receiveDailyAlerts: profile.receiveDailyAlerts !== false,
         antiSlopEnabled: profile.antiSlopEnabled !== false,
+        deliveryTimezone: profile.deliveryTimezone || DEFAULT_TIMEZONE,
+        preferredDeliveryHour: String(profile.preferredDeliveryHour ?? 8),
       });
     }
   }, [profile]);
@@ -96,6 +107,18 @@ export function Settings() {
         locations: formData.location ? [formData.location] : [],
       });
       const legacy = syncLegacyPreferenceFields(preferences);
+      const delivery = normalizeDeliverySettings({
+        deliveryTimezone: formData.deliveryTimezone,
+        preferredDeliveryHour: formData.preferredDeliveryHour,
+      });
+      const matchReadiness = computeMatchReadiness({
+        resumeText: formData.resumeText,
+        careerPaths: formData.careerPaths,
+      });
+      const nextJobDeliveryAt = computeNextJobDeliveryAt(
+        delivery.deliveryTimezone,
+        delivery.preferredDeliveryHour
+      );
       const resumeChanged = hasResumeTextChanged(
         profile?.resumeCleaned || profile?.resumeText || '',
         formData.resumeText
@@ -115,9 +138,14 @@ export function Settings() {
         await updateProfile({
           careerPaths: formData.careerPaths,
           preferences,
+          matchingPreferences: preferences,
           jobType: legacy.jobType,
           location: legacy.location,
           minSalary: legacy.minSalary,
+          deliveryTimezone: delivery.deliveryTimezone,
+          preferredDeliveryHour: delivery.preferredDeliveryHour,
+          nextJobDeliveryAt,
+          matchReadiness,
           receiveDailyAlerts: formData.receiveDailyAlerts,
           antiSlopEnabled: formData.antiSlopEnabled,
         });
@@ -128,9 +156,14 @@ export function Settings() {
       await updateProfile({
         careerPaths: formData.careerPaths,
         preferences,
+        matchingPreferences: preferences,
         jobType: legacy.jobType,
         location: legacy.location,
         minSalary: legacy.minSalary,
+        deliveryTimezone: delivery.deliveryTimezone,
+        preferredDeliveryHour: delivery.preferredDeliveryHour,
+        nextJobDeliveryAt,
+        matchReadiness,
         resumeText: formData.resumeText,
         resumeAnalysis: formData.resumeAnalysis,
         receiveDailyAlerts: formData.receiveDailyAlerts,
@@ -304,6 +337,33 @@ export function Settings() {
                   value={formData.minSalary} 
                   onChange={handleChange} 
                 />
+              </div>
+            </div>
+
+            <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground-muted">Delivery Timezone</label>
+                <Input
+                  name="deliveryTimezone"
+                  value={formData.deliveryTimezone}
+                  onChange={handleChange}
+                  placeholder="Asia/Kolkata"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground-muted">Preferred Delivery Hour</label>
+                <select
+                  name="preferredDeliveryHour"
+                  value={formData.preferredDeliveryHour}
+                  onChange={handleChange}
+                  className="flex h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                >
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <option key={hour} value={String(hour)}>
+                      {hour.toString().padStart(2, '0')}:00
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
