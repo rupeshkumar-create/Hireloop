@@ -21,6 +21,7 @@
 
 import type { DiscoveredJob, CallAIFn } from './jobResearcher';
 import type { DailyJob } from '../types/dailyJob';
+import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator';
 
 function parseJson<T>(raw: string): T | null {
   const cleaned = raw
@@ -294,6 +295,11 @@ export interface MatchOptions {
   seenFingerprints?: string[];
   limit?: number;
   minMatchScore?: number;
+  matchingPreferences?: {
+    remoteOnly?: boolean;
+    salaryFloor?: number | null;
+    locations?: string[];
+  };
 }
 
 export interface MatchResult {
@@ -301,8 +307,8 @@ export interface MatchResult {
   usedFallback: boolean;
   enrichedCount: number;
   scoredCount: number;
-  qualityFilteredCount?: number;
-  dedupedCount?: number;
+  qualityFilteredCount: number;
+  dedupedCount: number;
 }
 
 /**
@@ -321,10 +327,12 @@ export async function matchAndRankJobs(
     seenFingerprints = [],
     limit = 10,
     minMatchScore = 25,
+    matchingPreferences,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
   let usedFallback = false;
+  const normalizedPreferences = normalizeUserPreferences(matchingPreferences || {});
 
   const unseenJobs = discoveredJobs.filter((j) => !seenSet.has(j.fingerprint));
 
@@ -336,7 +344,20 @@ export async function matchAndRankJobs(
       job,
       matchScore: scores[idx]?.matchScore ?? keywordMatchScore(job, careerPaths, resumeText),
     }))
-    .filter(({ matchScore }) => matchScore >= minMatchScore)
+    .filter(({ job, matchScore }) => {
+      if (matchScore < minMatchScore) return false;
+
+      const preferenceResult = jobMatchesUserPreferences(
+        {
+          isRemote: job.workType === 'remote' || job.location.toLowerCase().includes('remote'),
+          salary: job.salary,
+          location: job.location,
+        },
+        normalizedPreferences
+      );
+
+      return preferenceResult.passed;
+    })
     .sort((a, b) => b.matchScore - a.matchScore);
 
   // Backfill from seen jobs if not enough
@@ -380,5 +401,7 @@ export async function matchAndRankJobs(
     usedFallback,
     enrichedCount: enriched.length,
     scoredCount: scored.length,
+    qualityFilteredCount: Math.max(0, unseenJobs.length - scored.length),
+    dedupedCount: Math.max(0, discoveredJobs.length - unseenJobs.length),
   };
 }

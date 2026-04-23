@@ -140,7 +140,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Stage 2: AI scoring + enrichment → top-N
           const matchResult = await matchAndRankJobs(
             discovered,
-            { careerPaths, resumeText, jobType, seenFingerprints, limit },
+            {
+              careerPaths,
+              resumeText,
+              jobType,
+              seenFingerprints,
+              limit,
+              matchingPreferences: profile.matchingPreferences || profile.preferences,
+            },
             callAI
           );
 

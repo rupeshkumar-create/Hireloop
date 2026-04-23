@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isRecent,
+  normalizeUserPreferences,
   validateAssetForgeEmail,
   validateGeneratedEmail,
   validateJob,
@@ -79,6 +80,22 @@ describe('validateJobsBeforeAI', () => {
     expect(result.accepted).toHaveLength(1);
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0].validation.code).toBe('MISSING_URL');
+  });
+});
+
+describe('normalizeUserPreferences', () => {
+  it('normalizes remote-only matching preferences from the new canonical object', () => {
+    const normalized = normalizeUserPreferences({
+      remoteOnly: true,
+      salaryFloor: 150000,
+      locations: ['Remote', 'New York, NY'],
+    });
+
+    expect(normalized).toEqual({
+      remoteOnly: true,
+      salaryFloor: 150000,
+      locations: ['Remote', 'New York, NY'],
+    });
   });
 });
 
