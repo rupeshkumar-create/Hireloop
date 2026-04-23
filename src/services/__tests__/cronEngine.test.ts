@@ -102,6 +102,43 @@ describe('evaluateDueUsers', () => {
 });
 
 describe('processUserCronRun', () => {
+  it('marks blocked profiles as skipped using matchReadiness', async () => {
+    const deps = {
+      loadUser: vi.fn().mockResolvedValue({
+        id: 'user_123',
+        data: {
+          plan: 'pro',
+          receiveDailyAlerts: true,
+          deliveryTimezone: 'Asia/Kolkata',
+          preferredDeliveryHour: 8,
+          matchReadiness: {
+            status: 'blocked',
+            hasResume: false,
+            hasCareerPaths: false,
+            blockingReason: 'Profile missing usable resume text and career paths.',
+            qualityWarnings: [],
+          },
+        },
+      }),
+      getExistingRun: vi.fn().mockResolvedValue({
+        id: 'user_123_2026-04-24',
+        status: 'queued',
+      } as CronRunRecord),
+      markRun: vi.fn().mockResolvedValue(undefined),
+      generateJobs: vi.fn(),
+      storeJobs: vi.fn(),
+      sendDailyEmail: vi.fn(),
+    };
+
+    const result = await processUserCronRun(
+      { userId: 'user_123', runDate: '2026-04-24' },
+      deps
+    );
+
+    expect(result.status).toBe('skipped');
+    expect(deps.generateJobs).not.toHaveBeenCalled();
+  });
+
   it('marks users without email or matching inputs as skipped', async () => {
     const deps = {
       loadUser: vi.fn().mockResolvedValue({

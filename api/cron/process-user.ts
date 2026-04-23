@@ -19,6 +19,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
 import { requireInternalCronSecret } from '../../src/server/cronAuth.js';
 import { processUserCronRun } from '../../src/services/cronEngine';
+import { computeNextJobDeliveryAt } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
 import type { CallAIFn } from '../../src/services/jobResearcher';
@@ -131,6 +132,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               totalValidatedJobs: 0,
               unseenCount: 0,
               seenCount: 0,
+              qualityFilteredCount: 0,
+              dedupedCount: 0,
             };
           }
 
@@ -146,6 +149,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             `(fallback=${matchResult.usedFallback})`
           );
 
+          const qualityFilteredCount =
+            'qualityFilteredCount' in matchResult &&
+            typeof matchResult.qualityFilteredCount === 'number'
+              ? matchResult.qualityFilteredCount
+              : 0;
+          const dedupedCount =
+            'dedupedCount' in matchResult &&
+            typeof matchResult.dedupedCount === 'number'
+              ? matchResult.dedupedCount
+              : 0;
+
           return {
             jobs: matchResult.jobs,
             requestedLimit: limit,
@@ -153,6 +167,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             totalValidatedJobs: matchResult.scoredCount,
             unseenCount: matchResult.scoredCount,
             seenCount: 0,
+            qualityFilteredCount,
+            dedupedCount,
           };
         },
 
@@ -160,6 +176,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         storeJobs: async (uid, date, profile, generated) => {
           const fetchedAt = new Date().toISOString();
           const jobs: DailyJob[] = generated.jobs || [];
+          const deliveryTimezone = profile.deliveryTimezone || 'UTC';
+          const preferredDeliveryHour = profile.preferredDeliveryHour ?? 8;
+          const requestedLimit = generated.requestedLimit ?? jobs.length;
+          const qualityFilteredCount = generated.qualityFilteredCount ?? 0;
+          const dedupedCount = generated.dedupedCount ?? 0;
+          const qualityLimited = jobs.length < requestedLimit;
+          const warnings = profile.matchReadiness?.qualityWarnings || [];
 
           const newFingerprints = jobs.map((j) => jobFingerprint(j.title, j.company));
           const nextFingerprints = [
@@ -169,30 +192,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await db.collection('users').doc(uid).set(
             {
               dailyJobs: jobs,
+              dailyJobsMeta: {
+                requestedLimit,
+                returnedCount: jobs.length,
+                qualityFilteredCount,
+                dedupedCount,
+                deliveryTimezone,
+                deliveryLocalDate: date,
+                emailSent: false,
+                qualityLimited,
+                warnings,
+              },
               lastJobFetchTime: fetchedAt,
+              lastSuccessfulJobRunLocalDate: date,
+              nextJobDeliveryAt: computeNextJobDeliveryAt(
+                deliveryTimezone,
+                preferredDeliveryHour,
+                new Date(fetchedAt)
+              ),
+              matchReadiness: profile.matchReadiness,
               seenJobFingerprints: nextFingerprints,
             },
             { merge: true }
           );
 
-          if (jobs.length > 0) {
-            const sources: Record<string, number> = {};
-            for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
+          const sources: Record<string, number> = {};
+          for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
 
-            await db
-              .collection('users')
-              .doc(uid)
-              .collection('daily_matches')
-              .doc(date)
-              .set({
-                userId: uid,
-                date,
-                generatedAt: fetchedAt,
-                jobs,
-                jobCount: jobs.length,
-                sources,
-              });
-          }
+          await db
+            .collection('users')
+            .doc(uid)
+            .collection('daily_matches')
+            .doc(date)
+            .set({
+              userId: uid,
+              date,
+              generatedAt: fetchedAt,
+              jobs,
+              jobCount: jobs.length,
+              sources,
+              requestedLimit,
+              returnedCount: jobs.length,
+              qualityFilteredCount,
+              dedupedCount,
+              deliveryTimezone,
+              deliveryLocalDate: date,
+              emailSent: false,
+              qualityLimited,
+              warnings,
+            });
         },
 
         // ── Send email ──────────────────────────────────────────────────────
@@ -203,6 +251,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             body: JSON.stringify(buildDailyJobAlertsEmailPayload(email, jobs)),
           });
           if (!response.ok) throw new Error('Failed to send daily alert email');
+
+          await db.collection('users').doc(userId).set(
+            {
+              dailyJobsMeta: { emailSent: true },
+            },
+            { merge: true }
+          );
         },
       }
     );

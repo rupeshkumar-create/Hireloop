@@ -56,4 +56,14 @@ export interface DailyMatchRecord {
   jobs: DailyJob[];
   jobCount: number;
   sources: Record<JobSource, number>; // how many jobs came from each source
+  requestedLimit: number;
+  returnedCount: number;
+  qualityFilteredCount: number;
+  dedupedCount: number;
+  deliveryTimezone: string;
+  deliveryLocalDate: string;
+  emailSent: boolean;
+  qualityLimited: boolean;
+  skipReason?: string;
+  warnings?: string[];
 }

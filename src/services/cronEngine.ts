@@ -1,5 +1,5 @@
 import { getDailyMatchLimit } from '../lib/planLimits';
-import { evaluateDueDailyRun } from './jobDeliveryProfile';
+import { computeMatchReadiness, evaluateDueDailyRun } from './jobDeliveryProfile';
 
 export interface CronEligibleUser {
   plan?: string;
@@ -32,12 +32,22 @@ export interface ProcessUserCronRunDeps {
   loadUser: (userId: string) => Promise<LoadedCronUser | null>;
   getExistingRun: (runId: string) => Promise<CronRunRecord | null>;
   markRun: (runId: string, patch: Record<string, unknown>) => Promise<void>;
-  generateJobs: (profile: Record<string, any>, limit: number) => Promise<{ jobs: any[] }>;
+  generateJobs: (profile: Record<string, any>, limit: number) => Promise<{
+    jobs: any[];
+    requestedLimit?: number;
+    qualityFilteredCount?: number;
+    dedupedCount?: number;
+  }>;
   storeJobs: (
     userId: string,
     runDate: string,
     profile: Record<string, any>,
-    result: { jobs: any[] }
+    result: {
+      jobs: any[];
+      requestedLimit?: number;
+      qualityFilteredCount?: number;
+      dedupedCount?: number;
+    }
   ) => Promise<void>;
   sendDailyEmail: (email: string, jobs: any[]) => Promise<void>;
 }
@@ -165,8 +175,24 @@ export async function processUserCronRun(
 
   const profile = loadedUser.data;
   const effectiveCareerPaths = resolveCareerPaths(profile);
+  const readiness =
+    profile.matchReadiness && profile.matchReadiness.status
+      ? profile.matchReadiness
+      : computeMatchReadiness({
+          ...profile,
+          careerPaths: effectiveCareerPaths,
+        });
   const hasResumeText =
     typeof profile.resumeText === 'string' && profile.resumeText.trim().length > 0;
+
+  if (readiness.status === 'blocked') {
+    await deps.markRun(runId, {
+      status: 'skipped',
+      completedAt: new Date().toISOString(),
+      failureReason: readiness.blockingReason || 'Profile is not ready for matching',
+    });
+    return { runId, status: 'skipped' as const };
+  }
 
   if (!hasResumeText && effectiveCareerPaths.length === 0) {
     await deps.markRun(runId, {
@@ -177,10 +203,11 @@ export async function processUserCronRun(
     return { runId, status: 'skipped' as const };
   }
 
-  const effectiveProfile =
-    effectiveCareerPaths.length > 0
-      ? { ...profile, careerPaths: effectiveCareerPaths }
-      : profile;
+  const effectiveProfile = {
+    ...profile,
+    careerPaths: effectiveCareerPaths.length > 0 ? effectiveCareerPaths : profile.careerPaths || [],
+    matchReadiness: readiness,
+  };
 
   if (!profile.resumeText || profile.resumeText.trim().length < 50) {
     console.warn(

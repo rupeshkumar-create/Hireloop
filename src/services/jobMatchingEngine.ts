@@ -301,6 +301,8 @@ export interface MatchResult {
   usedFallback: boolean;
   enrichedCount: number;
   scoredCount: number;
+  qualityFilteredCount?: number;
+  dedupedCount?: number;
 }
 
 /**
