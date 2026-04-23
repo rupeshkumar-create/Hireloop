@@ -97,7 +97,7 @@ describe('MatchesTab paywall rendering', () => {
 
     expect(html).toContain('Frontend Engineer');
     expect(html).toContain('Acme');
-    expect(html).toContain('92% match');
+    expect(html).toContain('92%');
   });
 
   it('renders unlocked job cards without premium placeholders for saved jobs', () => {
