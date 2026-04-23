@@ -60,6 +60,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<DailyJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
+  const [dailyJobsMeta, setDailyJobsMeta] = useState<Record<string, any> | null>(null);
   const [dismissedFingerprints, setDismissedFingerprints] = useState<string[]>([]);
 
   const [stats, setStats] = useState({ saved: 0, applied: 0, interviewing: 0 });
@@ -128,6 +129,17 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           const record = dailySnap.data();
           const fetched: DailyJob[] = (record.jobs || []).slice(0, limit);
           setJobs(fetched);
+          setDailyJobsMeta({
+            requestedLimit: record.requestedLimit ?? limit,
+            returnedCount: record.returnedCount ?? fetched.length,
+            qualityFilteredCount: record.qualityFilteredCount ?? 0,
+            dedupedCount: record.dedupedCount ?? 0,
+            qualityLimited: record.qualityLimited === true,
+            warnings: record.warnings || [],
+            deliveryTimezone: record.deliveryTimezone || profile.deliveryTimezone || 'UTC',
+            deliveryLocalDate: record.deliveryLocalDate || today,
+            emailSent: record.emailSent === true,
+          });
           setLastFetchTime(record.generatedAt || today);
           foundInDaily = true;
         }
@@ -145,6 +157,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         if (fetchDate === today) {
           const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
           setJobs(cached);
+          setDailyJobsMeta(profile.dailyJobsMeta || null);
           setLastFetchTime(profile.lastJobFetchTime || null);
           return;
         }
@@ -184,6 +197,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const limit = getDailyMatchLimit(profile?.plan);
       const freshJobs = (profile.dailyJobs as DailyJob[]).slice(0, limit);
       setJobs(freshJobs);
+      setDailyJobsMeta(profile.dailyJobsMeta || null);
       setLastFetchTime(profile.lastJobFetchTime || null);
       if (generatingJobs) {
         setGeneratingJobs(false);
@@ -468,6 +482,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     statsLoading,
     fetchJobs,
     lastFetchTime,
+    dailyJobsMeta,
+    nextJobDeliveryAt: profile?.nextJobDeliveryAt || null,
+    matchReadiness: profile?.matchReadiness || null,
     saveJob,
     dismissJob,
     trackJobClick,

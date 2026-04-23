@@ -43,6 +43,13 @@ interface MatchesTabProps {
   savedJobFingerprints: string[];
   dismissJob: (j: Job) => void;
   lastFetchTime?: string | null;
+  dailyJobsMeta?: {
+    requestedLimit?: number;
+    returnedCount?: number;
+    qualityLimited?: boolean;
+    warnings?: string[];
+  } | null;
+  nextJobDeliveryAt?: string | null;
 }
 
 // ── Work-type badge ──────────────────────────────────────────────────────────
@@ -351,6 +358,8 @@ export function MatchesTab({
   selectedJob, setSelectedJob, setAiAction,
   saveJob, savedJobFingerprints, dismissJob,
   lastFetchTime,
+  dailyJobsMeta,
+  nextJobDeliveryAt,
 }: MatchesTabProps) {
   const feedItems = buildMatchFeedItems(jobs, plan);
   const showLockedCards = !isProPlan(plan) && jobs.length > 0;
@@ -408,6 +417,26 @@ export function MatchesTab({
           </Link>
         )}
       </div>
+
+      {(dailyJobsMeta || nextJobDeliveryAt) && (
+        <div className="mb-4 rounded-2xl border border-border bg-surface p-4 text-sm text-foreground-muted">
+          {nextJobDeliveryAt && (
+            <p>
+              <span className="font-medium text-foreground">Next delivery:</span>{' '}
+              {new Date(nextJobDeliveryAt).toLocaleString()}
+            </p>
+          )}
+          {dailyJobsMeta?.qualityLimited && (
+            <p className="mt-1">
+              Only {dailyJobsMeta.returnedCount ?? jobs.length} strong match
+              {(dailyJobsMeta.returnedCount ?? jobs.length) === 1 ? '' : 'es'} found today.
+            </p>
+          )}
+          {(dailyJobsMeta?.warnings || []).map((warning) => (
+            <p key={warning} className="mt-1">{warning}</p>
+          ))}
+        </div>
+      )}
 
       {/* Work-type toggle + sort */}
       <div className="mb-4 flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">

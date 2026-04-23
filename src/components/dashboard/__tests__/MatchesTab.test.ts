@@ -106,4 +106,46 @@ describe('MatchesTab paywall rendering', () => {
     expect(html).toContain('Frontend Engineer');
     expect(html).not.toContain('Premium Match');
   });
+
+  it('renders next-delivery and quality-limited messages when metadata is provided', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(MatchesTab, {
+          plan: 'pro',
+          jobs: [sampleJob],
+          loadingJobs: false,
+          fetchJobs: () => {},
+          filterCompany: '',
+          setFilterCompany: () => {},
+          filterLocation: '',
+          setFilterLocation: () => {},
+          filterSalary: '',
+          setFilterSalary: () => {},
+          filterWorkType: 'all',
+          setFilterWorkType: () => {},
+          sortBy: 'matchScore',
+          setSortBy: () => {},
+          selectedJob: null,
+          setSelectedJob: () => {},
+          setAiAction: () => {},
+          saveJob: async () => true,
+          savedJobFingerprints: [],
+          dismissJob: () => {},
+          dailyJobsMeta: {
+            requestedLimit: 10,
+            returnedCount: 1,
+            qualityLimited: true,
+            warnings: ['Resume text is missing or too short; matching quality may be limited.'],
+          },
+          nextJobDeliveryAt: '2026-04-25T02:30:00.000Z',
+        })
+      )
+    );
+
+    expect(html).toContain('Next delivery');
+    expect(html).toContain('Only 1 strong match found today');
+    expect(html).toContain('matching quality may be limited');
+  });
 });

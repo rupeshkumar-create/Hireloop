@@ -30,6 +30,8 @@ export function Dashboard() {
     filterWorkType, setFilterWorkType,
     sortBy, setSortBy,
     lastFetchTime,
+    dailyJobsMeta,
+    nextJobDeliveryAt,
   } = useDashboardJobs(user, profile, updateProfile);
 
   const {
@@ -137,6 +139,8 @@ export function Dashboard() {
                 savedJobFingerprints={savedJobFingerprints}
                 dismissJob={dismissJob}
                 lastFetchTime={lastFetchTime}
+                dailyJobsMeta={dailyJobsMeta}
+                nextJobDeliveryAt={nextJobDeliveryAt}
               />
             </motion.div>
           )}
