@@ -111,6 +111,8 @@ async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
               verifyUrl: async (url) => await verifyHttpUrl(url),
               seenFingerprints,
               maxJobs: Math.max(40, limit * 6),
+              concurrency: 8,
+              perSourceTimeoutMs: 4500,
             })
           : [];
 
