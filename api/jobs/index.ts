@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
 import { processUserCronRun, getCronRunDateIST } from '../../src/services/cronEngine';
+import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
 import type { CallAIFn } from '../../src/services/jobResearcher';
@@ -8,6 +9,21 @@ import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService
 import type { DailyJob } from '../../src/types/dailyJob';
 
 const MAX_SEEN_FINGERPRINTS = 500;
+
+function resolveCareerPaths(profile: Record<string, any>): string[] {
+  const fromCareerPaths = Array.isArray(profile.careerPaths)
+    ? profile.careerPaths
+    : [];
+  const fromStructuredRoles = Array.isArray(profile.structuredProfile?.roles)
+    ? profile.structuredProfile.roles
+    : [];
+
+  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
 
 function makeServerCallAI(): CallAIFn {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -153,6 +169,27 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
   const githubRepo = process.env.GITHUB_REPO;
   const runDate = getCronRunDateIST();
+
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({
+      error: 'Job generation is not configured. Please set OPENROUTER_API_KEY in your environment.',
+    });
+  }
+
+  const db = getAdminDb();
+  const userSnap = await db.collection('users').doc(uid).get();
+  if (!userSnap.exists) {
+    return res.status(404).json({ error: 'User profile not found.' });
+  }
+
+  const profile = userSnap.data() || {};
+  const careerPaths = resolveCareerPaths(profile);
+  const readiness = computeMatchReadiness({ resumeText: profile.resumeText, careerPaths });
+  if (readiness.status === 'blocked') {
+    return res.status(400).json({
+      error: 'Add at least one career path or upload your resume before generating jobs.',
+    });
+  }
 
   res.status(202).json({
     status: githubToken && githubRepo ? 'dispatched' : 'processing',
