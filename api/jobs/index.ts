@@ -7,6 +7,9 @@ import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
 import type { CallAIFn } from '../../src/services/jobResearcher';
 import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
 import type { DailyJob } from '../../src/types/dailyJob';
+import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist';
+import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator';
+import { verifyHttpUrl } from '../../src/services/urlVerifier';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -101,10 +104,43 @@ async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-        const { jobs: discovered } = await researchJobs(
-          { careerPaths, resumeText, jobType, location, targetCount: 20 },
-          callAI
-        );
+        const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
+        const atsJobs = atsSources.length
+          ? await fetchAtsJobs(atsSources, {
+              fetchFn: fetch,
+              verifyUrl: async (url) => await verifyHttpUrl(url),
+              seenFingerprints,
+              maxJobs: Math.max(40, limit * 6),
+            })
+          : [];
+
+        const target = Math.max(0, limit);
+        const byFingerprint = new Set<string>();
+        const combined: any[] = [];
+        for (const job of atsJobs) {
+          if (!job?.fingerprint) continue;
+          if (byFingerprint.has(job.fingerprint)) continue;
+          byFingerprint.add(job.fingerprint);
+          combined.push(job);
+          if (combined.length >= target) break;
+        }
+
+        if (combined.length < target) {
+          const missing = target - combined.length;
+          const { jobs: aiJobs } = await researchJobs(
+            { careerPaths, resumeText, jobType, location, targetCount: Math.max(20, missing * 3) },
+            callAI
+          );
+          for (const job of aiJobs) {
+            if (!job?.fingerprint) continue;
+            if (byFingerprint.has(job.fingerprint)) continue;
+            byFingerprint.add(job.fingerprint);
+            combined.push(job);
+            if (combined.length >= target) break;
+          }
+        }
+
+        const discovered = combined;
 
         if (discovered.length === 0) {
           return { jobs: [], requestedLimit: limit, usedBackfill: false, totalValidatedJobs: 0, unseenCount: 0, seenCount: 0 };
