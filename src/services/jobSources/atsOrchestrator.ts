@@ -5,17 +5,6 @@ import { fetchLeverJobs } from './lever';
 
 export type VerifyUrlFn = (url: string) => Promise<boolean>;
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
-    ]);
-  } catch {
-    return null;
-  }
-}
-
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -52,17 +41,22 @@ export async function fetchAtsJobs(
   const seen = new Set((opts.seenFingerprints || []).map((v) => String(v)));
 
   const batches = await mapWithConcurrency(sources, concurrency, async (source) => {
-    const run = async () => {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), perSourceTimeoutMs);
+    const fetchFn = (url: string) => opts.fetchFn(url, { signal: ctrl.signal }) as any;
+    try {
       if (source.ats === 'greenhouse') {
-        return await fetchGreenhouseJobs(source.boardUrl, source.companyName, opts.fetchFn);
+        return await fetchGreenhouseJobs(source.boardUrl, source.companyName, fetchFn);
       }
       if (source.ats === 'lever') {
-        return await fetchLeverJobs(source.boardUrl, source.companyName, opts.fetchFn);
+        return await fetchLeverJobs(source.boardUrl, source.companyName, fetchFn);
       }
       return [];
-    };
-    const result = await withTimeout(run(), perSourceTimeoutMs);
-    return result || [];
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timeout);
+    }
   });
 
   const flattened = batches.flat();
@@ -88,4 +82,3 @@ export async function fetchAtsJobs(
 
   return verified;
 }
-
