@@ -53,18 +53,6 @@ export function LandingPage() {
 
         {/* Abstract Background Grid */}
         <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,rgba(94,93,89,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(94,93,89,0.08)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        
-        {/* Floating Abstract Shapes */}
-        <motion.div 
-          animate={{ y: [0, -20, 0], rotate: [12, 15, 12] }}
-          transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-          className="absolute right-[10%] top-1/4 hidden h-32 w-32 rounded-[28px] border border-border bg-surface-hover shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:block"
-        ></motion.div>
-        <motion.div 
-          animate={{ y: [0, 20, 0], rotate: [-12, -15, -12] }}
-          transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
-          className="absolute bottom-1/4 left-[10%] hidden h-24 w-24 rounded-[24px] border border-border bg-background shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:block"
-        ></motion.div>
 
         <div className="relative z-10 mx-auto max-w-7xl text-center">
           <motion.div
