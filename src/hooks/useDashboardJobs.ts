@@ -248,52 +248,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         return;
       }
 
-      // Any 5xx here means the async dispatch path is unavailable, so fall back
-      // to the synchronous trigger endpoint instead of leaving the user stuck.
-      // Only non-server errors like 401/4xx should surface immediately.
-      if (requestResponse.status < 500) {
-        const reqErr = await requestResponse.json().catch(() => ({}));
-        toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
-        return;
-      }
-
-      // ── Path B: synchronous fallback (GitHub Actions not configured) ───────
-      // Falls back to the merged /api/jobs endpoint in trigger mode and runs inline. Works on Vercel Pro
-      // or any plan with a function timeout ≥ 90 seconds.
-      const triggerResponse = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ mode: 'trigger' }),
-      });
-
-      if (!triggerResponse.ok) {
-        let msg = `Job generation failed (HTTP ${triggerResponse.status})`;
-        try {
-          const errBody = await triggerResponse.json();
-          if (errBody?.error) msg = errBody.error;
-        } catch {
-          // Non-JSON response (e.g. Vercel timeout page) — keep generic message
-          // but hint at the likely cause for common status codes
-          if (triggerResponse.status === 504 || triggerResponse.status === 500) {
-            msg = 'Job generation timed out. The AI pipeline needs up to 90 seconds — please try again in a moment.';
-          }
-        }
-        toast.error(msg, { duration: 8000 });
-        return;
-      }
-
-      const data = await triggerResponse.json();
-      const generated: DailyJob[] = data.jobs || [];
-      if (generated.length > 0) {
-        const limit = getDailyMatchLimit(profile?.plan);
-        setJobs(generated.slice(0, limit));
-        toast.success(`${generated.length} jobs curated for you!`);
-      } else {
-        toast.info(
-          "We couldn't find matching jobs right now. " +
-          'Try adding career paths or uploading a more detailed resume.'
-        );
-      }
+      const reqErr = await requestResponse.json().catch(() => ({}));
+      toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
+      return;
     } catch (err) {
       console.error('[useDashboardJobs] requestJobs failed:', err);
       toast.error('Failed to generate jobs. Please try again.');

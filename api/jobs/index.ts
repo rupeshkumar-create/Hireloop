@@ -154,6 +154,12 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const githubRepo = process.env.GITHUB_REPO;
   const runDate = getCronRunDateIST();
 
+  res.status(202).json({
+    status: githubToken && githubRepo ? 'dispatched' : 'processing',
+    runDate,
+    message: 'Job generation started. Your dashboard will update automatically in about 2 minutes.',
+  });
+
   if (githubToken && githubRepo) {
     let ghResponse: Response;
     const ghAbort = new AbortController();
@@ -180,25 +186,12 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     }
 
     if (ghResponse.ok) {
-      return res.status(202).json({
-        status: 'dispatched',
-        runDate,
-        message: 'Job generation started. Your dashboard will update automatically in ~2 minutes.',
-      });
+      return;
     }
 
     const body = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
   }
-
-  // GitHub not configured or unreachable — respond 202 immediately and run pipeline
-  // in-process. Vercel keeps the function alive until pipeline completes or maxDuration.
-  // The Firestore subscription on the dashboard picks up results when storeJobs writes.
-  res.status(202).json({
-    status: 'processing',
-    runDate,
-    message: 'Job generation started. Your dashboard will update automatically in a moment.',
-  });
 
   await runPipeline(uid, req).catch((err) => {
     console.error('[jobs/index] Inline pipeline error after 202:', err);
