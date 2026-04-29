@@ -75,7 +75,7 @@ This report documents how the “Job Search” (Daily Matches) feature works in 
 ### Functions that implement Job Search
 
 - **Dashboard read path**
-  - `getTodayIST()` (date key used for reading): [useDashboardJobs.ts:getTodayIST](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L52-L57)
+  - Computes the “today” key using the user’s delivery timezone: [localDate.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/lib/localDate.ts#L23-L40)
   - `loadJobs()` reads `users/{uid}/daily_matches/{today}` then falls back to `users/{uid}.dailyJobs` if `lastJobFetchTime` is “today”: [useDashboardJobs.ts:loadJobs](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L113-L173)
 - **User-triggered job generation**
   - `requestJobs()` calls `POST /api/jobs` (mode=request) and expects a 202 handoff: [useDashboardJobs.ts:requestJobs](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L218-L279)
@@ -172,11 +172,11 @@ The empty-state you shared renders when `jobs.length === 0` in [MatchesTab](file
 
 ### A) Very likely: date-key mismatch between cron writes and dashboard reads
 
-- Dashboard always uses **IST** date keys (`getTodayIST()`): [useDashboardJobs.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L52-L57)
+- Previous issue (now fixed): dashboard used an IST “today” key while cron stored batches under the user-local `deliveryLocalDate`.
 - Cron dispatcher computes a **user-local** `deliveryLocalDate` and passes it as `runDate`: [cronEngine.evaluateDueUsers](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/services/cronEngine.ts#L119-L153), [daily-alerts.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/api/cron/daily-alerts.ts#L60-L104)
 - `/api/cron/process-user` stores `daily_matches/{date}` where `date` is that runDate (deliveryLocalDate): [process-user.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/api/cron/process-user.ts#L229-L250)
 
-Result: jobs can be correctly generated and stored, but the UI looks in a different Firestore document ID and shows “No remote jobs curated yet today”.
+Fix: dashboard now computes `todayKey` using the same user-local timezone logic via [localDate.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/lib/localDate.ts) and compares cache freshness using `deliveryLocalDate` / localized `lastJobFetchTime`: [useDashboardJobs.ts](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts).
 
 ### B) Very likely: Vercel Cron is 401 Unauthorized (no Authorization header)
 
@@ -210,7 +210,7 @@ Symptom: user clicks “Find my remote jobs now”, sees loading state, but noth
    - Check `users/{uid}.dailyJobs` and `users/{uid}.lastJobFetchTime`.
    - Check `users/{uid}/daily_matches/{date}` and verify what `{date}` is (IST vs user-local).
 3. Confirm dashboard is reading the same date key:
-   - Dashboard reads `daily_matches/{getTodayIST()}` and only trusts `dailyJobs` when `lastJobFetchTime.split('T')[0] === getTodayIST()`: [useDashboardJobs](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L118-L165)
+   - Dashboard reads `daily_matches/{todayLocalDate}` and only trusts `dailyJobs` when the cached batch is from the same local date: [useDashboardJobs](file:///Users/rupesh/Desktop/Side%20projects/hireschema/src/hooks/useDashboardJobs.ts#L113-L214)
 
 ## 8) Recommended Fixes (Design-Level)
 
@@ -223,4 +223,3 @@ Symptom: user clicks “Find my remote jobs now”, sees loading state, but noth
 - For `/api/jobs` user-triggered generation:
   - make the “202” path require GitHub dispatch (and return error if dispatch is not configured), or
   - make it synchronous (return 200 only after Firestore is written).
-
