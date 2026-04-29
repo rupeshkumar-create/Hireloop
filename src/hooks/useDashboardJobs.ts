@@ -248,8 +248,22 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         return;
       }
 
-      const reqErr = await requestResponse.json().catch(() => ({}));
-      toast.error((reqErr as any).error || `Job dispatch failed (HTTP ${requestResponse.status})`);
+      let message = `Job dispatch failed (HTTP ${requestResponse.status})`;
+      try {
+        const reqErr = await requestResponse.json().catch(() => ({}));
+        if (reqErr && typeof (reqErr as any).error === 'string' && (reqErr as any).error.trim()) {
+          message = (reqErr as any).error.trim();
+        } else {
+          const text = await requestResponse.text().catch(() => '');
+          const trimmed = text.trim();
+          if (trimmed) {
+            message = trimmed.slice(0, 400);
+          }
+        }
+      } catch {
+        // keep default message
+      }
+      toast.error(message);
       return;
     } catch (err) {
       console.error('[useDashboardJobs] requestJobs failed:', err);

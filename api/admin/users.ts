@@ -9,7 +9,7 @@
  * DELETE /api/admin/users?userId=xxx → delete user from Firebase Auth + Firestore + trackedJobs
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth, getAdminDb } from '../../src/server/firebaseAdmin';
+import { getAdminAuth, getAdminDb } from '../../src/server/firebaseAdmin.js';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
