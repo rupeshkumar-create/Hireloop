@@ -1,26 +1,16 @@
 /**
- * jobResearcher.ts — Remote-First Job Discovery
+ * jobResearcher.ts
  *
- * Strategy (rebuilt from scratch):
+ * Feed/API-first job discovery for Daily Jobs.
  *
- * 1. For each career path (up to 3), run a dedicated Perplexity Sonar Pro
- *    search targeting REMOTE positions for that specific role. Searches run
- *    in parallel so total wall-clock time ≈ one search.
- *
- * 2. Each discovered job is tagged with the `matchedCareerPath` that found it,
- *    so the UI can show "matched via: Senior Frontend Engineer" chips.
- *
- * 3. Merge + deduplicate by title::company fingerprint, then against the
- *    user's historical seenFingerprints.
- *
- * 4. If the total is still below 60% of target, Gemini 2.5 Pro fills the gap
- *    with a complementary remote-focused search.
- *
- * Default work type is "remote". Pass jobType="both" to include hybrid/onsite.
+ * The daily matching pipeline should not need an LLM to find jobs. This module
+ * pulls from public job APIs and RSS/Atom feeds, normalizes every listing into
+ * the app's `DiscoveredJob` shape, then lets the matching engine rank them
+ * against each user's resume and career paths.
  */
 
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
-export type JobSource = 'perplexity' | 'gemini-fallback';
+export type JobSource = string;
 
 export interface DiscoveredJob {
   fingerprint: string;
@@ -41,9 +31,10 @@ export interface DiscoveredJob {
 export interface ResearchOptions {
   careerPaths: string[];
   resumeText: string;
-  jobType?: string;     // 'remote' | 'hybrid' | 'onsite' | 'both' — defaults to 'remote'
+  jobType?: string;
   location?: string;
-  targetCount?: number; // default 30
+  targetCount?: number;
+  feedUrls?: string[];
 }
 
 export interface ResearchResult {
@@ -58,39 +49,58 @@ export type CallAIFn = (
   model: string
 ) => Promise<string>;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+type FeedKind = 'rss' | 'himalayas' | 'arbeitnow';
 
-export function jobFingerprint(title: string, company: string): string {
-  return `${title.toLowerCase().trim()}::${company.toLowerCase().trim()}`;
-}
+type FeedSource = {
+  id: string;
+  name: string;
+  url: string;
+  kind: FeedKind;
+  enabled: boolean;
+};
 
-function detectWorkType(text: string): JobWorkType {
-  const t = text.toLowerCase();
-  if (t.includes('remote')) return 'remote';
-  if (t.includes('hybrid')) return 'hybrid';
-  if (t.includes('onsite') || t.includes('on-site') || t.includes('in-office') || t.includes('in office')) return 'onsite';
-  return 'unknown';
-}
+type RawFeedJob = {
+  title: string;
+  company?: string;
+  location?: string;
+  workType?: JobWorkType;
+  salary?: string;
+  description?: string;
+  requirements?: string[];
+  applyUrl?: string;
+  postedAt?: string;
+};
 
-function parseJsonJobs(raw: string): any[] {
-  const cleaned = raw
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```\s*$/i, '')
-    .trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    if (match) {
-      try { return JSON.parse(match[0]); } catch { /* fall through */ }
-    }
-    return [];
-  }
-}
+const DEFAULT_FEED_SOURCES: FeedSource[] = [
+  {
+    id: 'himalayas',
+    name: 'Himalayas',
+    kind: 'himalayas',
+    url: 'https://himalayas.app/jobs/api?limit=20',
+    enabled: true,
+  },
+  {
+    id: 'arbeitnow',
+    name: 'Arbeitnow',
+    kind: 'arbeitnow',
+    url: 'https://arbeitnow.com/api/job-board-api',
+    enabled: true,
+  },
+  {
+    id: 'jobicy-rss',
+    name: 'Jobicy RSS',
+    kind: 'rss',
+    url: 'https://jobicy.com/jobs-rss-feed',
+    enabled: true,
+  },
+  {
+    id: 'hireweb3-rss',
+    name: 'HireWeb3 RSS',
+    kind: 'rss',
+    url: 'https://hireweb3.io/job/rss',
+    enabled: true,
+  },
+];
 
 const SKILL_LIST = [
   'python', 'javascript', 'typescript', 'react', 'next.js', 'vue', 'angular',
@@ -105,29 +115,153 @@ const SKILL_LIST = [
   'scala', 'elixir', 'clojure', 'haskell', 'cloud', 'microservices',
 ];
 
-function extractTopSkills(resumeText: string): string[] {
-  const lower = resumeText.toLowerCase();
-  return SKILL_LIST.filter((s) => lower.includes(s)).slice(0, 12);
+export function jobFingerprint(title: string, company: string): string {
+  return `${title.toLowerCase().trim()}::${company.toLowerCase().trim()}`;
 }
 
-function normaliseJob(raw: any, source: JobSource, matchedCareerPath?: string): DiscoveredJob | null {
-  const title = (raw.title || '').trim();
-  const company = (raw.company || '').trim();
-  if (!title || !company) return null;
+function getEnvValue(name: string): string {
+  if (typeof process === 'undefined') return '';
+  return typeof process.env?.[name] === 'string' ? process.env[name] as string : '';
+}
 
-  const description = (raw.description || '').trim();
-  if (description.length < 40) return null;
+function splitConfiguredUrls(value: string): string[] {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getConfiguredSources(feedUrls: string[] = []): FeedSource[] {
+  const envUrls = [
+    ...splitConfiguredUrls(getEnvValue('JOB_RSS_FEEDS')),
+    ...splitConfiguredUrls(getEnvValue('JOB_FEED_URLS')),
+  ];
+
+  const customSources = [...envUrls, ...feedUrls].map((url, index) => ({
+    id: `custom-rss-${index + 1}`,
+    name: `Custom RSS ${index + 1}`,
+    kind: 'rss' as const,
+    url,
+    enabled: true,
+  }));
+
+  return [...DEFAULT_FEED_SOURCES, ...customSources].filter((source) => source.enabled);
+}
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
+function stripHtml(value: string): string {
+  return decodeHtml(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTag(xml: string, tag: string): string {
+  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = xml.match(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, 'i'));
+  return match ? decodeHtml(match[1]).trim() : '';
+}
+
+function extractAnyTag(xml: string, tags: string[]): string {
+  for (const tag of tags) {
+    const value = extractTag(xml, tag);
+    if (value) return value;
+  }
+  return '';
+}
+
+function extractAtomLink(entry: string): string {
+  const hrefMatch = entry.match(/<link[^>]+href=["']([^"']+)["'][^>]*>/i);
+  if (hrefMatch?.[1]) return decodeHtml(hrefMatch[1]).trim();
+  return extractTag(entry, 'link');
+}
+
+function parseDate(value: unknown): string {
+  if (typeof value === 'number') {
+    const date = new Date(value * 1000);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const date = new Date(value.trim());
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  }
+
+  return new Date().toISOString();
+}
+
+function daysOld(postedAt: string): number {
+  const date = new Date(postedAt);
+  if (Number.isNaN(date.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
+function detectWorkType(text: string): JobWorkType {
+  const lower = text.toLowerCase();
+  if (/\bremote\b|work from anywhere|distributed/i.test(lower)) return 'remote';
+  if (/\bhybrid\b/i.test(lower)) return 'hybrid';
+  if (/on-?site|in office|in-office/i.test(lower)) return 'onsite';
+  return 'unknown';
+}
+
+function inferCompany(title: string, fallback = 'Unknown Company'): string {
+  const patterns = [
+    /\bat\s+(.+)$/i,
+    /\s[-–|]\s([^-|–]+)$/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = title.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+
+  return fallback;
+}
+
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\s+\bat\s+.+$/i, '')
+    .replace(/\s[-–|]\s[^-|–]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractRequirements(description: string): string[] {
+  const lower = description.toLowerCase();
+  const skills = SKILL_LIST.filter((skill) => lower.includes(skill));
+  if (skills.length > 0) return skills.slice(0, 8).map((skill) => skill.toUpperCase() === skill ? skill : skill);
+
+  return description
+    .split(/[.;]\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 20 && part.length <= 140)
+    .slice(0, 6);
+}
+
+function normalizeJob(raw: RawFeedJob, source: FeedSource): DiscoveredJob | null {
+  const rawTitle = (raw.title || '').trim();
+  const company = (raw.company || inferCompany(rawTitle)).trim();
+  const title = cleanTitle(rawTitle);
+  const description = stripHtml(raw.description || '');
+
+  if (!title || !company || company === 'Unknown Company') return null;
+  if (description.length < 30) return null;
 
   const location = (raw.location || 'Remote').trim();
-  const workTypeRaw = (raw.workType || raw.work_type || '').trim().toLowerCase();
-  const workType: JobWorkType =
-    (['remote', 'hybrid', 'onsite'] as JobWorkType[]).includes(workTypeRaw as JobWorkType)
-      ? (workTypeRaw as JobWorkType)
-      : detectWorkType(`${location} ${description}`);
-
-  const requirements: string[] = Array.isArray(raw.requirements)
-    ? raw.requirements.filter((r: any) => typeof r === 'string' && r.trim().length > 2)
-    : [];
+  const postedAt = parseDate(raw.postedAt);
+  const workType = raw.workType || detectWorkType(`${title} ${location} ${description}`);
 
   return {
     fingerprint: jobFingerprint(title, company),
@@ -135,349 +269,179 @@ function normaliseJob(raw: any, source: JobSource, matchedCareerPath?: string): 
     company,
     location,
     workType,
-    salary: typeof raw.salary === 'string' ? raw.salary.trim() : '',
+    salary: (raw.salary || '').trim(),
     description,
-    requirements,
-    source,
-    applyUrl: typeof raw.applyUrl === 'string' ? raw.applyUrl.trim() : undefined,
-    postedAt: new Date().toISOString(),
-    daysOld: 0,
-    matchedCareerPath,
+    requirements: raw.requirements?.length ? raw.requirements.slice(0, 8) : extractRequirements(description),
+    source: source.id,
+    applyUrl: raw.applyUrl?.trim(),
+    postedAt,
+    daysOld: daysOld(postedAt),
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Work-type instruction builder
-// ─────────────────────────────────────────────────────────────────────────────
+function parseRssItems(xml: string): RawFeedJob[] {
+  const blocks = [
+    ...xml.matchAll(/<item\b[\s\S]*?<\/item>/gi),
+    ...xml.matchAll(/<entry\b[\s\S]*?<\/entry>/gi),
+  ].map((match) => match[0]);
 
-function buildWorkInstruction(jobType: string, location?: string): string {
-  switch (jobType) {
-    case 'remote':
-      return 'REMOTE ONLY. Every single result must be a fully remote position. Do not include hybrid or on-site roles under any circumstances.';
-    case 'onsite':
-      return `ON-SITE positions in or near ${location || 'the candidate\'s region'}. Do not include remote-only roles.`;
-    case 'hybrid':
-      return `HYBRID positions${location ? ` near ${location}` : ''}. Mix of remote and in-office acceptable.`;
-    default:
-      return `Prefer REMOTE positions first, then hybrid. For on-site, only include${location ? ` near ${location}` : ' major tech hubs'}.`;
-  }
+  return blocks.map((block) => {
+    const title = stripHtml(extractTag(block, 'title'));
+    const company = stripHtml(extractAnyTag(block, [
+      'hireweb3Jobs:companyName',
+      'company',
+      'dc:creator',
+      'author',
+    ]));
+    const description = extractAnyTag(block, [
+      'description',
+      'summary',
+      'content',
+      'content:encoded',
+    ]);
+    const location = stripHtml(extractAnyTag(block, [
+      'hireweb3Jobs:location',
+      'location',
+    ]));
+    const locationType = stripHtml(extractAnyTag(block, [
+      'hireweb3Jobs:locationType',
+      'workType',
+    ]));
+    const minSalary = stripHtml(extractTag(block, 'hireweb3Jobs:minSalary'));
+    const maxSalary = stripHtml(extractTag(block, 'hireweb3Jobs:maxSalary'));
+    const salary = minSalary || maxSalary ? [minSalary, maxSalary].filter(Boolean).join(' - ') : '';
+
+    return {
+      title,
+      company,
+      location,
+      workType: detectWorkType(`${location} ${locationType} ${description}`),
+      salary,
+      description,
+      applyUrl: extractAtomLink(block),
+      postedAt: extractAnyTag(block, ['pubDate', 'published', 'updated', 'dc:date']),
+    };
+  });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stage 1-A: Per-career-path Perplexity search
-// ─────────────────────────────────────────────────────────────────────────────
-
-function buildPerPathPerplexityPrompt(
-  careerPath: string,
-  opts: ResearchOptions,
-  count: number,
-  excludeCompanies: string[]
-): string {
-  const { resumeText, jobType = 'remote', location } = opts;
-  const skills = extractTopSkills(resumeText);
-  const workInstruction = buildWorkInstruction(jobType, location);
-  const exclusion = excludeCompanies.length > 0
-    ? `\nDo NOT include these companies (already found): ${excludeCompanies.slice(0, 20).join(', ')}`
-    : '';
-
-  return `You are an AI job-search agent with live real-time internet access.
-
-RIGHT NOW, search the live internet for currently open job listings.
-
-## TARGET ROLE
-Career path: ${careerPath}
-Key skills from resume: ${skills.join(', ')}
-Work requirement: ${workInstruction}${exclusion}
-
-Resume context (first 500 chars):
-"""
-${resumeText.slice(0, 500)}
-"""
-
-## YOUR TASK
-Search LinkedIn Jobs, Greenhouse, Lever, Ashby, Workable, Indeed, Glassdoor, Wellfound (AngelList), We Work Remotely, Remote.co, company career pages, and any live job board.
-
-Find exactly ${count} REAL, CURRENTLY OPEN "${careerPath}" positions. Each must be at a DIFFERENT company. Prioritise postings from the last 14 days.
-
-## OUTPUT FORMAT
-Return ONLY a JSON array with no preamble, no markdown, no explanation:
-[
-  {
-    "title": "exact job title as listed",
-    "company": "company name",
-    "location": "Remote" or "Remote – US" or "Hybrid – city, country",
-    "workType": "remote",
-    "salary": "$X,000 – $Y,000/yr  (empty string if not listed)",
-    "description": "4–6 paragraphs: what the company does, the role responsibilities, team context, growth opportunity. MINIMUM 200 words of real detail.",
-    "requirements": ["6–8 specific technical or experience requirements taken directly from the listing"],
-    "applyUrl": "direct URL to the job application page (not a search results page)"
-  }
-]
-
-CRITICAL:
-• Only include genuinely open positions.
-• Each company must be unique.
-• description must be 200+ words of real detail — not a stub or placeholder.
-• Return ONLY the JSON array. No text before or after.`;
+async function fetchRssSource(source: FeedSource): Promise<DiscoveredJob[]> {
+  const response = await fetch(source.url, {
+    headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
+  });
+  if (!response.ok) throw new Error(`${source.name} failed with HTTP ${response.status}`);
+  const xml = await response.text();
+  return parseRssItems(xml)
+    .map((job) => normalizeJob(job, source))
+    .filter((job): job is DiscoveredJob => job !== null);
 }
 
-async function researchCareerPathWithPerplexity(
-  careerPath: string,
-  opts: ResearchOptions,
-  callAI: CallAIFn,
-  count: number,
-  excludeCompanies: string[]
-): Promise<DiscoveredJob[]> {
-  const prompt = buildPerPathPerplexityPrompt(careerPath, opts, count, excludeCompanies);
+async function fetchHimalayas(source: FeedSource): Promise<DiscoveredJob[]> {
+  const urls = [source.url, 'https://himalayas.app/jobs/api?limit=20&offset=20'];
+  const jobs: DiscoveredJob[] = [];
+
+  for (const url of urls) {
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const items = Array.isArray(data) ? data : Array.isArray(data.jobs) ? data.jobs : [];
+
+    for (const item of items) {
+      const company =
+        item.companyName ||
+        item.company?.name ||
+        item.company ||
+        '';
+      const location =
+        item.location ||
+        item.locations?.map((loc: any) => loc.name || loc).filter(Boolean).join(', ') ||
+        'Remote';
+      const raw = {
+        title: item.title || item.name || '',
+        company,
+        location,
+        workType: detectWorkType(`${location} ${item.description || ''}`),
+        salary: item.salary || item.salaryRange || '',
+        description: item.description || item.excerpt || '',
+        applyUrl: item.applicationUrl || item.applyUrl || item.url,
+        postedAt: item.pubDate || item.publishedAt || item.createdAt,
+      };
+      const normalized = normalizeJob(raw, source);
+      if (normalized) jobs.push(normalized);
+    }
+  }
+
+  return jobs;
+}
+
+async function fetchArbeitnow(source: FeedSource): Promise<DiscoveredJob[]> {
+  const response = await fetch(source.url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`${source.name} failed with HTTP ${response.status}`);
+
+  const data = await response.json();
+  const items = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+
+  return items
+    .map((item: any) => normalizeJob({
+      title: item.title || '',
+      company: item.company_name || item.company || '',
+      location: item.location || (item.remote ? 'Remote' : ''),
+      workType: item.remote ? 'remote' : detectWorkType(`${item.location || ''} ${item.description || ''}`),
+      salary: item.salary || '',
+      description: item.description || '',
+      requirements: Array.isArray(item.tags) ? item.tags : [],
+      applyUrl: item.url || item.apply_url,
+      postedAt: item.created_at || item.date,
+    }, source))
+    .filter((job: DiscoveredJob | null): job is DiscoveredJob => job !== null);
+}
+
+async function fetchSource(source: FeedSource): Promise<DiscoveredJob[]> {
   try {
-    const raw = await callAI(
-      [{ role: 'user', content: prompt }],
-      'perplexity/sonar-pro'
-    );
-    const parsed = parseJsonJobs(raw);
-    return parsed
-      .map((j) => normaliseJob(j, 'perplexity', careerPath))
-      .filter((j): j is DiscoveredJob => j !== null);
-  } catch (err) {
-    console.error(`[jobResearcher] Perplexity search failed for "${careerPath}":`, err);
+    if (source.kind === 'himalayas') return await fetchHimalayas(source);
+    if (source.kind === 'arbeitnow') return await fetchArbeitnow(source);
+    return await fetchRssSource(source);
+  } catch (error) {
+    console.warn(`[jobResearcher] ${source.name} skipped:`, error);
     return [];
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stage 1-B: Single broad Perplexity search (fallback when no career paths set)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function buildBroadPerplexityPrompt(opts: ResearchOptions, count: number): string {
-  const { resumeText, jobType = 'remote', location } = opts;
-  const skills = extractTopSkills(resumeText);
-  const workInstruction = buildWorkInstruction(jobType, location);
-
-  return `You are an AI job-search agent with live real-time internet access.
-
-RIGHT NOW, search the live internet for currently open job listings.
-
-## CANDIDATE PROFILE
-Key skills: ${skills.join(', ')}
-Work requirement: ${workInstruction}
-
-Resume (first 600 chars):
-"""
-${resumeText.slice(0, 600)}
-"""
-
-## YOUR TASK
-Search LinkedIn Jobs, Greenhouse, Lever, Ashby, Workable, Indeed, Glassdoor, Wellfound, We Work Remotely, Remote.co, and company career pages.
-
-Find exactly ${count} REAL, CURRENTLY OPEN positions that match this candidate. Each must be at a DIFFERENT company. Prioritise postings from the last 14 days.
-
-## OUTPUT FORMAT
-Return ONLY a JSON array:
-[
-  {
-    "title": "exact job title",
-    "company": "company name",
-    "location": "Remote" or "Remote – US" or city,
-    "workType": "remote | hybrid | onsite",
-    "salary": "$X,000 – $Y,000/yr or empty string",
-    "description": "4–6 paragraphs of real detail, 200+ words minimum.",
-    "requirements": ["6–8 specific requirements from the listing"],
-    "applyUrl": "direct application URL"
-  }
-]
-
-Return ONLY the JSON array.`;
-}
-
-async function researchBroadWithPerplexity(
-  opts: ResearchOptions,
-  callAI: CallAIFn,
-  count: number
-): Promise<DiscoveredJob[]> {
-  const prompt = buildBroadPerplexityPrompt(opts, count);
-  try {
-    const raw = await callAI(
-      [{ role: 'user', content: prompt }],
-      'perplexity/sonar-pro'
-    );
-    const parsed = parseJsonJobs(raw);
-    return parsed
-      .map((j) => normaliseJob(j, 'perplexity'))
-      .filter((j): j is DiscoveredJob => j !== null);
-  } catch (err) {
-    console.error('[jobResearcher] Broad Perplexity search failed:', err);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Stage 2: Gemini 2.5 Pro gap-filler
-// ─────────────────────────────────────────────────────────────────────────────
-
-function buildGeminiFillPrompt(
-  opts: ResearchOptions,
-  count: number,
-  alreadyFoundCompanies: string[]
-): string {
-  const { careerPaths, resumeText, jobType = 'remote', location } = opts;
-  const skills = extractTopSkills(resumeText);
-  const goals = careerPaths.slice(0, 4).join(', ') || 'software engineering';
-  const workNote = jobType === 'remote'
-    ? 'fully remote positions only'
-    : jobType === 'onsite'
-    ? `on-site positions near ${location || 'candidate location'}`
-    : `remote-first, then hybrid${location ? ` near ${location}` : ''}`;
-  const exclude = alreadyFoundCompanies.length > 0
-    ? `\nDo NOT include: ${alreadyFoundCompanies.slice(0, 25).join(', ')}`
-    : '';
-
-  return `You are a senior technical recruiter with deep knowledge of current job market.
-
-Generate a JSON array of ${count} high-quality job listings that genuinely exist right now for this candidate.
-
-## CANDIDATE
-Target roles: ${goals}
-Skills: ${skills.join(', ')}
-Work preference: ${workNote}${exclude}
-
-Resume excerpt:
-"""
-${resumeText.slice(0, 500)}
-"""
-
-Base these on REAL companies actively hiring in this space. Use realistic titles, salaries, and detailed descriptions matching actual industry standards.
-
-Return ONLY a JSON array:
-[
-  {
-    "title": "job title",
-    "company": "real company name that is known to hire remotely",
-    "location": "Remote" or "Remote – US/EU",
-    "workType": "remote",
-    "salary": "$X,000 – $Y,000/yr or empty string",
-    "description": "5–7 detailed paragraphs about the role, company, responsibilities, team. Must be 250+ words.",
-    "requirements": ["6–8 specific requirements"],
-    "applyUrl": ""
-  }
-]
-
-Return ONLY the JSON array.`;
-}
-
-async function researchWithGemini(
-  opts: ResearchOptions,
-  callAI: CallAIFn,
-  count: number,
-  alreadyFoundCompanies: string[]
-): Promise<DiscoveredJob[]> {
-  const prompt = buildGeminiFillPrompt(opts, count, alreadyFoundCompanies);
-  try {
-    const raw = await callAI(
-      [{ role: 'user', content: prompt }],
-      'google/gemini-2.5-pro-preview-03-25'
-    );
-    const parsed = parseJsonJobs(raw);
-    const careerPath = opts.careerPaths[0]; // best-guess path for Gemini results
-    return parsed
-      .map((j) => normaliseJob(j, 'gemini-fallback', careerPath))
-      .filter((j): j is DiscoveredJob => j !== null);
-  } catch (err) {
-    console.error('[jobResearcher] Gemini gap-fill failed:', err);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Deduplication
-// ─────────────────────────────────────────────────────────────────────────────
-
-function deduplicateJobs(jobs: DiscoveredJob[]): DiscoveredJob[] {
+function deduplicateJobs(jobs: DiscoveredJob[]): { jobs: DiscoveredJob[]; deduplicated: number } {
   const seen = new Set<string>();
   const result: DiscoveredJob[] = [];
+
   for (const job of jobs) {
-    if (!seen.has(job.fingerprint)) {
-      seen.add(job.fingerprint);
-      result.push(job);
-    }
+    const key = `${job.fingerprint}::${job.applyUrl || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(job);
   }
-  return result;
+
+  return { jobs: result, deduplicated: jobs.length - result.length };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public API
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Remote-first job discovery.
- *
- * - Runs one focused Perplexity search per career path (max 3) in parallel.
- * - Each job is tagged with `matchedCareerPath` for UI display.
- * - Gemini 2.5 Pro fills any gap if Perplexity returns < 60% of target.
- * - Default jobType is 'remote' — override via opts.jobType.
- */
 export async function researchJobs(
   opts: ResearchOptions,
-  callAI: CallAIFn
+  _callAI?: CallAIFn
 ): Promise<ResearchResult> {
-  const target = opts.targetCount ?? 30;
-  const jobType = opts.jobType || 'remote';
-  const effectiveOpts: ResearchOptions = { ...opts, jobType };
+  const target = opts.targetCount ?? 60;
+  const sources = getConfiguredSources(opts.feedUrls);
+  const results = await Promise.allSettled(sources.map(fetchSource));
+  const allJobs = results.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+  const { jobs, deduplicated } = deduplicateJobs(allJobs);
+  const selected = jobs
+    .sort((a, b) => a.daysOld - b.daysOld)
+    .slice(0, target);
 
-  const sources: Record<JobSource, number> = { perplexity: 0, 'gemini-fallback': 0 };
-  let perplexityJobs: DiscoveredJob[] = [];
-
-  const paths = (opts.careerPaths || []).filter(Boolean).slice(0, 3);
-
-  if (paths.length === 0) {
-    // No career paths — fall back to resume-only broad search
-    perplexityJobs = await researchBroadWithPerplexity(effectiveOpts, callAI, target);
-    console.log(`[jobResearcher] Broad search found ${perplexityJobs.length} jobs`);
-  } else {
-    // Parallel per-career-path searches
-    const jobsPerPath = Math.ceil(target / paths.length);
-
-    const searchResults = await Promise.allSettled(
-      paths.map((path, idx) => {
-        // Stagger start slightly to avoid rate-limit bursts (250ms apart)
-        return new Promise<DiscoveredJob[]>((resolve) => {
-          setTimeout(async () => {
-            const excludeFromPriorPaths: string[] = [];
-            resolve(await researchCareerPathWithPerplexity(path, effectiveOpts, callAI, jobsPerPath, excludeFromPriorPaths));
-          }, idx * 250);
-        });
-      })
-    );
-
-    for (const result of searchResults) {
-      if (result.status === 'fulfilled') {
-        perplexityJobs.push(...result.value);
-      }
-    }
-
-    console.log(`[jobResearcher] Per-path search (${paths.length} paths) found ${perplexityJobs.length} total jobs`);
+  const sourceCounts: Record<string, number> = {};
+  for (const job of selected) {
+    sourceCounts[job.source] = (sourceCounts[job.source] || 0) + 1;
   }
-
-  // Deduplicate Perplexity results across paths
-  perplexityJobs = deduplicateJobs(perplexityJobs);
-  sources.perplexity = perplexityJobs.length;
-
-  // Gap-fill with Gemini if needed
-  let geminiJobs: DiscoveredJob[] = [];
-  if (perplexityJobs.length < Math.max(target * 0.6, 8)) {
-    const needed = target - perplexityJobs.length;
-    const foundCompanies = perplexityJobs.map((j) => j.company);
-    geminiJobs = await researchWithGemini(effectiveOpts, callAI, needed, foundCompanies);
-    sources['gemini-fallback'] = geminiJobs.length;
-    console.log(`[jobResearcher] Gemini gap-fill added ${geminiJobs.length} jobs`);
-  }
-
-  const all = [...perplexityJobs, ...geminiJobs];
-  const deduped = deduplicateJobs(all);
 
   return {
-    jobs: deduped,
-    sources,
-    totalFound: all.length,
-    deduplicated: all.length - deduped.length,
+    jobs: selected,
+    sources: sourceCounts,
+    totalFound: allJobs.length,
+    deduplicated,
   };
 }

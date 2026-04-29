@@ -4,10 +4,10 @@
  * Per-user job generation pipeline:
  *
  *  1. Load user profile from Firestore
- *  2. AI deep research (Perplexity Sonar Pro → Gemini 2.5 Pro fallback)
+ *  2. Feed/API job discovery from configured RSS/API sources
  *  3. Deduplicate against user's seen fingerprints
- *  4. AI batch scoring (Gemini 2.5 Pro) → pick top-N candidates
- *  5. AI enrichment (Claude claude-sonnet-4-6) → matchReasons, skillGaps, aiSummary per job
+ *  4. Deterministic scoring against resume, career paths, and preferences
+ *  5. Store match reasons, gaps, and summaries with each job
  *  6. Store complete job objects in Firestore (inline, no redirects)
  *  7. Update seenJobFingerprints (capped at MAX_SEEN)
  *  8. Send email digest via Resend
@@ -22,43 +22,10 @@ import { processUserCronRun } from '../../src/services/cronEngine';
 import { computeNextJobDeliveryAt } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
-import type { CallAIFn } from '../../src/services/jobResearcher';
 import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
 import type { DailyJob } from '../../src/types/dailyJob';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Direct OpenRouter caller — used server-side (no browser fetch proxy needed)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function makeServerCallAI(): CallAIFn {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY environment variable is not set');
-
-  return async (messages, model) => {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : 'https://hireschema.com',
-        'X-Title': 'HireSchema Cron',
-      },
-      body: JSON.stringify({ model, messages }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error((err as any).error?.message || `OpenRouter error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return (data as any).choices?.[0]?.message?.content?.trim() || '';
-  };
-}
 
 function getBaseUrl(req: VercelRequest): string {
   const proto =
@@ -82,7 +49,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = getAdminDb();
     const baseUrl = getBaseUrl(req);
-    const callAI = makeServerCallAI();
 
     const result = await processUserCronRun(
       { userId, runDate },
@@ -113,10 +79,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const location: string = profile.location || '';
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-          // Stage 1: AI deep research (Perplexity → Gemini fallback)
           const { jobs: discovered, sources } = await researchJobs(
-            { careerPaths, resumeText, jobType, location, targetCount: 30 },
-            callAI
+            { careerPaths, resumeText, jobType, location, targetCount: 60 }
           );
 
           console.log(
@@ -137,7 +101,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             };
           }
 
-          // Stage 2: AI scoring + enrichment → top-N
           const matchResult = await matchAndRankJobs(
             discovered,
             {
@@ -147,8 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               seenFingerprints,
               limit,
               matchingPreferences: profile.matchingPreferences || profile.preferences,
-            },
-            callAI
+            }
           );
 
           console.log(

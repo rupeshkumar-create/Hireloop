@@ -4,7 +4,6 @@ import { processUserCronRun } from '../../src/services/cronEngine';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
-import type { CallAIFn } from '../../src/services/jobResearcher';
 import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
 import type { DailyJob } from '../../src/types/dailyJob';
 import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist';
@@ -29,34 +28,6 @@ function resolveCareerPaths(profile: Record<string, any>): string[] {
     .slice(0, 10);
 }
 
-function makeServerCallAI(): CallAIFn {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
-
-  return async (messages, model) => {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : 'https://hireschema.com',
-        'X-Title': 'HireSchema Jobs',
-      },
-      body: JSON.stringify({ model, messages }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error((err as any).error?.message || `OpenRouter error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return (data as any).choices?.[0]?.message?.content?.trim() || '';
-  };
-}
-
 function getBaseUrl(req: VercelRequest): string {
   const proto =
     Array.isArray(req.headers['x-forwarded-proto'])
@@ -79,7 +50,6 @@ async function verifyUser(req: VercelRequest): Promise<string | null> {
 async function runPipeline(uid: string, runDate: string, req: VercelRequest): Promise<void> {
   const db = getAdminDb();
   const baseUrl = getBaseUrl(req);
-  const callAI = makeServerCallAI();
 
   await processUserCronRun(
     { userId: uid, runDate, bypassActiveCheck: true },
@@ -103,6 +73,7 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
+        const targetDiscoveryCount = Math.max(30, limit * 6);
 
         const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
         const atsJobs = atsSources.length
@@ -110,13 +81,12 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
               fetchFn: fetch,
               verifyUrl: async (url) => await verifyHttpUrl(url),
               seenFingerprints,
-              maxJobs: Math.max(40, limit * 6),
+              maxJobs: targetDiscoveryCount,
               concurrency: 8,
               perSourceTimeoutMs: 4500,
             })
           : [];
 
-        const target = Math.max(0, limit);
         const byFingerprint = new Set<string>();
         const combined: any[] = [];
         for (const job of atsJobs) {
@@ -124,21 +94,19 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
           if (byFingerprint.has(job.fingerprint)) continue;
           byFingerprint.add(job.fingerprint);
           combined.push(job);
-          if (combined.length >= target) break;
         }
 
-        if (combined.length < target) {
-          const missing = target - combined.length;
-          const { jobs: aiJobs } = await researchJobs(
-            { careerPaths, resumeText, jobType, location, targetCount: Math.max(20, missing * 3) },
-            callAI
+        if (combined.length < targetDiscoveryCount) {
+          const missing = targetDiscoveryCount - combined.length;
+          const { jobs: feedJobs } = await researchJobs(
+            { careerPaths, resumeText, jobType, location, targetCount: Math.max(20, missing) }
           );
-          for (const job of aiJobs) {
+          for (const job of feedJobs) {
             if (!job?.fingerprint) continue;
             if (byFingerprint.has(job.fingerprint)) continue;
             byFingerprint.add(job.fingerprint);
             combined.push(job);
-            if (combined.length >= target) break;
+            if (combined.length >= targetDiscoveryCount) break;
           }
         }
 
@@ -150,8 +118,14 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
 
         const matchResult = await matchAndRankJobs(
           discovered,
-          { careerPaths, resumeText, jobType, seenFingerprints, limit },
-          callAI
+          {
+            careerPaths,
+            resumeText,
+            jobType,
+            seenFingerprints,
+            limit,
+            matchingPreferences: profile.matchingPreferences || profile.preferences,
+          }
         );
 
         return {
@@ -166,6 +140,12 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
       storeJobs: async (userId, date, profile, generated) => {
         const fetchedAt = new Date().toISOString();
         const jobs: DailyJob[] = generated.jobs || [];
+        const requestedLimit = generated.requestedLimit ?? jobs.length;
+        const qualityFilteredCount = generated.qualityFilteredCount ?? 0;
+        const dedupedCount = generated.dedupedCount ?? 0;
+        const deliveryTimezone = profile.deliveryTimezone || 'UTC';
+        const qualityLimited = jobs.length < requestedLimit;
+        const warnings = profile.matchReadiness?.qualityWarnings || [];
 
         const newFingerprints = jobs.map((j) => jobFingerprint(j.title, j.company));
         const nextFingerprints = [
@@ -173,19 +153,50 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         ].slice(-MAX_SEEN_FINGERPRINTS);
 
         await db.collection('users').doc(userId).set(
-          { dailyJobs: jobs, lastJobFetchTime: fetchedAt, seenJobFingerprints: nextFingerprints },
+          {
+            dailyJobs: jobs,
+            dailyJobsMeta: {
+              requestedLimit,
+              returnedCount: jobs.length,
+              qualityFilteredCount,
+              dedupedCount,
+              deliveryTimezone,
+              deliveryLocalDate: date,
+              emailSent: false,
+              qualityLimited,
+              warnings,
+            },
+            lastJobFetchTime: fetchedAt,
+            lastSuccessfulJobRunLocalDate: date,
+            matchReadiness: profile.matchReadiness,
+            seenJobFingerprints: nextFingerprints,
+          },
           { merge: true }
         );
 
-        if (jobs.length > 0) {
-          const sources: Record<string, number> = {};
-          for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
+        const sources: Record<string, number> = {};
+        for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
 
-          await db
-            .collection('users').doc(userId)
-            .collection('daily_matches').doc(date)
-            .set({ userId, date, generatedAt: fetchedAt, jobs, jobCount: jobs.length, sources });
-        }
+        await db
+          .collection('users').doc(userId)
+          .collection('daily_matches').doc(date)
+          .set({
+            userId,
+            date,
+            generatedAt: fetchedAt,
+            jobs,
+            jobCount: jobs.length,
+            sources,
+            requestedLimit,
+            returnedCount: jobs.length,
+            qualityFilteredCount,
+            dedupedCount,
+            deliveryTimezone,
+            deliveryLocalDate: date,
+            emailSent: false,
+            qualityLimited,
+            warnings,
+          });
       },
       sendDailyEmail: async (email, jobs) => {
         try {
@@ -203,15 +214,18 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
   );
 }
 
+async function readStoredJobs(uid: string, runDate: string): Promise<DailyJob[]> {
+  const db = getAdminDb();
+  const snap = await db.collection('users').doc(uid).collection('daily_matches').doc(runDate).get();
+  if (snap.exists) return (snap.data()?.jobs || []) as DailyJob[];
+
+  const userSnap = await db.collection('users').doc(uid).get();
+  return userSnap.exists ? ((userSnap.data()?.dailyJobs || []) as DailyJob[]) : [];
+}
+
 async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
   const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
   const githubRepo = process.env.GITHUB_REPO;
-
-  if (!process.env.OPENROUTER_API_KEY && !process.env.VITE_OPENROUTER_API_KEY) {
-    return res.status(500).json({
-      error: 'Job generation is not configured. Please set OPENROUTER_API_KEY in your environment.',
-    });
-  }
 
   const db = getAdminDb();
   const userSnap = await db.collection('users').doc(uid).get();
@@ -228,12 +242,6 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
       error: 'Add at least one career path or upload your resume before generating jobs.',
     });
   }
-
-  res.status(202).json({
-    status: githubToken && githubRepo ? 'dispatched' : 'processing',
-    runDate,
-    message: 'Job generation started. Your dashboard will update automatically in about 2 minutes.',
-  });
 
   if (githubToken && githubRepo) {
     let ghResponse: Response;
@@ -261,15 +269,27 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     }
 
     if (ghResponse.ok) {
-      return;
+      return res.status(202).json({
+        status: 'dispatched',
+        runDate,
+        message: 'Job generation started. Your dashboard will update automatically in about 2 minutes.',
+      });
     }
 
     const body = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
   }
 
-  await runPipeline(uid, runDate, req).catch((err) => {
-    console.error('[jobs/index] Inline pipeline error after 202:', err);
+  await runPipeline(uid, runDate, req);
+  const jobs = await readStoredJobs(uid, runDate);
+  return res.status(200).json({
+    status: 'completed',
+    runDate,
+    jobs,
+    jobCount: jobs.length,
+    message: jobs.length > 0
+      ? `${jobs.length} jobs curated for you.`
+      : 'No matching jobs were found for today. Try broadening your career paths or work preferences.',
   });
 }
 
@@ -279,8 +299,7 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
   const profile = userSnap.exists ? userSnap.data() || {} : {};
   const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
   await runPipeline(uid, runDate, req);
-  const snap = await db.collection('users').doc(uid).collection('daily_matches').doc(runDate).get();
-  const jobs = snap.exists ? (snap.data()?.jobs || []) : [];
+  const jobs = await readStoredJobs(uid, runDate);
   return res.status(200).json({ jobs });
 }
 

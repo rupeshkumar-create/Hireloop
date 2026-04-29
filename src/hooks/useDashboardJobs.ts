@@ -229,6 +229,34 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         body: JSON.stringify({ mode: 'request' }),
       });
 
+      if (requestResponse.ok && requestResponse.status !== 202) {
+        const payload = await requestResponse.json().catch(() => ({}));
+        const fetchedJobs: DailyJob[] = Array.isArray((payload as any).jobs)
+          ? (payload as any).jobs.slice(0, getDailyMatchLimit(profile?.plan))
+          : [];
+
+        setJobs(fetchedJobs);
+        setDailyJobsMeta({
+          requestedLimit: (payload as any).requestedLimit ?? getDailyMatchLimit(profile?.plan),
+          returnedCount: (payload as any).jobCount ?? fetchedJobs.length,
+          deliveryLocalDate: (payload as any).runDate,
+          deliveryTimezone: resolveDeliveryTimeZone(profile),
+          qualityLimited: fetchedJobs.length === 0,
+        });
+        setLastFetchTime(new Date().toISOString());
+
+        if (fetchedJobs.length > 0) {
+          toast.success(`${fetchedJobs.length} jobs curated for you!`);
+        } else {
+          toast.info(
+            (payload as any).message ||
+            "No matching jobs found this time. Try broadening your career paths or work preferences.",
+            { duration: 8000 }
+          );
+        }
+        return;
+      }
+
       if (requestResponse.status === 202) {
         asyncDispatched = true;
         toast.info(

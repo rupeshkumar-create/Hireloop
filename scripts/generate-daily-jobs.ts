@@ -12,7 +12,6 @@
  *   USER_ID=abc123 npx tsx scripts/generate-daily-jobs.ts
  *
  * Required env vars (stored as GitHub secrets):
- *   OPENROUTER_API_KEY
  *   FIREBASE_SERVICE_ACCOUNT_KEY   (JSON string of service account)
  *   RESEND_API_KEY
  *   FIRESTORE_DATABASE_ID          (optional, omit for default database)
@@ -31,7 +30,6 @@ import {
   isActiveCronUser,
   processUserCronRun,
 } from '../src/services/cronEngine';
-import type { CallAIFn } from '../src/services/jobResearcher';
 import type { DailyJob } from '../src/types/dailyJob';
 import { formatLocalDate } from '../src/lib/localDate';
 
@@ -52,34 +50,6 @@ function initAdmin() {
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 
   return { db };
-}
-
-// ── AI caller (direct OpenRouter, no Vercel proxy needed) ────────────────────
-
-function makeCallAI(): CallAIFn {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set');
-
-  return async (messages, model) => {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://hireschema.com',
-        'X-Title': 'HireSchema GitHub Actions',
-      },
-      body: JSON.stringify({ model, messages }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error((err as any).error?.message || `OpenRouter ${response.status}`);
-    }
-
-    const data = await response.json();
-    return (data as any).choices?.[0]?.message?.content?.trim() || '';
-  };
 }
 
 // ── Email sender (calls Resend directly, no /api/resend proxy) ───────────────
@@ -113,8 +83,6 @@ async function processUser(
   db: FirebaseFirestore.Firestore,
   force = false
 ) {
-  const callAI = makeCallAI();
-
   const result = await processUserCronRun(
     { userId, runDate, bypassActiveCheck: force },
     {
@@ -149,8 +117,7 @@ async function processUser(
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
         const { jobs: discovered, sources } = await researchJobs(
-          { careerPaths, resumeText, jobType, location, targetCount: 30 },
-          callAI
+          { careerPaths, resumeText, jobType, location, targetCount: 60 }
         );
         console.log(`  discovered ${discovered.length} jobs`, sources);
 
@@ -167,8 +134,14 @@ async function processUser(
 
         const matchResult = await matchAndRankJobs(
           discovered,
-          { careerPaths, resumeText, jobType, seenFingerprints, limit },
-          callAI
+          {
+            careerPaths,
+            resumeText,
+            jobType,
+            seenFingerprints,
+            limit,
+            matchingPreferences: profile.matchingPreferences || profile.preferences,
+          }
         );
         console.log(`  matched ${matchResult.jobs.length} jobs`);
 
