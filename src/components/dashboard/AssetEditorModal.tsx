@@ -48,16 +48,16 @@ export function AssetEditorModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4 sm:p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-md p-4 sm:p-6">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative flex h-[85vh] w-[80vw] max-w-[1200px] flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.2)]"
+            className="relative flex h-[85vh] w-[80vw] max-w-[1200px] flex-col overflow-hidden rounded-2xl border border-border bg-surface"
           >
             <div className="flex items-center justify-between border-b border-border bg-background/50 px-6 py-4 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-foreground text-background">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface-hover text-foreground">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h2 className="text-xl font-medium text-foreground">{title}</h2>
@@ -72,7 +72,7 @@ export function AssetEditorModal({
             <div className="flex flex-1 overflow-hidden">
               {/* Left Side: AI Assistant */}
               <div className="w-1/3 flex flex-col border-r border-border bg-surface-hover/30 p-6">
-                <div className="flex items-center gap-2 mb-4 text-primary font-medium">
+                <div className="flex items-center gap-2 mb-4 text-foreground-muted font-medium">
                   <Sparkles className="h-5 w-5" />
                   <h3>AI Copilot</h3>
                 </div>
@@ -81,7 +81,7 @@ export function AssetEditorModal({
                 </p>
                 <div className="space-y-3 flex-1">
                   <textarea
-                    className="w-full h-32 rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none shadow-inner"
+                    className="w-full h-32 rounded-lg border border-border bg-background p-3 text-sm resize-none outline-none transition-[border-color,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:border-[var(--ember-400)] focus-visible:shadow-[var(--ember-glow)]"
                     placeholder="e.g., Make it shorter, tone down the enthusiasm, highlight my React skills..."
                     value={instruction}
                     onChange={(e) => setInstruction(e.target.value)}
@@ -91,7 +91,7 @@ export function AssetEditorModal({
                       <button
                         key={preset}
                         onClick={() => setInstruction(preset)}
-                        className="text-xs px-3 py-1.5 rounded-full border border-border bg-background text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-md border border-border bg-background text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
                       >
                         {preset}
                       </button>
@@ -99,7 +99,7 @@ export function AssetEditorModal({
                   </div>
                 </div>
                 <Button
-                  className="w-full mt-4 shadow-md"
+                  className="w-full mt-4"
                   disabled={!instruction.trim() || isAiLoading}
                   onClick={handleImprove}
                 >
@@ -116,21 +116,21 @@ export function AssetEditorModal({
                   </div>
                 )}
                 <div className="flex items-center justify-between border-b border-border px-6 py-2 bg-surface">
-                  <div className="flex rounded-lg border border-border bg-background p-1 shadow-sm">
+                  <div className="flex rounded-full border border-border bg-background p-1">
                     <button
-                      className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'edit' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-muted hover:text-foreground'}`}
+                      className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors border border-transparent ${viewMode === 'edit' ? 'bg-[var(--ember-tint)] border-[var(--ember-400)] text-foreground' : 'text-foreground-muted hover:text-foreground'}`}
                       onClick={() => setViewMode('edit')}
                     >
                       Edit
                     </button>
                     <button
-                      className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'preview' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-muted hover:text-foreground'}`}
+                      className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors border border-transparent ${viewMode === 'preview' ? 'bg-[var(--ember-tint)] border-[var(--ember-400)] text-foreground' : 'text-foreground-muted hover:text-foreground'}`}
                       onClick={() => setViewMode('preview')}
                     >
                       Preview
                     </button>
                   </div>
-                  <Button size="sm" onClick={handleSave} disabled={isSaving || isAiLoading} className="shadow-sm">
+                  <Button size="sm" onClick={handleSave} disabled={isSaving || isAiLoading}>
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                     Save Changes
                   </Button>

@@ -60,7 +60,7 @@ function WorkTypeBadge({ workType, location }: { workType?: string; location?: s
 
   if (isRemote) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
         <Wifi className="h-3 w-3" />
         Remote
       </span>
@@ -68,7 +68,7 @@ function WorkTypeBadge({ workType, location }: { workType?: string; location?: s
   }
   if (workType === 'hybrid') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
         <Globe className="h-3 w-3" />
         Hybrid
       </span>
@@ -76,7 +76,7 @@ function WorkTypeBadge({ workType, location }: { workType?: string; location?: s
   }
   if (workType === 'onsite') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-900/40 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:text-orange-300">
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
         <MapPin className="h-3 w-3" />
         On-site
       </span>
@@ -88,7 +88,7 @@ function WorkTypeBadge({ workType, location }: { workType?: string; location?: s
 // ── Career path chip ─────────────────────────────────────────────────────────
 function CareerPathChip({ path }: { path: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
+    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
       {path}
     </span>
   );
@@ -97,10 +97,10 @@ function CareerPathChip({ path }: { path: string }) {
 // ── Match score bar ───────────────────────────────────────────────────────────
 function MatchScoreBar({ score }: { score: number }) {
   const color =
-    score >= 80 ? 'bg-emerald-500' :
-    score >= 60 ? 'bg-blue-500' :
-    score >= 40 ? 'bg-amber-500' :
-    'bg-foreground-muted/40';
+    score >= 80 ? 'bg-[var(--ember-400)]' :
+    score >= 60 ? 'bg-border-strong' :
+    score >= 40 ? 'bg-border' :
+    'bg-border';
 
   return (
     <div className="flex items-center gap-2">
@@ -111,9 +111,8 @@ function MatchScoreBar({ score }: { score: number }) {
         />
       </div>
       <span className={cn(
-        'text-xs font-bold tabular-nums',
-        score >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
-        score >= 60 ? 'text-blue-600 dark:text-blue-400' :
+        'text-xs font-medium tabular-nums',
+        score >= 80 ? 'text-[var(--ember-400)]' :
         'text-foreground-muted'
       )}>
         {score}%
@@ -142,13 +141,13 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {job.matchReasons && job.matchReasons.length > 0 && (
-          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+          <div className="rounded-xl bg-[rgba(127,184,147,0.16)] p-3">
+            <p className="text-xs font-medium text-[var(--signal-success)] mb-2 flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" /> Why you match
             </p>
             <ul className="space-y-1">
               {job.matchReasons.slice(0, 4).map((r, i) => (
-                <li key={i} className="text-xs text-emerald-900 dark:text-emerald-300 flex gap-1.5">
+                <li key={i} className="text-xs text-foreground flex gap-1.5">
                   <span className="mt-0.5 shrink-0">•</span>{r}
                 </li>
               ))}
@@ -156,13 +155,13 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
           </div>
         )}
         {job.skillGaps && job.skillGaps.length > 0 && (
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3">
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
+          <div className="rounded-xl bg-[rgba(212,168,90,0.16)] p-3">
+            <p className="text-xs font-medium text-[var(--signal-warn)] mb-2 flex items-center gap-1">
               <AlertCircle className="h-3.5 w-3.5" /> Skill gaps
             </p>
             <ul className="space-y-1">
               {job.skillGaps.slice(0, 4).map((g, i) => (
-                <li key={i} className="text-xs text-amber-900 dark:text-amber-300 flex gap-1.5">
+                <li key={i} className="text-xs text-foreground flex gap-1.5">
                   <span className="mt-0.5 shrink-0">•</span>{g}
                 </li>
               ))}
@@ -173,10 +172,10 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
 
       {job.requirements && job.requirements.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-foreground-muted mb-2">Key requirements</p>
+          <p className="text-xs font-medium text-foreground-muted mb-2">Key requirements</p>
           <div className="flex flex-wrap gap-1.5">
             {job.requirements.slice(0, 10).map((r, i) => (
-              <span key={i} className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs text-foreground-muted">
+              <span key={i} className="rounded-md border border-border bg-surface px-2.5 py-0.5 text-xs text-foreground-muted">
                 {r}
               </span>
             ))}
@@ -197,7 +196,7 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
       {job.isHotJob && job.hotSignals && job.hotSignals.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {job.hotSignals.map((s, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/30 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">
+            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-[rgba(212,168,90,0.16)] px-2.5 py-0.5 text-xs font-medium text-[var(--signal-warn)]">
               <Zap className="h-3 w-3" />{s}
             </span>
           ))}
@@ -221,7 +220,7 @@ function InlineJobDetail({ job, onSave, isSaved, isSaving, onDismiss }: {
           target="_blank"
           rel="noopener noreferrer"
           title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:border-border-strong transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground-muted transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-foreground hover:border-border-strong"
         >
           <ExternalLink className="h-3.5 w-3.5" />
           {isFallbackUrl ? 'Find & Apply' : 'Apply'}
@@ -260,8 +259,8 @@ function JobCard({
   return (
     <Card
       className={cn(
-        'transition-all hover:-translate-y-0.5 hover:border-border-strong',
-        isExpanded ? 'border-border-strong ring-1 ring-ring' : ''
+        'hover:border-border-strong',
+        isExpanded ? 'border-[var(--ember-400)] bg-[var(--ember-tint)]' : ''
       )}
     >
       <CardContent className="p-5">
@@ -272,7 +271,7 @@ function JobCard({
             <CareerPathChip path={job.matchedCareerPath} />
           )}
           {job.isHotJob && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-[rgba(212,168,90,0.16)] px-2 py-0.5 text-xs font-medium text-[var(--signal-warn)]">
               <Zap className="h-3 w-3" /> Hot
             </span>
           )}
@@ -281,7 +280,7 @@ function JobCard({
         {/* Header row */}
         <div className="flex justify-between items-start gap-3" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
           <div className="min-w-0">
-            <h3 className="font-bold text-foreground font-display text-lg leading-tight">{job.title}</h3>
+            <h3 className="text-lg font-medium leading-tight tracking-[-0.01em] text-foreground">{job.title}</h3>
             <p className="text-foreground-muted font-medium mt-0.5">{job.company}</p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -441,13 +440,13 @@ export function MatchesTab({
       {/* Work-type toggle + sort */}
       <div className="mb-4 flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
         {/* Remote / All tabs */}
-        <div className="flex rounded-xl border border-border bg-surface-hover p-0.5 gap-0.5">
+        <div className="flex rounded-full border border-border bg-surface-hover p-0.5 gap-0.5">
           <button
             onClick={() => setFilterWorkType('remote')}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-all',
+              'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
               filterWorkType === 'remote'
-                ? 'bg-emerald-600 text-white shadow-sm'
+                ? 'bg-surface text-foreground'
                 : 'text-foreground-muted hover:text-foreground'
             )}
           >
@@ -455,8 +454,8 @@ export function MatchesTab({
             Remote
             {remoteCount > 0 && (
               <span className={cn(
-                'ml-1 rounded-full px-1.5 py-0.5 text-xs font-bold',
-                filterWorkType === 'remote' ? 'bg-emerald-700/50 text-white' : 'bg-border text-foreground-muted'
+                'ml-1 rounded-md px-1.5 py-0.5 text-xs font-medium',
+                filterWorkType === 'remote' ? 'bg-[var(--ember-tint)] text-foreground' : 'bg-border text-foreground-muted'
               )}>
                 {remoteCount}
               </span>
@@ -465,16 +464,16 @@ export function MatchesTab({
           <button
             onClick={() => setFilterWorkType('all')}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-all',
+              'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
               filterWorkType === 'all'
-                ? 'bg-surface text-foreground shadow-sm'
+                ? 'bg-surface text-foreground'
                 : 'text-foreground-muted hover:text-foreground'
             )}
           >
             All
             {jobs.length > 0 && (
               <span className={cn(
-                'ml-1 rounded-full px-1.5 py-0.5 text-xs font-bold',
+                'ml-1 rounded-md px-1.5 py-0.5 text-xs font-medium',
                 filterWorkType === 'all' ? 'bg-border text-foreground-muted' : 'bg-border text-foreground-muted'
               )}>
                 {jobs.length}
@@ -490,7 +489,7 @@ export function MatchesTab({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-9 rounded-xl border border-border bg-surface px-3 text-sm text-foreground-muted outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 rounded-lg border border-border bg-surface px-3 text-sm text-foreground-muted outline-none transition-[border-color,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:border-[var(--ember-400)] focus-visible:shadow-[var(--ember-glow)]"
             >
               <option value="matchScore">Best match</option>
               <option value="datePosted">Newest first</option>
@@ -539,27 +538,27 @@ export function MatchesTab({
             {generatingJobs ? (
               <>
                 <div className="relative">
-                  <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
-                  <Wifi className="absolute inset-0 m-auto h-4 w-4 text-emerald-600 opacity-60" />
+                  <Loader2 className="h-10 w-10 animate-spin text-[var(--ember-400)]" />
+                  <Wifi className="absolute inset-0 m-auto h-4 w-4 text-[var(--ember-400)] opacity-60" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Finding remote jobs for you…</p>
+                  <p className="font-medium text-foreground">Finding remote jobs for you…</p>
                   <p className="mt-1 text-sm text-foreground-muted max-w-xs">
                     Perplexity is scanning live job boards for each of your career paths. Claude is scoring and enriching every match. Takes about 60–90 seconds.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-foreground-muted/60">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--ember-400)] animate-pulse" />
                   Searching LinkedIn · Greenhouse · Lever · Wellfound · Remote.co
                 </div>
               </>
             ) : (
               <>
-                <div className="h-16 w-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                  <Wifi className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                <div className="h-16 w-16 rounded-xl border border-border bg-surface-hover flex items-center justify-center">
+                  <Wifi className="h-8 w-8 text-foreground-muted" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">No remote jobs curated yet today</p>
+                  <p className="font-medium text-foreground">No remote jobs curated yet today</p>
                   <p className="mt-1 text-sm text-foreground-muted max-w-xs">
                     {isProPlan(plan)
                       ? 'Generate your 10 personalised remote matches right now, or wait for the daily cron at 8 AM IST.'
@@ -618,24 +617,24 @@ export function MatchesTab({
                     <CardContent className="p-5">
                       <div className="pointer-events-none select-none blur-[3px] opacity-80">
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground-muted">
                             <Wifi className="h-3 w-3" /> Remote
                           </span>
                         </div>
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-bold text-foreground font-display text-lg">{item.slot.title}</h3>
+                            <h3 className="text-lg font-medium leading-tight tracking-[-0.01em] text-foreground">{item.slot.title}</h3>
                             <p className="text-foreground-muted font-medium">{item.slot.company}</p>
                           </div>
-                          <Badge variant="secondary" className="font-semibold">Locked</Badge>
+                          <Badge variant="secondary" className="font-medium">Locked</Badge>
                         </div>
                         <div className="flex flex-wrap gap-4 mt-3 text-sm text-foreground-muted">
                           <div className="flex items-center"><MapPin className="mr-1.5 h-4 w-4" /> {item.slot.location}</div>
                           <div className="flex items-center"><DollarSign className="mr-1.5 h-4 w-4" /> {item.slot.salary}</div>
                         </div>
                       </div>
-                      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(248,245,239,0.72)] backdrop-blur-sm">
-                        <div className="mx-6 flex max-w-xs flex-col items-center rounded-2xl border border-border bg-background/95 px-5 py-4 text-center shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+                      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.12)] backdrop-blur-sm">
+                        <div className="mx-6 flex max-w-xs flex-col items-center rounded-xl border border-border bg-background/95 px-5 py-4 text-center">
                           <Lock className="mb-2 h-5 w-5 text-primary" />
                           <p className="text-sm font-medium text-foreground">{item.slot.teaser}</p>
                           <p className="mt-1 text-xs text-foreground-muted">Go Pro to unlock 10 remote matches daily.</p>

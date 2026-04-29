@@ -64,7 +64,7 @@ export function BlogPost() {
   if (notFound || !post) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-32 text-center">
-        <h1 className="mb-3 text-2xl font-bold">Post not found</h1>
+        <h1 className="mb-3 text-2xl font-medium">Post not found</h1>
         <p className="mb-8 text-foreground-muted">This article may have been moved or doesn't exist.</p>
         <Link to="/blog">
           <Button variant="outline">Back to Blog</Button>
@@ -86,7 +86,7 @@ export function BlogPost() {
 
       {/* Meta */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-foreground-muted">
+        <span className="rounded-md border border-border px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-foreground-muted">
           {post.category}
         </span>
         <span className="flex items-center gap-1 text-xs text-foreground-muted">
@@ -110,12 +110,12 @@ export function BlogPost() {
 
       {/* Content */}
       <div className="prose prose-neutral dark:prose-invert max-w-none
-        prose-headings:font-display prose-headings:tracking-tight
-        prose-h2:text-xl prose-h2:font-semibold prose-h2:mt-10 prose-h2:mb-4
-        prose-h3:text-base prose-h3:font-semibold prose-h3:mt-6 prose-h3:mb-2
+        prose-headings:tracking-[-0.02em]
+        prose-h2:text-xl prose-h2:font-medium prose-h2:mt-10 prose-h2:mb-4
+        prose-h3:text-base prose-h3:font-medium prose-h3:mt-6 prose-h3:mb-2
         prose-p:text-base prose-p:leading-relaxed prose-p:text-foreground
         prose-li:text-base prose-li:text-foreground
-        prose-strong:font-semibold prose-strong:text-foreground
+        prose-strong:font-medium prose-strong:text-foreground
         prose-a:text-foreground prose-a:underline prose-a:underline-offset-2
         prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:text-foreground-muted">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -124,8 +124,8 @@ export function BlogPost() {
       </div>
 
       {/* CTA */}
-      <div className="mt-16 rounded-2xl border border-border bg-surface p-8 text-center">
-        <h3 className="mb-2 text-lg font-semibold">Find Your Next Remote Job with AI</h3>
+      <div className="mt-16 rounded-xl border border-border bg-surface p-8 text-center">
+        <h3 className="mb-2 text-lg font-medium">Find Your Next Remote Job with AI</h3>
         <p className="mb-6 text-sm text-foreground-muted">
           HireSchema sends you daily personalized remote job matches — tailored to your resume and preferences.
           Free to start.

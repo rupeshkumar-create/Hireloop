@@ -62,11 +62,11 @@ export function GhostModeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-md">
-      <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-[28px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.55)] p-4 backdrop-blur-md">
+      <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-border bg-surface">
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div>
-            <h3 className="text-xl font-bold text-foreground">Simulate for User</h3>
+            <h3 className="text-xl font-medium text-foreground">Simulate for User</h3>
             <p className="mt-1 text-sm text-foreground-muted">
               {user.email || 'Unknown user'}
             </p>
@@ -83,7 +83,7 @@ export function GhostModeModal({
               Run Mode
             </label>
             <select
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2"
               value={runMode}
               onChange={(e) => setRunMode(e.target.value as GhostModeRunMode)}
             >
@@ -97,7 +97,7 @@ export function GhostModeModal({
               Input Mode
             </label>
             <select
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2"
               value={inputMode}
               onChange={(e) => setInputMode(e.target.value as GhostModeInputMode)}
             >

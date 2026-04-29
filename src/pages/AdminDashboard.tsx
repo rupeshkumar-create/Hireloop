@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
+import { cn } from '../lib/utils';
 import { runAdminGhostMode } from '../services/adminGhostMode';
 import { researchJobs } from '../services/jobResearcher';
 import type { CallAIFn } from '../services/jobResearcher';
@@ -52,11 +53,12 @@ function sortableTime(v: unknown): number {
 
 function PlanBadge({ plan }: { plan: Plan }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+    <span className={cn(
+      "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
       plan === 'pro'
-        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-    }`}>
+        ? "border-[var(--ember-400)] bg-[var(--ember-tint)] text-foreground"
+        : "border-border bg-surface-hover text-foreground-muted"
+    )}>
       {plan === 'pro' ? 'Pro' : 'Free'}
     </span>
   );
@@ -64,9 +66,9 @@ function PlanBadge({ plan }: { plan: Plan }) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border bg-card px-5 py-4">
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className="rounded-xl border border-border bg-surface px-5 py-4">
+      <p className="text-2xl font-medium text-foreground">{value}</p>
+      <p className="text-sm text-foreground-muted">{label}</p>
     </div>
   );
 }
@@ -82,11 +84,11 @@ function AdminModalFrame({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.55)] p-4 backdrop-blur-md"
       onClick={onClose}
     >
       <div
-        className={`max-h-[90vh] w-full ${maxWidth} overflow-y-auto rounded-[28px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]`}
+        className={`max-h-[90vh] w-full ${maxWidth} overflow-y-auto rounded-2xl border border-border bg-surface`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -109,7 +111,7 @@ function AdminModalHeader({
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
       <div className="min-w-0 flex-1">
-        <h2 className="text-xl font-bold text-foreground">{title}</h2>
+        <h2 className="text-xl font-medium text-foreground">{title}</h2>
         {subtitle ? <p className="mt-1 break-all text-sm text-foreground-muted">{subtitle}</p> : null}
         {aside ? <div className="mt-3">{aside}</div> : null}
       </div>
@@ -334,16 +336,19 @@ function ActionButton({
   onClick: () => void;
 }) {
   const variantClasses = {
-    outline: 'border-border bg-surface text-foreground hover:bg-surface-hover',
-    ghost: 'bg-[rgba(128,90,213,0.08)] text-[rgb(109,40,217)] shadow-[0_0_0_1px_rgba(109,40,217,0.16)] hover:bg-[rgba(128,90,213,0.14)]',
-    destructive: 'bg-[rgba(220,38,38,0.08)] text-[rgb(185,28,28)] shadow-[0_0_0_1px_rgba(220,38,38,0.14)] hover:bg-[rgba(220,38,38,0.14)]',
+    outline: 'border-border bg-transparent text-foreground-muted hover:text-foreground hover:border-border-strong',
+    ghost: 'border-transparent bg-transparent text-foreground-muted hover:text-foreground hover:underline hover:decoration-[var(--ember-400)] hover:decoration-2 hover:underline-offset-4',
+    destructive: 'border-transparent bg-[rgba(217,110,110,0.16)] text-[var(--signal-error)] hover:bg-[rgba(217,110,110,0.22)]',
   } as const;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-semibold transition-colors ${variantClasses[variant]}`}
+      className={cn(
+        "inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)]",
+        variantClasses[variant]
+      )}
     >
       {label}
     </button>
@@ -592,7 +597,7 @@ export function AdminDashboard() {
     <div className="mx-auto max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Super Admin</h1>
+        <h1 className="text-2xl font-medium">Super Admin</h1>
         <Button variant="outline" size="sm" onClick={loadUsers} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </Button>
@@ -615,21 +620,21 @@ export function AdminDashboard() {
 
       {/* Table */}
       {loading ? (
-        <div className="py-16 text-center text-muted-foreground">Loading users…</div>
+        <div className="py-16 text-center text-foreground-muted">Loading users…</div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
                 {['Email', 'Plan', 'Joined', 'Last Active', 'Career Paths', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left font-medium text-foreground-muted">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-10 text-center text-foreground-muted">
                     {search ? 'No users match your search.' : 'No users found.'}
                   </td>
                 </tr>
@@ -638,17 +643,17 @@ export function AdminDashboard() {
                   <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium">{u.email || '—'}</div>
-                      {u.displayName && <div className="text-xs text-muted-foreground">{u.displayName}</div>}
+                      {u.displayName && <div className="text-xs text-foreground-muted">{u.displayName}</div>}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => handleTogglePlan(u)} title="Click to toggle plan">
                         <PlanBadge plan={u.plan ?? 'free'} />
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{fmtDate(u.createdAt)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{fmtDate(u.lastActiveAt)}</td>
+                    <td className="px-4 py-3 text-foreground-muted">{fmtDate(u.createdAt)}</td>
+                    <td className="px-4 py-3 text-foreground-muted">{fmtDate(u.lastActiveAt)}</td>
                     <td className="px-4 py-3 max-w-xs">
-                      <span className="line-clamp-1 text-muted-foreground">
+                      <span className="line-clamp-1 text-foreground-muted">
                         {u.careerPaths?.join(', ') || '—'}
                       </span>
                     </td>
@@ -666,7 +671,7 @@ export function AdminDashboard() {
             </tbody>
           </table>
           {filtered.length > 0 && (
-            <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+            <div className="border-t px-4 py-2 text-xs text-foreground-muted">
               Showing {filtered.length} of {users.length} users
             </div>
           )}

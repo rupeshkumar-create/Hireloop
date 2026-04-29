@@ -12,7 +12,7 @@ interface OverviewTabProps {
   setActiveTab: (tab: 'overview' | 'matches') => void;
 }
 
-const COLORS = ['#3898ec', '#141413', '#faf9f5'];
+const COLORS = ['#b8693d', '#3a3a3a', '#898989'];
 
 export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: OverviewTabProps) {
   const chartData = [
@@ -29,10 +29,10 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
     >
       {/* 3D-effect Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
+        <Card className="lg:col-span-2 border-border bg-surface">
           <CardHeader className="pb-2">
             <CardTitle className="text-foreground flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" /> Application Pipeline
+              <Activity className="h-5 w-5 text-foreground-muted" /> Application Pipeline
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[250px] w-full pt-4">
@@ -43,8 +43,8 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                   <Tooltip 
                     cursor={{ fill: 'transparent' }}
                     contentStyle={{ borderRadius: '12px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
@@ -61,15 +61,14 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
         </Card>
 
         <div className="flex flex-col gap-6">
-          <Card className="flex-1 border-border bg-surface shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_8px_30px_rgba(0,0,0,0.04)] relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <CardHeader className="pb-2 relative z-10">
+          <Card className="flex-1 border-border bg-surface">
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium uppercase tracking-[0.12em] text-foreground-muted">Target Career Paths</CardTitle>
             </CardHeader>
-            <CardContent className="relative z-10">
+            <CardContent>
               <div className="flex flex-wrap gap-2 mt-2">
                 {profile?.careerPaths?.map((path: string, i: number) => (
-                  <span key={i} className="px-3 py-1.5 bg-foreground text-background text-xs font-medium rounded-lg shadow-sm">
+                  <span key={i} className="px-3 py-1.5 bg-surface-hover text-foreground text-xs font-medium rounded-md border border-border">
                     {path}
                   </span>
                 )) || <span className="text-foreground-muted text-sm">No paths defined</span>}
@@ -77,13 +76,12 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
             </CardContent>
           </Card>
           
-          <Card className="flex-1 border-border bg-surface shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_8px_30px_rgba(0,0,0,0.04)] relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[rgba(201,100,66,0.1)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <CardHeader className="pb-2 relative z-10">
+          <Card className="flex-1 border-border bg-surface">
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium uppercase tracking-[0.12em] text-foreground-muted">Work Preference</CardTitle>
             </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="text-2xl font-display capitalize text-foreground">
+            <CardContent>
+              <div className="text-2xl font-medium capitalize text-foreground">
                 {profile?.jobType || 'Both'}
               </div>
               {profile?.location && profile.jobType !== 'remote' && (
@@ -112,7 +110,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.strengths.map((strength: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-border-strong flex-shrink-0" />
                       <span className="leading-relaxed">{strength}</span>
                     </li>
                   ))}
@@ -130,7 +128,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.improvements.map((improvement: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-border-strong flex-shrink-0" />
                       <span className="leading-relaxed">{improvement}</span>
                     </li>
                   ))}
@@ -147,7 +145,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                   <CardTitle className="text-foreground flex items-center gap-2">
                     <Globe className="h-5 w-5 text-primary" /> Remote Readiness
                   </CardTitle>
-                  <span className="text-2xl font-bold text-foreground">
+                  <span className="text-2xl font-medium text-foreground">
                     {profile.resumeAnalysis.remoteReadiness.score}/100
                   </span>
                 </div>
@@ -162,7 +160,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
                 <ul className="space-y-2">
                   {profile.resumeAnalysis.remoteReadiness.tips.map((tip: string, i: number) => (
                     <li key={i} className="text-sm text-foreground-muted flex items-start">
-                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span className="mr-2 mt-1.5 h-1.5 w-1.5 rounded-full bg-border-strong flex-shrink-0" />
                       <span className="leading-relaxed">{tip}</span>
                     </li>
                   ))}
@@ -172,7 +170,7 @@ export function OverviewTab({ stats, statsLoading, profile, setActiveTab }: Over
           )}
         </div>
       ) : (
-        <div className="mx-auto mt-12 max-w-2xl rounded-[28px] border border-border bg-surface p-8 text-center shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
+        <div className="mx-auto mt-12 max-w-2xl rounded-xl border border-border bg-surface p-8 text-center">
           <Briefcase className="h-12 w-12 text-foreground-muted mx-auto mb-4" />
           <h3 className="mb-2 text-2xl text-foreground">Ready to find your next role?</h3>
           <p className="text-foreground-muted mb-6">We've analyzed your resume and are ready to find the best matches for you. Check your daily matches to see what we found.</p>

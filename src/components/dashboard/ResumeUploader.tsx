@@ -38,7 +38,7 @@ export function ResumeUploader({ updateProfile, profile, onSuccess }: ResumeUplo
           ) : (
             <>
               <Upload className="h-10 w-10 text-foreground-muted mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-1">Upload Resume</h3>
+              <h3 className="text-lg font-medium text-foreground mb-1">Upload Resume</h3>
               <p className="text-sm text-foreground-muted mb-6">PDF, DOCX, or TXT (Max 5MB)</p>
               <div className="relative">
                 <input

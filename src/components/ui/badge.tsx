@@ -7,13 +7,13 @@ const Badge = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
       <div
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] transition-colors focus:outline-none focus:ring-2 focus:ring-[#3898ec] focus:ring-offset-2",
+          "inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] transition-[border-color,background-color,color,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)]",
           {
-            "border-transparent bg-foreground text-surface hover:opacity-90": variant === "default",
-            "border-transparent bg-surface-hover text-foreground hover:bg-border": variant === "secondary",
-            "border-border bg-surface text-foreground": variant === "outline",
-            "border-transparent bg-[rgba(181,51,51,0.12)] text-[var(--color-error)]": variant === "destructive",
-            "border-transparent bg-[rgba(201,100,66,0.14)] text-[var(--color-terracotta)]": variant === "success",
+            "border-border bg-surface-hover text-foreground": variant === "default",
+            "border-border bg-transparent text-foreground-muted": variant === "secondary",
+            "border-border bg-transparent text-foreground": variant === "outline",
+            "border-transparent bg-[rgba(217,110,110,0.16)] text-[var(--signal-error)]": variant === "destructive",
+            "border-transparent bg-[rgba(127,184,147,0.16)] text-[var(--signal-success)]": variant === "success",
           },
           className
         )}

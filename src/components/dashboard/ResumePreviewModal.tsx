@@ -191,19 +191,19 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 md:p-8">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 md:p-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
-        className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl"
+        className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface"
         style={{ maxHeight: '92vh' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-surface/80 px-6 py-4 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-foreground">
             <FileText className="h-5 w-5 text-foreground-muted" />
-            <span className="font-semibold">
+            <span className="font-medium">
               Resume Preview
               {jobTitle && companyName && (
                 <span className="ml-2 text-sm font-normal text-foreground-muted">
@@ -229,7 +229,7 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
         <div className="flex-1 overflow-y-auto bg-[#f0ece4] p-8">
           <div
             ref={resumeRef}
-            className="shadow-[0_4px_40px_rgba(0,0,0,0.15)]"
+            className="border border-border bg-white"
             style={S.page}
           >
             <ResumeMarkdown text={resumeText} />

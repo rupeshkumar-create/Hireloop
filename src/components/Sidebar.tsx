@@ -18,27 +18,27 @@ export function Sidebar() {
   ];
 
   return (
-    <div className={cn("relative flex h-screen flex-col border-r border-border bg-surface/50 backdrop-blur-sm transition-all duration-300 ease-in-out", isCollapsed ? "w-20" : "w-72")}>
+    <div className={cn("relative flex h-screen flex-col border-r border-border bg-surface/50 transition-all duration-300 ease-in-out", isCollapsed ? "w-20" : "w-72")}>
       {/* Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-[1.6rem] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-surface-hover"
+        className="absolute -right-3 top-[1.6rem] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-surface-hover"
       >
         {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
 
       <div className="flex h-[4.5rem] items-center border-b border-border px-5">
-        <div className="flex items-center justify-center rounded-2xl bg-foreground p-2 shadow-[0_0_0_1px_var(--color-near-black)] shrink-0">
-          <Briefcase className="h-4 w-4 text-surface" />
+        <div className="flex items-center justify-center rounded-xl border border-border bg-surface-hover p-2 shrink-0">
+          <Briefcase className="h-4 w-4 text-foreground" />
         </div>
         <div className={cn("ml-3 overflow-hidden transition-all duration-300 whitespace-nowrap", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-          <span className="font-display text-2xl leading-none tracking-tight text-foreground">Hireschema</span>
+          <span className="text-xl font-medium leading-none tracking-[-0.02em] text-foreground">Hireschema</span>
           <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-foreground-muted">Remote Job Agent</p>
         </div>
       </div>
       
       {isImpersonating && !isCollapsed && (
-        <div className="m-4 rounded-2xl border border-[rgba(201,100,66,0.2)] bg-[rgba(201,100,66,0.12)] p-4 text-center text-xs font-medium text-foreground shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+        <div className="m-4 rounded-xl border border-[var(--ember-300)] bg-[var(--ember-tint)] p-4 text-center text-xs font-medium text-foreground">
           <p className="mb-2">Impersonating: {profile?.email}</p>
           <Button 
             variant="outline" 
@@ -56,7 +56,7 @@ export function Sidebar() {
 
       {isImpersonating && isCollapsed && (
         <div className="m-2 flex justify-center">
-          <div className="h-2 w-2 rounded-full bg-[rgba(201,100,66,1)] shadow-[0_0_8px_rgba(201,100,66,0.8)]" title={`Impersonating: ${profile?.email}`} />
+          <div className="h-2 w-2 rounded-full bg-[var(--ember-400)]" title={`Impersonating: ${profile?.email}`} />
         </div>
       )}
 
@@ -71,10 +71,10 @@ export function Sidebar() {
                 to={item.path}
                 title={isCollapsed ? item.name : undefined}
                 className={cn(
-                  "group flex items-center rounded-xl py-3 font-medium transition-colors",
+                  "group flex items-center rounded-lg py-3 font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent",
                   isCollapsed ? "justify-center px-0" : "px-3 text-sm",
                   isActive
-                    ? "bg-foreground text-background shadow-[0_0_0_1px_var(--color-near-black)] dark:bg-surface-hover dark:text-foreground"
+                    ? "bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]"
                     : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
                 )}
               >
@@ -96,7 +96,7 @@ export function Sidebar() {
         <div className={cn("mb-4 flex items-center", isCollapsed ? "justify-center" : "justify-start")}>
           <ThemeToggle isCollapsed={isCollapsed} />
         </div>
-        <div className={cn("mb-4 flex items-center rounded-2xl border border-border bg-background/70 py-2", isCollapsed ? "justify-center px-0" : "px-3")}>
+        <div className={cn("mb-4 flex items-center rounded-xl border border-border bg-background/70 py-2", isCollapsed ? "justify-center px-0" : "px-3")}>
           {profile?.photoURL ? (
             <img src={profile.photoURL} alt="Profile" className={cn("rounded-full border border-border object-cover shrink-0", isCollapsed ? "h-8 w-8" : "mr-3 h-10 w-10")} referrerPolicy="no-referrer" />
           ) : (

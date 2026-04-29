@@ -24,7 +24,7 @@ export function Onboarding() {
         description="Upload your current resume once and Hireschema will configure your job preferences, analysis, and matching workflow around it."
         className="max-w-3xl"
       >
-        <div className="overflow-hidden rounded-[32px] border border-border bg-surface p-2 shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface p-2">
           <ResumeUploader 
             updateProfile={updateProfile} 
             profile={profile} 

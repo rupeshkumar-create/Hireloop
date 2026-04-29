@@ -79,12 +79,12 @@ export function Dashboard() {
       <div className="flex flex-col h-full">
         {/* Tab switcher */}
         <div className="mb-8 flex items-center gap-3">
-          <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+          <div className="flex rounded-full border border-border bg-surface-hover p-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent ${
                 activeTab === 'overview'
-                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]'
+                  ? 'bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]'
                   : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
               }`}
             >
@@ -93,9 +93,9 @@ export function Dashboard() {
             </button>
             <button
               onClick={() => setActiveTab('matches')}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent ${
                 activeTab === 'matches'
-                  ? 'bg-surface text-foreground shadow-[0_0_0_1px_var(--color-ring)]'
+                  ? 'bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]'
                   : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
               }`}
             >

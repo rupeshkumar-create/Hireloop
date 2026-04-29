@@ -37,12 +37,12 @@ export function JobDetailsPanel({
   const isFallbackUrl = isJobUrlFallback(selectedJob);
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 sm:p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.12)]"
+          className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface"
         >
           <button 
             onClick={onClose}
@@ -55,7 +55,7 @@ export function JobDetailsPanel({
             <div className="flex justify-between items-start mb-1 pr-10">
               <h2 className="text-3xl tracking-tight text-foreground">{selectedJob.title}</h2>
               {selectedJob.matchScore !== undefined && (
-                <Badge variant={selectedJob.matchScore >= 80 ? 'success' : 'secondary'} className="font-semibold shadow-sm">
+                <Badge variant={selectedJob.matchScore >= 80 ? 'success' : 'secondary'} className="font-medium">
                   {selectedJob.matchScore}% Match
                 </Badge>
               )}
@@ -65,7 +65,7 @@ export function JobDetailsPanel({
             <div className="flex gap-3 mb-8">
               <Button
                 variant="action"
-                className="flex-1 shadow-[0_18px_40px_rgba(201,100,66,0.24)]"
+                className="flex-1"
                 size="lg"
                 title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
                 onClick={() => {
@@ -105,13 +105,13 @@ export function JobDetailsPanel({
             </div>
 
             <div className="space-y-8">
-              <div className="rounded-[28px] border border-border bg-background p-6">
+              <div className="rounded-xl border border-border bg-background p-6">
                 <h4 className="mb-4 text-xl text-foreground">About the Role</h4>
                 <p className="text-foreground-muted leading-relaxed whitespace-pre-wrap">{selectedJob.description}</p>
               </div>
               
               {selectedJob.requirements && selectedJob.requirements.length > 0 && (
-                <div className="rounded-[28px] border border-border bg-background p-6">
+                <div className="rounded-xl border border-border bg-background p-6">
                   <h4 className="mb-4 text-xl text-foreground">Requirements</h4>
                   <ul className="space-y-3">
                     {selectedJob.requirements.map((req, i) => (
@@ -129,16 +129,16 @@ export function JobDetailsPanel({
           <div className="border-t border-border bg-background/80 p-6 md:p-8">
             <h4 className="mb-4 text-xl text-foreground">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('email', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('email', selectedJob)}>
                 <Mail className="mr-2 h-4 w-4 text-primary" /> Cold Email
               </Button>
-              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('resume', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('resume', selectedJob)}>
                 <FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailor Resume
               </Button>
-              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('interview', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('interview', selectedJob)}>
                 <MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Prep
               </Button>
-              <Button variant="outline" className="border-border bg-surface shadow-sm hover:bg-surface-hover" onClick={() => handleAiAction('salary', selectedJob)}>
+              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('salary', selectedJob)}>
                 <TrendingUp className="mr-2 h-4 w-4 text-foreground-muted" /> Salary Data
               </Button>
             </div>
@@ -161,7 +161,7 @@ export function JobDetailsPanel({
                     {aiAction === 'salary' && 'Salary Insights'}
                   </h4>
                   {aiAction === 'resume' && !actionLoading && (
-                    <Button variant="outline" size="sm" className="shadow-sm" onClick={() => downloadResume(selectedJob)}>
+                    <Button variant="outline" size="sm" onClick={() => downloadResume(selectedJob)}>
                       <Download className="mr-2 h-4 w-4" /> Download .md
                     </Button>
                   )}
@@ -184,7 +184,6 @@ export function JobDetailsPanel({
                             variant="action"
                             size="sm"
                             onClick={() => setShowResumePreview(true)}
-                            className="shadow-sm"
                           >
                             <Eye className="mr-2 h-4 w-4" /> Preview & Download Resume
                           </Button>
@@ -192,7 +191,6 @@ export function JobDetailsPanel({
                             variant="outline"
                             size="sm"
                             onClick={() => downloadResume(selectedJob)}
-                            className="shadow-sm"
                           >
                             <Download className="mr-2 h-4 w-4" /> Download .md
                           </Button>
@@ -205,7 +203,7 @@ export function JobDetailsPanel({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border shadow-inner">
+                      <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border">
                         {aiAction === 'interview' && Array.isArray(aiResult) ? (
                           <ul className="list-decimal pl-5 space-y-3">
                             {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
@@ -221,7 +219,7 @@ export function JobDetailsPanel({
                     {aiAction === 'email' && (
                       <div className="mt-8 border-t border-border pt-6 space-y-4">
                         <Button 
-                          className="w-full shadow-lg" 
+                          className="w-full" 
                           size="lg"
                           onClick={async () => {
                             let optimizedResume = profile?.resumeText || '';

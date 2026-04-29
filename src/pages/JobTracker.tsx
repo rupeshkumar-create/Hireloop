@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { cn } from '../lib/utils';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
 import { applyLearningEvent } from '../services/learningSignals';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
@@ -403,11 +404,11 @@ export function JobTracker() {
       description="Manage and track your job applications."
       actions={
         <div className="flex items-center gap-3">
-          <div className="flex rounded-2xl border border-border bg-surface-hover p-1 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+          <div className="flex rounded-full border border-border bg-surface-hover p-1">
             <Button 
               variant={viewMode === 'board' ? 'default' : 'ghost'} 
               size="sm" 
-              className={`px-3 ${viewMode === 'board' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
+              className={cn('px-3 border border-transparent', viewMode === 'board' ? 'bg-[var(--ember-tint)] border-[var(--ember-400)]' : 'text-foreground-muted')}
               onClick={() => setViewMode('board')}
             >
               <LayoutGrid className="h-4 w-4 mr-2" /> Board
@@ -415,7 +416,7 @@ export function JobTracker() {
             <Button 
               variant={viewMode === 'list' ? 'default' : 'ghost'} 
               size="sm" 
-              className={`px-3 ${viewMode === 'list' ? 'shadow-[0_0_0_1px_var(--color-ring)]' : 'text-foreground-muted'}`}
+              className={cn('px-3 border border-transparent', viewMode === 'list' ? 'bg-[var(--ember-tint)] border-[var(--ember-400)]' : 'text-foreground-muted')}
               onClick={() => setViewMode('list')}
             >
               <List className="h-4 w-4 mr-2" /> History List
@@ -436,7 +437,7 @@ export function JobTracker() {
         <Tooltip.Provider delayDuration={200}>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
             {STATUSES.map(status => (
-              <div key={status} className="flex h-[calc(100vh-220px)] flex-col rounded-[28px] border border-border bg-surface p-4 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+              <div key={status} className="flex h-[calc(100vh-220px)] flex-col rounded-xl border border-border bg-surface p-4">
                 <h3 className="font-medium text-foreground capitalize mb-4 flex items-center justify-between">
                   {status}
                   <Badge variant="secondary" className="font-normal normal-case tracking-normal">{jobs.filter(j => j.status === status).length}</Badge>
@@ -474,10 +475,10 @@ export function JobTracker() {
                                   </select>
                                 </Tooltip.Trigger>
                                 <Tooltip.Portal>
-                                  <Tooltip.Content className="bg-foreground text-surface text-xs rounded py-1.5 px-2.5 shadow-md z-50" sideOffset={5}>
+                                  <Tooltip.Content className="bg-surface text-foreground text-xs rounded-md border border-border py-1.5 px-2.5 z-50" sideOffset={5}>
                                     <div className="font-medium mb-1">Status: {job.status.charAt(0).toUpperCase() + job.status.slice(1)}</div>
                                     <div className="text-foreground-muted">Updated {formatDistanceToNow(new Date(job.updatedAt || job.createdAt), { addSuffix: true })}</div>
-                                    <Tooltip.Arrow className="fill-foreground" />
+                                    <Tooltip.Arrow className="fill-surface" />
                                   </Tooltip.Content>
                                 </Tooltip.Portal>
                               </Tooltip.Root>
@@ -488,7 +489,7 @@ export function JobTracker() {
                                     <ExternalLink className="h-3 w-3" />
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-red-600 hover:bg-red-50" onClick={() => removeJob(job.id)}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-foreground-muted hover:text-[var(--signal-error)] hover:bg-[rgba(217,110,110,0.12)]" onClick={() => removeJob(job.id)}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
@@ -516,12 +517,12 @@ export function JobTracker() {
                 >
                   <div className="flex-1 grid grid-cols-4 gap-4 items-center">
                     <div className="col-span-2">
-                      <h3 className="font-semibold text-foreground">{job.title}</h3>
+                      <h3 className="font-medium text-foreground">{job.title}</h3>
                       <p className="text-sm text-foreground-muted">{job.company} {job.location && `• ${job.location}`}</p>
                     </div>
                     <div>
                       <select 
-                        className="text-sm border border-border rounded-md bg-surface text-foreground-muted px-2 py-1 focus:ring-2 focus:ring-foreground focus:outline-none"
+                        className="text-sm border border-border rounded-lg bg-surface text-foreground-muted px-2 py-1 outline-none transition-[border-color,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:border-[var(--ember-400)] focus-visible:shadow-[var(--ember-glow)]"
                         value={job.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { e.stopPropagation(); updateStatus(job.id, e.target.value); }}
@@ -556,12 +557,12 @@ export function JobTracker() {
                       {profile?.plan?.toLowerCase() === 'pro' && (
                         <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
                           <span className="text-sm font-medium text-foreground flex items-center">
-                            <Sparkles className="mr-2 h-4 w-4 text-primary" /> AI Asset Hub
+                            <Sparkles className="mr-2 h-4 w-4 text-foreground-muted" /> AI Asset Hub
                           </span>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            className="h-8 bg-surface text-xs shadow-sm transition-colors hover:bg-surface-hover"
+                            className="h-8 bg-surface text-xs transition-colors hover:bg-surface-hover"
                             disabled={actionLoading[`${job.id}-all`]}
                             onClick={() => handleGenerateAllAssets(job)}
                           >

@@ -201,9 +201,9 @@ export function Settings() {
             <CardDescription>Manage your subscription and upgrade to Pro.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between rounded-[24px] border border-border bg-background p-4">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-background p-4">
               <div>
-                <p className="font-semibold text-foreground">Current Plan: <span className="uppercase text-primary">{profile?.plan || 'Free'}</span></p>
+                <p className="font-medium text-foreground">Current Plan: <span className="uppercase text-primary">{profile?.plan || 'Free'}</span></p>
                 <p className="text-sm text-foreground-muted mt-1">
                   {profile?.plan?.toLowerCase() === 'pro' 
                     ? 'You have access to all premium features including 10 daily AI job matches.' 
@@ -224,22 +224,22 @@ export function Settings() {
                 <label className="text-sm font-medium text-foreground-muted">Choose a Plan</label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 p-4 rounded-xl border border-border bg-surface">
-                    <h4 className="font-semibold text-foreground">Monthly Pro</h4>
-                    <p className="text-2xl font-bold mt-1 mb-4">$9<span className="text-sm font-normal text-foreground-muted">/mo</span></p>
+                    <h4 className="font-medium text-foreground">Monthly Pro</h4>
+                    <p className="text-2xl font-medium mt-1 mb-4">$9<span className="text-sm font-normal text-foreground-muted">/mo</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd07LOU49HVOMyEEY6D?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 bg-foreground text-surface rounded-md hover:opacity-90 transition-colors font-medium text-sm"
+                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 rounded-full border border-border bg-surface-hover text-foreground transition-[border-color,background-color,color,transform,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] font-medium text-sm hover:border-[var(--ember-400)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)] active:bg-[var(--ember-tint)] active:scale-[0.985]"
                     >
                       Subscribe Monthly
                     </a>
                   </div>
-                  <div className="relative flex-1 overflow-hidden rounded-xl border border-[rgba(201,100,66,0.22)] bg-[rgba(201,100,66,0.10)] p-4">
-                    <div className="absolute right-0 top-0 rounded-bl-lg bg-primary px-2 py-0.5 text-[10px] font-bold text-surface">SAVE 25%</div>
-                    <h4 className="font-semibold text-foreground">Yearly Pro</h4>
-                    <p className="mb-4 mt-1 text-2xl font-bold text-foreground">$79<span className="text-sm font-normal text-foreground-muted">/yr</span></p>
+                  <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-surface p-4">
+                    <div className="absolute right-0 top-0 rounded-bl-md border-b border-l border-border bg-background px-2 py-0.5 text-[10px] font-medium text-[var(--ember-400)]">SAVE 25%</div>
+                    <h4 className="font-medium text-foreground">Yearly Pro</h4>
+                    <p className="mb-4 mt-1 text-2xl font-medium text-foreground">$79<span className="text-sm font-normal text-foreground-muted">/yr</span></p>
                     <a 
                       href={`https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=${profile?.email || ''}&redirect_url=${encodeURIComponent(window.location.origin + '/dashboard?payment=success')}`}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-surface transition-colors hover:brightness-95"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-border bg-surface-hover px-4 py-2 text-sm font-medium text-foreground transition-[border-color,background-color,color,transform,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--ember-400)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)] active:bg-[var(--ember-tint)] active:scale-[0.985]"
                     >
                       Subscribe Yearly
                     </a>

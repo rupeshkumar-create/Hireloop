@@ -40,10 +40,10 @@ export function Blog() {
     <div className="mx-auto max-w-4xl px-6 py-16">
       {/* Hero */}
       <div className="mb-14 text-center">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-foreground-muted">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-foreground-muted">
           The HireSchema Blog
         </p>
-        <h1 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
+        <h1 className="text-4xl font-normal tracking-[-0.02em] md:text-5xl">
           Remote Job Search, AI Tools &amp; Career Advice
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base text-foreground-muted">
@@ -55,7 +55,7 @@ export function Blog() {
       {loading && (
         <div className="grid gap-6 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-border bg-surface p-6">
+            <div key={i} className="animate-pulse rounded-xl border border-border bg-surface p-6">
               <div className="mb-3 h-3 w-20 rounded bg-border" />
               <div className="mb-2 h-5 w-full rounded bg-border" />
               <div className="h-5 w-3/4 rounded bg-border" />
@@ -88,15 +88,15 @@ export function Blog() {
             <Link
               key={post.slug}
               to={`/blog/${post.slug}`}
-              className="group flex flex-col rounded-2xl border border-border bg-surface p-6 transition-all hover:border-foreground/20 hover:shadow-md"
+              className="group flex flex-col rounded-xl border border-border bg-surface p-6 transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-border-strong"
             >
               <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-foreground-muted">
+                <span className="rounded-md border border-border px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-foreground-muted">
                   {post.category}
                 </span>
               </div>
 
-              <h2 className="mb-2 text-lg font-semibold leading-snug tracking-tight transition-colors group-hover:text-foreground">
+              <h2 className="mb-2 text-lg font-medium leading-snug tracking-[-0.01em] transition-colors group-hover:text-foreground">
                 {post.title}
               </h2>
 
