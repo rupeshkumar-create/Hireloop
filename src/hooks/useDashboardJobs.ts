@@ -41,6 +41,7 @@ import {
 } from '../services/learningSignals';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 import { resolveJobApplicationUrl } from '../lib/jobLinks';
+import { resolveDeliveryTimeZone, resolveLocalDateForLastFetch, resolveTodayLocalDateKey } from '../lib/localDate';
 
 
 type GeneratedTrackedJobAssets = {
@@ -48,13 +49,6 @@ type GeneratedTrackedJobAssets = {
   tailoredResume?: string;
   interviewQuestions?: string | string[];
 };
-
-/** Returns today's date string in YYYY-MM-DD (IST, UTC+5:30). */
-function getTodayIST(): string {
-  const now = new Date();
-  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-  return ist.toISOString().split('T')[0];
-}
 
 export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<DailyJob[]>([]);
@@ -115,7 +109,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     setLoadingJobs(true);
 
     try {
-      const today = getTodayIST();
+      const now = new Date();
+      const timeZone = resolveDeliveryTimeZone(profile);
+      const today = resolveTodayLocalDateKey(now, profile);
       const limit = getDailyMatchLimit(profile?.plan);
 
       // 1. Try today's pre-computed record from the daily_matches subcollection.
@@ -136,7 +132,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
             dedupedCount: record.dedupedCount ?? 0,
             qualityLimited: record.qualityLimited === true,
             warnings: record.warnings || [],
-            deliveryTimezone: record.deliveryTimezone || profile.deliveryTimezone || 'UTC',
+            deliveryTimezone: record.deliveryTimezone || timeZone,
             deliveryLocalDate: record.deliveryLocalDate || today,
             emailSent: record.emailSent === true,
           });
@@ -151,10 +147,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
       // 2. Fall back to today's cached batch on the user doc — only if it's from today
       if (profile.dailyJobs && profile.dailyJobs.length > 0) {
-        const fetchDate = profile.lastJobFetchTime
-          ? profile.lastJobFetchTime.split('T')[0]
-          : null;
-        if (fetchDate === today) {
+        const fetchDate = resolveLocalDateForLastFetch(profile, now);
+        if (fetchDate && fetchDate === today) {
           const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
           setJobs(cached);
           setDailyJobsMeta(profile.dailyJobsMeta || null);
@@ -188,10 +182,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   useEffect(() => {
     if (!profile) return;
 
-    const today = getTodayIST();
-    const fetchDate = profile.lastJobFetchTime
-      ? profile.lastJobFetchTime.split('T')[0]
-      : null;
+    const now = new Date();
+    const today = resolveTodayLocalDateKey(now, profile);
+    const fetchDate = resolveLocalDateForLastFetch(profile, now);
 
     if (fetchDate === today && profile.dailyJobs && profile.dailyJobs.length > 0) {
       const limit = getDailyMatchLimit(profile?.plan);

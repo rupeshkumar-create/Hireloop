@@ -28,12 +28,12 @@ import { researchJobs, jobFingerprint } from '../src/services/jobResearcher';
 import { matchAndRankJobs } from '../src/services/jobMatchingEngine';
 import { buildDailyJobAlertsEmailPayload } from '../src/services/emailService';
 import {
-  getCronRunDateIST,
   isActiveCronUser,
   processUserCronRun,
 } from '../src/services/cronEngine';
 import type { CallAIFn } from '../src/services/jobResearcher';
 import type { DailyJob } from '../src/types/dailyJob';
+import { formatLocalDate } from '../src/lib/localDate';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const BATCH_SIZE = 100;
@@ -57,7 +57,7 @@ function initAdmin() {
 // ── AI caller (direct OpenRouter, no Vercel proxy needed) ────────────────────
 
 function makeCallAI(): CallAIFn {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
   return async (messages, model) => {
@@ -222,20 +222,23 @@ async function processUser(
 
 async function main() {
   const { db } = initAdmin();
-  const runDate = getCronRunDateIST();
+  const now = new Date();
   const specificUserId = process.env.USER_ID?.trim();
   const forceRerun = process.env.FORCE_RERUN === 'true';
 
   if (specificUserId) {
     // ── Single-user mode (user-triggered or admin override) ──────────────────
     console.log(`[generate-daily-jobs] Single-user mode: ${specificUserId} (force=${forceRerun})`);
+    const userSnap = await db.collection('users').doc(specificUserId).get();
+    const profile = userSnap.exists ? userSnap.data() || {} : {};
+    const runDate = formatLocalDate(now, profile.deliveryTimezone || 'UTC');
     const result = await processUser(specificUserId, runDate, db, forceRerun);
     console.log('[generate-daily-jobs] Done:', result);
     return;
   }
 
   // ── All-users mode (scheduled daily cron) ────────────────────────────────
-  console.log(`[generate-daily-jobs] Cron run for ${runDate}`);
+  console.log('[generate-daily-jobs] Cron run');
 
   // Two queries merged so users without lastJobFetchTime (new accounts) are
   // also included — they only appear in the createdAt-ordered query.
@@ -264,6 +267,7 @@ async function main() {
 
     console.log(`[${userDoc.id}] processing…`);
     try {
+      const runDate = formatLocalDate(now, profile.deliveryTimezone || 'UTC');
       await processUser(userDoc.id, runDate, db);
       processed++;
     } catch (err) {

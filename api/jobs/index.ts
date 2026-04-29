@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
-import { processUserCronRun, getCronRunDateIST } from '../../src/services/cronEngine';
+import { processUserCronRun } from '../../src/services/cronEngine';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
@@ -10,6 +10,7 @@ import type { DailyJob } from '../../src/types/dailyJob';
 import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist';
 import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator';
 import { verifyHttpUrl } from '../../src/services/urlVerifier';
+import { formatLocalDate } from '../../src/lib/localDate.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -29,7 +30,7 @@ function resolveCareerPaths(profile: Record<string, any>): string[] {
 }
 
 function makeServerCallAI(): CallAIFn {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
 
   return async (messages, model) => {
@@ -75,9 +76,8 @@ async function verifyUser(req: VercelRequest): Promise<string | null> {
   return decoded.uid;
 }
 
-async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
+async function runPipeline(uid: string, runDate: string, req: VercelRequest): Promise<void> {
   const db = getAdminDb();
-  const runDate = getCronRunDateIST();
   const baseUrl = getBaseUrl(req);
   const callAI = makeServerCallAI();
 
@@ -206,9 +206,8 @@ async function runPipeline(uid: string, req: VercelRequest): Promise<void> {
 async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
   const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
   const githubRepo = process.env.GITHUB_REPO;
-  const runDate = getCronRunDateIST();
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!process.env.OPENROUTER_API_KEY && !process.env.VITE_OPENROUTER_API_KEY) {
     return res.status(500).json({
       error: 'Job generation is not configured. Please set OPENROUTER_API_KEY in your environment.',
     });
@@ -222,6 +221,7 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
 
   const profile = userSnap.data() || {};
   const careerPaths = resolveCareerPaths(profile);
+  const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
   const readiness = computeMatchReadiness({ resumeText: profile.resumeText, careerPaths });
   if (readiness.status === 'blocked') {
     return res.status(400).json({
@@ -268,15 +268,17 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
   }
 
-  await runPipeline(uid, req).catch((err) => {
+  await runPipeline(uid, runDate, req).catch((err) => {
     console.error('[jobs/index] Inline pipeline error after 202:', err);
   });
 }
 
 async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelResponse) {
-  await runPipeline(uid, req);
   const db = getAdminDb();
-  const runDate = getCronRunDateIST();
+  const userSnap = await db.collection('users').doc(uid).get();
+  const profile = userSnap.exists ? userSnap.data() || {} : {};
+  const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
+  await runPipeline(uid, runDate, req);
   const snap = await db.collection('users').doc(uid).collection('daily_matches').doc(runDate).get();
   const jobs = snap.exists ? (snap.data()?.jobs || []) : [];
   return res.status(200).json({ jobs });
