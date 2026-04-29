@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
+import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin';
 import { processUserCronRun, getCronRunDateIST } from '../../src/services/cronEngine';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';

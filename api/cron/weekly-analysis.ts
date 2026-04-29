@@ -6,9 +6,9 @@
  * marketing strategy with new topic ideas and refined keywords.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../../src/server/marketingEngine.js';
-import { getAdminDb } from '../../src/server/firebaseAdmin.js';
+import { requireCronSecret } from '../../src/server/cronAuth';
+import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../../src/server/marketingEngine';
+import { getAdminDb } from '../../src/server/firebaseAdmin';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;

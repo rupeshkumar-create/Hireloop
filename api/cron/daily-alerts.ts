@@ -14,8 +14,8 @@
  * received jobs recently are always prioritised in each batch.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../../src/server/firebaseAdmin.js';
-import { requireCronSecret } from '../../src/server/cronAuth.js';
+import { getAdminDb } from '../../src/server/firebaseAdmin';
+import { requireCronSecret } from '../../src/server/cronAuth';
 import { evaluateDueUsers, queueCronRun } from '../../src/services/cronEngine';
 
 const DISPATCH_BATCH_SIZE = 50;

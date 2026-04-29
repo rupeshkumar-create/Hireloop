@@ -134,5 +134,9 @@ service cloud.firestore {
     match /marketing_runs/{runId} {
       allow read: if isSuperAdmin();
     }
+
+    match /job_sources/{sourceId} {
+      allow read, write: if isSuperAdmin();
+    }
   }
 }
