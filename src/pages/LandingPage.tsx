@@ -352,38 +352,66 @@ const LP_STYLE = `
   }
   .lp-feat-left-desc { font-size:14px; line-height:1.7; color:var(--lp-muted); max-width:280px; }
 
-  /* progress dots */
-  .lp-feat-dots { display:flex; flex-direction:column; gap:10px; margin-top:40px; }
-  .lp-feat-dot-row { display:flex; align-items:center; gap:12px; cursor:pointer; padding:3px 0; background:none; border:none; text-align:left; }
-  .lp-feat-dot-pip {
-    width:5px; height:5px; border-radius:50%; flex-shrink:0;
-    background:var(--lp-border); transition:background 300ms, transform 300ms;
+  /* vertical stepper nav */
+  .lp-feat-stepper { display:flex; flex-direction:column; margin-top:40px; position:relative; padding-left:28px; }
+  .lp-feat-stepper::before {
+    content:''; position:absolute; left:9px; top:10px; bottom:10px; width:1px;
+    background:var(--lp-border);
   }
-  .lp-feat-dot-row.lp-feat-dot-active .lp-feat-dot-pip { background:var(--lp-accent); transform:scale(1.5); }
-  .lp-feat-dot-lbl { font-family:var(--lp-font-m); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--lp-muted); transition:color 300ms; }
-  .lp-feat-dot-row.lp-feat-dot-active .lp-feat-dot-lbl { color:var(--lp-fg); }
+  .lp-feat-step-btn {
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+    background:none; border:none; text-align:left; padding:9px 0;
+    position:relative;
+  }
+  .lp-feat-step-node {
+    position:absolute; left:-28px;
+    width:18px; height:18px; border-radius:50%; flex-shrink:0;
+    border:1.5px solid var(--lp-border); background:var(--lp-bg);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--lp-font-m); font-size:8px; font-weight:700;
+    color:var(--lp-muted); transition:background 300ms, border-color 300ms, color 300ms;
+  }
+  .lp-feat-step-btn.lp-feat-step-active .lp-feat-step-node {
+    background:var(--lp-accent); border-color:var(--lp-accent); color:#fff;
+  }
+  .lp-feat-step-lbl {
+    font-family:var(--lp-font-m); font-size:10px; font-weight:500;
+    letter-spacing:.1em; text-transform:uppercase;
+    color:var(--lp-muted); transition:color 250ms;
+  }
+  .lp-feat-step-btn.lp-feat-step-active .lp-feat-step-lbl { color:var(--lp-fg); }
 
   /* right list */
   .lp-feat-list { display:flex; flex-direction:column; }
   .lp-feat-item {
-    padding:56px 0; border-top:1px solid var(--lp-border);
-    transition:border-color 300ms ease; position:relative;
+    padding:64px 0 64px 32px; border-top:1px solid var(--lp-border);
+    position:relative; transition:border-top-color 350ms ease;
   }
   .lp-feat-item:last-child { border-bottom:1px solid var(--lp-border); }
-  .lp-feat-item.lp-feat-active { border-top-color:var(--lp-accent); }
-  .lp-feat-item-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
-  .lp-feat-ttl {
-    font-family:var(--lp-font-d); font-size:clamp(18px,1.8vw,22px); font-weight:400;
-    color:oklch(40% .02 60); transition:color 300ms, letter-spacing 300ms;
+  /* left accent bar that grows down on active */
+  .lp-feat-item::before {
+    content:''; position:absolute; left:0; top:0; width:2px; height:0;
+    background:var(--lp-accent);
+    transition:height 400ms cubic-bezier(.22,1,.36,1);
   }
-  .lp-feat-item.lp-feat-active .lp-feat-ttl { color:var(--lp-fg); letter-spacing:.003em; }
+  .lp-feat-item.lp-feat-active::before { height:100%; }
+  .lp-feat-item.lp-feat-active { border-top-color:var(--lp-accent); }
+  .lp-feat-item-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+  .lp-feat-ttl {
+    font-family:var(--lp-font-d); font-size:clamp(18px,1.8vw,23px); font-weight:400;
+    color:oklch(62% .015 60); transition:color 350ms;
+  }
+  .lp-feat-item.lp-feat-active .lp-feat-ttl { color:var(--lp-fg); }
   .lp-feat-tag {
     font-family:var(--lp-font-m); font-size:10px; font-weight:500; letter-spacing:.1em;
-    text-transform:uppercase; color:var(--lp-muted); white-space:nowrap; padding-top:4px;
-    transition:color 300ms;
+    text-transform:uppercase; color:oklch(70% .01 60); white-space:nowrap; padding-top:4px;
+    transition:color 350ms;
   }
   .lp-feat-item.lp-feat-active .lp-feat-tag { color:var(--lp-accent); }
-  .lp-feat-desc { font-size:14px; line-height:1.7; color:oklch(55% .015 60); transition:color 300ms; }
+  .lp-feat-desc {
+    font-size:14px; line-height:1.72; color:oklch(68% .012 60);
+    transition:color 350ms; max-width:480px;
+  }
   .lp-feat-item.lp-feat-active .lp-feat-desc { color:var(--lp-muted); }
 
   .lp-pull-quote {
@@ -490,6 +518,8 @@ const LP_STYLE = `
     .lp-step:not(:first-child) { padding-left:0; }
     .lp-feat-grid { grid-template-columns:1fr; gap:48px; }
     .lp-feat-left { position:static; }
+    .lp-feat-stepper { display:none; }
+    .lp-feat-item { padding:40px 0 40px 20px; }
     .lp-pricing-grid { grid-template-columns:1fr; }
     .lp-plan:first-child { border-right:none; border-bottom:1px solid var(--lp-border); }
     .lp-plan { padding:40px 24px; }
@@ -638,21 +668,25 @@ export function LandingPage() {
     return () => io.disconnect();
   }, []);
 
-  // feature item scroll tracking
+  // feature item scroll tracking — scroll-based for reliability
   useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(e => {
-          if (e.isIntersecting) {
-            const idx = Number((e.target as HTMLElement).dataset.feat);
-            if (!Number.isNaN(idx)) setActiveFeat(idx);
-          }
-        });
-      },
-      { rootMargin: '-20% 0px -55% 0px' },
-    );
-    document.querySelectorAll('[data-feat]').forEach(el => io.observe(el));
-    return () => io.disconnect();
+    const update = () => {
+      const items = document.querySelectorAll<HTMLElement>('[data-feat]');
+      if (!items.length) return;
+      const target = window.innerHeight * 0.42; // 42% down from top
+      let best = 0, bestDist = Infinity;
+      items.forEach(el => {
+        const r = el.getBoundingClientRect();
+        const mid = r.top + r.height / 2;
+        const dist = Math.abs(mid - target);
+        if (dist < bestDist) { bestDist = dist; best = Number(el.dataset.feat ?? 0); }
+      });
+      setActiveFeat(best);
+    };
+    window.addEventListener('scroll', update, { passive: true });
+    // small delay so DOM is painted before first check
+    const t = setTimeout(update, 80);
+    return () => { window.removeEventListener('scroll', update); clearTimeout(t); };
   }, []);
 
   // magnetic buttons
@@ -837,39 +871,40 @@ export function LandingPage() {
         <div className="lp-container">
           <div className="lp-feat-grid">
 
-            {/* sticky left — updates as you scroll right */}
-            <div className="lp-feat-left lp-reveal-l">
+            {/* sticky left — content swaps as user scrolls right column */}
+            <div className="lp-feat-left">
               <p className="lp-feat-left-eyebrow">Why Hireschema</p>
               <div key={activeFeat} className="lp-feat-left-body">
-                <p className="lp-feat-left-num">0{activeFeat + 1} / 0{FEATURES.length}</p>
+                <p className="lp-feat-left-num">0{activeFeat + 1}&nbsp;/&nbsp;0{FEATURES.length}</p>
                 <h3 className="lp-feat-left-title">{FEATURES[activeFeat].title}</h3>
                 <p className="lp-feat-left-desc">{FEATURES[activeFeat].desc}</p>
               </div>
-              {/* progress dots */}
-              <div className="lp-feat-dots">
+
+              {/* vertical stepper nav */}
+              <nav className="lp-feat-stepper" aria-label="Features navigation">
                 {FEATURES.map((f, i) => (
                   <button
                     key={f.tag}
-                    className={`lp-feat-dot-row${i === activeFeat ? ' lp-feat-dot-active' : ''}`}
-                    onClick={() => {
+                    className={`lp-feat-step-btn${i === activeFeat ? ' lp-feat-step-active' : ''}`}
+                    onClick={() =>
                       document.querySelector<HTMLElement>(`[data-feat="${i}"]`)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }}
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
                   >
-                    <span className="lp-feat-dot-pip" />
-                    <span className="lp-feat-dot-lbl">{f.tag}</span>
+                    <span className="lp-feat-step-node">{i + 1}</span>
+                    <span className="lp-feat-step-lbl">{f.tag}</span>
                   </button>
                 ))}
-              </div>
+              </nav>
             </div>
 
-            {/* scrollable right — each item activates the left panel */}
+            {/* scrollable right — items always visible, active state driven by scroll */}
             <div className="lp-feat-list">
               {FEATURES.map((f, i) => (
                 <div
                   key={f.tag}
                   data-feat={i}
-                  className={`lp-feat-item lp-reveal lp-d${i + 1}${i === activeFeat ? ' lp-feat-active' : ''}`}
+                  className={`lp-feat-item${i === activeFeat ? ' lp-feat-active' : ''}`}
                 >
                   <div className="lp-feat-item-hdr">
                     <h3 className="lp-feat-ttl">{f.title}</h3>

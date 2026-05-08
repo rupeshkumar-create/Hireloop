@@ -192,67 +192,88 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
 
   const downloadPdf = async () => {
     if (!resumeRef.current) return;
+    
     const opt = {
-      margin:      [0.2, 0.2, 0.2, 0.2] as [number, number, number, number],
+      margin:      [0, 0, 0, 0] as [number, number, number, number],
       filename:    `Resume_${companyName.replace(/\s+/g, '_')}.pdf`,
       image:       { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 3, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        letterRendering: true, 
+        backgroundColor: '#ffffff',
+        logging: false
+      },
       jsPDF:       { unit: 'in', format: 'letter', orientation: 'portrait' as const },
     };
+
     try {
+      toast.loading('Generating PDF...', { id: 'pdf-gen' });
+      // Use the worker-based approach for more reliability
       await html2pdf().set(opt).from(resumeRef.current).save();
-      toast.success('Resume downloaded as PDF');
-    } catch (err) {
-      console.error('PDF generation failed:', err);
-      toast.error('Failed to generate PDF. Please try again.');
+      toast.success('Resume downloaded as PDF', { id: 'pdf-gen' });
+    } catch (err: any) {
+      console.error('PDF generation error:', err);
+      toast.error(`Failed to generate PDF: ${err.message || 'Unknown error'}`, { id: 'pdf-gen' });
     }
   };
 
   const downloadDocx = async () => {
     try {
+      toast.loading('Generating DOCX...', { id: 'docx-gen' });
       const lines = resumeText.split('\n');
       const children: any[] = [];
 
       lines.forEach((line) => {
         const trimmed = line.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+          children.push(new Paragraph({ text: '' }));
+          return;
+        }
 
         if (trimmed.startsWith('# ')) {
           children.push(new Paragraph({
             text: trimmed.replace('# ', '').toUpperCase(),
-            heading: HeadingLevel.TITLE,
+            heading: HeadingLevel.HEADING_1,
             alignment: AlignmentType.CENTER,
-            spacing: { before: 200, after: 100 },
+            spacing: { before: 240, after: 120 },
           }));
         } else if (trimmed.startsWith('## ')) {
           children.push(new Paragraph({
             text: trimmed.replace('## ', '').toUpperCase(),
             heading: HeadingLevel.HEADING_2,
-            border: { bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 6 } },
-            spacing: { before: 400, after: 200 },
+            border: {
+              bottom: {
+                color: "000000",
+                space: 1,
+                style: BorderStyle.SINGLE,
+                size: 6,
+              },
+            },
+            spacing: { before: 480, after: 240 },
           }));
         } else if (trimmed.startsWith('### ')) {
           children.push(new Paragraph({
             text: trimmed.replace('### ', ''),
             heading: HeadingLevel.HEADING_3,
-            spacing: { before: 200, after: 100 },
+            spacing: { before: 240, after: 120 },
           }));
         } else if (trimmed.startsWith('- ')) {
           children.push(new Paragraph({
             text: trimmed.replace('- ', ''),
             bullet: { level: 0 },
-            spacing: { before: 100, after: 100 },
+            spacing: { before: 80, after: 80 },
           }));
         } else if (isContactLine(trimmed)) {
           children.push(new Paragraph({
             text: trimmed,
             alignment: AlignmentType.CENTER,
-            spacing: { before: 100, after: 300 },
+            spacing: { before: 80, after: 240 },
           }));
         } else {
           children.push(new Paragraph({
             text: trimmed,
-            spacing: { before: 100, after: 100 },
+            spacing: { before: 80, after: 80 },
           }));
         }
       });
@@ -266,12 +287,13 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
 
       const blob = await Packer.toBlob(doc);
       saveAs(blob, `Resume_${companyName.replace(/\s+/g, '_')}.docx`);
-      toast.success('Resume downloaded as DOCX');
-    } catch (err) {
-      console.error('DOCX generation failed:', err);
-      toast.error('Failed to generate DOCX. Please try again.');
+      toast.success('Resume downloaded as DOCX', { id: 'docx-gen' });
+    } catch (err: any) {
+      console.error('DOCX generation error:', err);
+      toast.error(`Failed to generate DOCX: ${err.message || 'Unknown error'}`, { id: 'docx-gen' });
     }
   };
+
 
   if (!isOpen) return null;
 
