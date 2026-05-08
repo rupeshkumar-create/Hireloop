@@ -17,6 +17,9 @@ export interface DailyJob {
   location: string;
   workType: JobWorkType;
   salary: string;            // human-readable string, e.g. "$120k – $160k"
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  logoUrl?: string;
 
   // ── Full content (stored inline so users never leave the app) ────────────────
   description: string;       // full plain-text job description
@@ -34,6 +37,7 @@ export interface DailyJob {
   matchReasons: string[];    // e.g. "5+ yrs Python matches requirement"
   skillGaps: string[];       // e.g. "No Kubernetes experience in resume"
   aiSummary: string;         // short matching summary of the role
+  aiInsight?: string;        // One-sentence summary of why this job was selected
   isHotJob: boolean;         // urgently hiring / fast-growing company
   hotSignals?: string[];     // e.g. ["Series B just closed", "Team doubling"]
   companyStage?: string;     // e.g. "Seed", "Series A", "Public"
@@ -45,7 +49,7 @@ export interface DailyJob {
 export type DailyJobSummary = Pick<
   DailyJob,
   'id' | 'fingerprint' | 'title' | 'company' | 'location' | 'workType' |
-  'salary' | 'matchScore' | 'finalScore' | 'aiSummary' | 'isHotJob' | 'postedAt'
+  'salary' | 'matchScore' | 'finalScore' | 'aiSummary' | 'isHotJob' | 'postedAt' | 'logoUrl'
 >;
 
 /** Shape stored in users/{uid}/daily_matches/{date} */

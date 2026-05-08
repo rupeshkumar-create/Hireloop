@@ -35,9 +35,6 @@ export function Settings() {
   const { analyzingResume, handleFileUpload, processResumeText } = useResumeParser(updateProfile, profile);
   const [formData, setFormData] = useState({
     careerPaths: [] as string[],
-    jobType: 'both',
-    location: '',
-    minSalary: '',
     resumeText: '',
     resumeAnalysis: undefined as any,
     receiveDailyAlerts: true,
@@ -50,15 +47,6 @@ export function Settings() {
     if (profile) {
       setFormData({
         careerPaths: profile.careerPaths || [],
-        jobType:
-          profile.preferences?.remoteOnly === true
-            ? 'remote'
-            : profile.jobType || 'both',
-        location: profile.preferences?.locations?.[0] || profile.location || '',
-        minSalary:
-          profile.preferences?.salaryFloor?.toString() ||
-          profile.minSalary?.toString() ||
-          '',
         resumeText: profile.resumeText || '',
         resumeAnalysis: profile.resumeAnalysis,
         receiveDailyAlerts: profile.receiveDailyAlerts !== false,
@@ -102,9 +90,9 @@ export function Settings() {
     setSaving(true);
     try {
       const preferences = normalizeUserPreferences({
-        remoteOnly: formData.jobType === 'remote',
-        salaryFloor: formData.minSalary,
-        locations: formData.location ? [formData.location] : [],
+        remoteOnly: true, // Defaults to remote only
+        salaryFloor: '',
+        locations: [],
       });
       const legacy = syncLegacyPreferenceFields(preferences);
       const delivery = normalizeDeliverySettings({
@@ -188,7 +176,7 @@ export function Settings() {
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-12">
+    <div className="hs-view h-full overflow-y-auto pb-12">
       <PageShell
         title="Settings"
         description="Manage your job search preferences, billing, and resume."
@@ -302,43 +290,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-border">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground-muted">Work Type</label>
-                <select 
-                  name="jobType" 
-                  className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
-                  value={formData.jobType}
-                  onChange={handleChange}
-                >
-                  <option value="both">Both (Remote & On-site)</option>
-                  <option value="remote">Remote Only</option>
-                  <option value="onsite">On-site Only</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground-muted">Location</label>
-                <Input 
-                  name="location" 
-                  type="text" 
-                  placeholder="e.g. San Francisco, CA" 
-                  value={formData.location} 
-                  onChange={handleChange} 
-                  disabled={formData.jobType === 'remote'}
-                  title={formData.jobType === 'remote' ? "Location is ignored for Remote jobs" : ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground-muted">Minimum Salary (USD)</label>
-                <Input 
-                  name="minSalary" 
-                  type="number" 
-                  placeholder="e.g. 120000" 
-                  value={formData.minSalary} 
-                  onChange={handleChange} 
-                />
-              </div>
-            </div>
+
 
             <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
               <div className="space-y-2">

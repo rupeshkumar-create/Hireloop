@@ -139,6 +139,54 @@ describe('processUserCronRun', () => {
     expect(deps.generateJobs).not.toHaveBeenCalled();
   });
 
+  it('ignores stale blocked matchReadiness when current career paths are present', async () => {
+    const deps = {
+      loadUser: vi.fn().mockResolvedValue({
+        id: 'user_123',
+        data: {
+          plan: 'pro',
+          receiveDailyAlerts: true,
+          email: 'person@example.com',
+          careerPaths: ['Customer Success Manager'],
+          resumeText: '',
+          seenJobFingerprints: [],
+          matchReadiness: {
+            status: 'blocked',
+            hasResume: false,
+            hasCareerPaths: false,
+            blockingReason: 'Profile missing usable resume text and career paths.',
+            qualityWarnings: [],
+          },
+        },
+      }),
+      getExistingRun: vi.fn().mockResolvedValue({
+        id: 'user_123_2026-05-08',
+        status: 'queued',
+      } as CronRunRecord),
+      markRun: vi.fn().mockResolvedValue(undefined),
+      generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+      storeJobs: vi.fn().mockResolvedValue(undefined),
+      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const result = await processUserCronRun(
+      { userId: 'user_123', runDate: '2026-05-08', bypassActiveCheck: true },
+      deps
+    );
+
+    expect(result.status).toBe('completed');
+    expect(deps.generateJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        careerPaths: ['Customer Success Manager'],
+        matchReadiness: expect.objectContaining({
+          status: 'partial',
+          hasCareerPaths: true,
+        }),
+      }),
+      10
+    );
+  });
+
   it('marks users without email or matching inputs as skipped', async () => {
     const deps = {
       loadUser: vi.fn().mockResolvedValue({

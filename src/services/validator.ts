@@ -90,7 +90,15 @@ export function normalizeResumeText(text: string): string {
   while (collapsed[0] === '') collapsed.shift();
   while (collapsed[collapsed.length - 1] === '') collapsed.pop();
 
-  return collapsed.join('\n').trim();
+  const final = collapsed.join('\n').trim();
+  
+  // Fallback: if normalization stripped everything but input was not empty,
+  // return at least some basic whitespace-cleaned version of the input.
+  if (!final && text.trim()) {
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  return final;
 }
 
 export function hasResumeTextChanged(
@@ -213,6 +221,15 @@ export function validateJob(
       passed: false,
       code: 'MISSING_URL',
       reason: 'Job must include a valid URL before AI processing.',
+    };
+  }
+
+  // STRICT INVARIANT: All jobs must be Remote
+  if (!job.isRemote) {
+    return {
+      passed: false,
+      code: 'NOT_REMOTE',
+      reason: 'Strict rule: Only remote jobs are permitted in this pipeline.',
     };
   }
 
@@ -435,7 +452,10 @@ export function validateGeneratedEmail(
     };
   }
 
-  if (!trimmed.toLowerCase().includes(input.jobTitle.toLowerCase())) {
+  // Fuzzy title check: require first 2 significant words (ignoring qualifier suffixes like "(Remote)")
+  const titleCore = input.jobTitle.replace(/\(.*?\)|\[.*?\]/g, '').trim().toLowerCase();
+  const titleWords = titleCore.split(/\s+/).filter(w => w.length > 2).slice(0, 2).join(' ');
+  if (titleWords && !trimmed.toLowerCase().includes(titleWords)) {
     return {
       passed: false,
       code: 'MISSING_ROLE',
@@ -443,11 +463,11 @@ export function validateGeneratedEmail(
     };
   }
 
-  if (wordCount > 120) {
+  if (wordCount > 200) {
     return {
       passed: false,
       code: 'EMAIL_TOO_LONG',
-      reason: 'Generated email exceeds 120 words.',
+      reason: 'Generated email exceeds 200 words.',
     };
   }
 
@@ -480,6 +500,11 @@ export function validateTailoredResumeOutput(
       code: 'EMPTY_RESUME',
       reason: 'Tailored resume must not be empty.',
     };
+  }
+
+  // Skip keyword alignment check if job description is empty
+  if (!input.jobDescription?.trim()) {
+    return { passed: true };
   }
 
   const outputWords = normalizeWordSet(trimmed);

@@ -30,10 +30,10 @@ Every AI task has an assigned model. Never change routing without updating `MODE
 | Task | Model (via OpenRouter) |
 |------|----------------------|
 | `query_generation`, `resume_analysis`, `career_path_suggestion`, `job_preference_extraction`, `recruiter_email_extraction` | `openai/gpt-4o-mini` |
-| `job_scoring`, `resume_summary` | `google/gemini-3.1-pro` |
-| `email_generation`, `resume_tailoring`, `text_improvement` | `anthropic/Codex-opus-4.6` |
-| `resume_extraction` | `openai/gpt-5.4-pro` |
-| `interview_questions`, `salary_insights` | `anthropic/Codex-3.5-sonnet` |
+| `job_scoring`, `resume_summary` | `google/gemini-pro-1.5` |
+| `email_generation`, `resume_tailoring`, `text_improvement` | `anthropic/claude-3.5-sonnet` |
+| `resume_extraction` | `openai/gpt-4o` |
+| `interview_questions`, `salary_insights` | `anthropic/claude-3.5-sonnet` |
 
 All calls flow through `api/openai.ts` — an OpenRouter proxy using the `openai` npm package with `baseURL: 'https://openrouter.ai/api/v1'`. **Never use `@anthropic-ai/sdk` or call provider APIs directly.** Never call from the frontend — always proxy through `api/openai.ts`.
 
@@ -64,6 +64,9 @@ User Profile → Scout (query gen) → Harvester (Perplexity/Gemini search)
 5. **No email before storage** — store to Firestore before calling Resend
 6. **No hallucinations** — all AI output must be grounded in retrieved job data and user resume
 7. **Learning signals never override hard filters** — deterministic validation stays deterministic
+8. **Pro Quota & Relevance** — Pro users must receive 10 jobs daily with a minimum match score of 75%.
+9. **Redundancy Guard** — Manual Scout runs are blocked if today's batch already exists.
+10. **Automated Onboarding** — Profile creation MUST automatically parse the resume to extract structured data and exactly 3 career paths based on a deep analysis of experience and skills.
 
 ## Key Files & Directories
 

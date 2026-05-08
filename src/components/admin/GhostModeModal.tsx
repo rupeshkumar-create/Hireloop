@@ -24,7 +24,7 @@ interface GhostModeModalProps {
 function buildOverrideState(user: GhostModeTargetUser | null): GhostModeOverrides {
   return {
     careerPaths: user?.careerPaths || [],
-    jobType: user?.jobType || 'both',
+    jobType: user?.jobType || 'remote',
     location: user?.location || '',
     minSalary: user?.minSalary || null,
     resumeText: user?.resumeText || '',
@@ -142,9 +142,7 @@ export function GhostModeModal({
                   }))
                 }
               >
-                <option value="both">Both</option>
                 <option value="remote">Remote Only</option>
-                <option value="onsite">On-site Only</option>
               </select>
             </div>
 

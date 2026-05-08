@@ -1,41 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, List } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Navigate, Link } from 'react-router-dom';
+import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobs } from '../hooks/useDashboardJobs';
 import { useDashboardAI } from '../hooks/useDashboardAI';
-import { ResumeUploader } from '../components/dashboard/ResumeUploader';
-import { OverviewTab } from '../components/dashboard/OverviewTab';
-import { MatchesTab } from '../components/dashboard/MatchesTab';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
-import { PageShell } from '../components/ui/page-shell';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 
+function companyInitials(company: string) {
+  return company
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'JB';
+}
+
+function formatPosted(job: Job) {
+  if (typeof job.daysOld === 'number') {
+    if (job.daysOld <= 0) return 'today';
+    if (job.daysOld === 1) return '1d ago';
+    return `${job.daysOld}d ago`;
+  }
+  return job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'fresh';
+}
+
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'matches'>('overview');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
   const [savingJobFingerprints, setSavingJobFingerprints] = useState<string[]>([]);
 
   const {
-    filteredAndSortedJobs, loadingJobs, generatingJobs, requestJobs,
-    stats, statsLoading, fetchJobs, saveJob, dismissJob, trackJobClick,
-    filterCompany, setFilterCompany,
-    filterLocation, setFilterLocation,
-    filterSalary, setFilterSalary,
-    filterWorkType, setFilterWorkType,
-    sortBy, setSortBy,
-    lastFetchTime,
+    filteredAndSortedJobs,
+    loadingJobs,
+    generatingJobs,
+    requestJobs,
+    stats,
+    saveJob,
+    dismissJob,
+    trackJobClick,
     dailyJobsMeta,
     nextJobDeliveryAt,
   } = useDashboardJobs(user, profile, updateProfile);
 
   const {
-    aiAction, setAiAction,
+    aiAction,
     aiResult,
     actionLoading,
     handleAiAction,
@@ -45,25 +57,43 @@ export function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
-      toast.success('Payment processing! Your account will be upgraded shortly.');
+      toast.success('Payment processing. Your account will be upgraded shortly.');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
+  const topJobs = filteredAndSortedJobs.slice(0, 4);
+  const bestScore = topJobs.reduce((max, job) => Math.max(max, job.matchScore || job.finalScore || 0), 0);
+  const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
+  const nextRun = nextJobDeliveryAt ? new Date(nextJobDeliveryAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'tomorrow morning';
+
+  const digest = useMemo(() => {
+    const careerPath = profile?.careerPaths?.[0] || 'your saved career paths';
+    const top = topJobs[0];
+    return [
+      top
+        ? `${top.company} is the strongest current fit at ${top.matchScore || top.finalScore}/100, mainly because it overlaps with ${top.matchedCareerPath || careerPath}.`
+        : `Scout is ready to match roles against ${careerPath}. Generate today's jobs to fill this board.`,
+      `${profile?.preferences?.remoteOnly !== false ? 'Remote-only filtering is active' : 'Remote preference is flexible'}, with salary floor ${profile?.preferences?.salaryFloor ? `$${profile.preferences.salaryFloor.toLocaleString()}` : 'not set'}.`,
+      dailyJobsMeta?.generatedAt
+        ? `Last completed run: ${new Date(dailyJobsMeta.generatedAt).toLocaleString()}.`
+        : `Next scheduled run: ${nextRun}.`,
+      'Best next action: save the strongest role, then generate a tailored cover letter from the job detail panel.',
+    ];
+  }, [dailyJobsMeta?.generatedAt, nextRun, profile?.careerPaths, profile?.preferences?.remoteOnly, profile?.preferences?.salaryFloor, topJobs]);
+
   const handleSaveJob = async (job: Job) => {
     const fp = jobFingerprint(job.title, job.company);
-    if (savingJobFingerprints.includes(fp) || savedJobFingerprints.includes(fp)) {
-      return false;
-    }
+    if (savingJobFingerprints.includes(fp) || savedJobFingerprints.includes(fp)) return false;
 
-    setSavingJobFingerprints((cur) => [...cur, fp]);
+    setSavingJobFingerprints((current) => [...current, fp]);
     try {
-    const didSave = await saveJob(job);
-    if (!didSave) return false;
-    setSavedJobFingerprints((cur) => (cur.includes(fp) ? cur : [...cur, fp]));
-    return true;
+      const didSave = await saveJob(job);
+      if (!didSave) return false;
+      setSavedJobFingerprints((current) => (current.includes(fp) ? current : [...current, fp]));
+      return true;
     } finally {
-      setSavingJobFingerprints((cur) => cur.filter((value) => value !== fp));
+      setSavingJobFingerprints((current) => current.filter((value) => value !== fp));
     }
   };
 
@@ -72,99 +102,144 @@ export function Dashboard() {
   }
 
   return (
-    <PageShell
-      title="Dashboard"
-      description={`Welcome back, ${user?.displayName?.split(' ')[0] || 'Candidate'}. Here are your latest AI-curated matches.`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Tab switcher */}
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex rounded-full border border-border bg-surface-hover p-1">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent ${
-                activeTab === 'overview'
-                  ? 'bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]'
-                  : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('matches')}
-              className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent ${
-                activeTab === 'matches'
-                  ? 'bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]'
-                  : 'text-foreground-muted hover:bg-border/50 hover:text-foreground'
-              }`}
-            >
-              <List className="h-4 w-4" />
-              Daily Matches
-            </button>
-          </div>
+    <div className="hs-view space-y-7">
+      <div className="hs-stats">
+        <div className="hs-stat">
+          <div className="hs-stat-num">{filteredAndSortedJobs.length}</div>
+          <div className="hs-label mt-2">New matches today</div>
+          <div className="hs-stat-delta">From Scout</div>
         </div>
-
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          {activeTab === 'overview' && (
-            <OverviewTab
-              stats={stats}
-              statsLoading={statsLoading}
-              profile={profile}
-              setActiveTab={setActiveTab}
-            />
-          )}
-
-          {activeTab === 'matches' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex min-h-0 flex-1 flex-col"
-            >
-              <MatchesTab
-                plan={profile?.plan}
-                jobs={filteredAndSortedJobs}
-                loadingJobs={loadingJobs}
-                generatingJobs={generatingJobs}
-                onRequestJobs={requestJobs}
-                fetchJobs={fetchJobs}
-                filterCompany={filterCompany} setFilterCompany={setFilterCompany}
-                filterLocation={filterLocation} setFilterLocation={setFilterLocation}
-                filterSalary={filterSalary} setFilterSalary={setFilterSalary}
-                filterWorkType={filterWorkType} setFilterWorkType={setFilterWorkType}
-                sortBy={sortBy} setSortBy={setSortBy}
-                selectedJob={selectedJob} setSelectedJob={setSelectedJob}
-                setAiAction={setAiAction}
-                saveJob={handleSaveJob}
-                savedJobFingerprints={savedJobFingerprints}
-                dismissJob={dismissJob}
-                lastFetchTime={lastFetchTime}
-                dailyJobsMeta={dailyJobsMeta}
-                nextJobDeliveryAt={nextJobDeliveryAt}
-              />
-            </motion.div>
-          )}
-
-          <AnimatePresence>
-            {selectedJob && (
-              <JobDetailsPanel
-                selectedJob={selectedJob}
-                saveJob={handleSaveJob}
-                dismissJob={dismissJob}
-                trackJobClick={trackJobClick}
-                handleAiAction={handleAiAction}
-                aiAction={aiAction}
-                aiResult={aiResult}
-                actionLoading={actionLoading}
-                downloadResume={downloadResume}
-                onClose={() => setSelectedJob(null)}
-                isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
-                isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
-              />
-            )}
-          </AnimatePresence>
+        <div className="hs-stat">
+          <div className="hs-stat-num">{dailyJobsMeta?.returnedCount || filteredAndSortedJobs.length || 0}</div>
+          <div className="hs-label mt-2">Roles matched so far</div>
+          <div className="hs-stat-delta">Latest daily batch</div>
+        </div>
+        <div className="hs-stat">
+          <div className="hs-stat-num">{pipelineCount}</div>
+          <div className="hs-label mt-2">Roles in pipeline</div>
+          <div className="hs-stat-delta">Saved · Applied · Interview</div>
+        </div>
+        <div className="hs-stat">
+          <div className="hs-stat-num">{bestScore || '—'}</div>
+          <div className="hs-label mt-2">Best match score</div>
+          <div className="hs-stat-delta">{topJobs[0]?.company || 'Waiting for run'}</div>
         </div>
       </div>
-    </PageShell>
+
+      <div className="hs-grid">
+        <section className="hs-block">
+          <div className="hs-block-header">
+            <div>
+              <div className="hs-label mb-1">Today's Scout run</div>
+              <div className="hs-section-title">Top matches</div>
+            </div>
+            <button type="button" className="hs-btn hs-btn-primary" onClick={() => requestJobs()} disabled={generatingJobs}>
+              {generatingJobs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Generate daily jobs
+            </button>
+          </div>
+
+          {loadingJobs ? (
+            <div className="p-10 text-center text-sm text-[var(--hs-app-muted)]">Loading your latest Scout run...</div>
+          ) : topJobs.length > 0 ? (
+            topJobs.map((job) => {
+              const score = job.matchScore || job.finalScore || 0;
+              return (
+                <article key={job.id || job.fingerprint} className="hs-card-row" onClick={() => setSelectedJob(job)}>
+                  <div className="min-w-0">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="hs-company-mark">{companyInitials(job.company)}</span>
+                      <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
+                        {job.company} · {job.location || 'Remote'}
+                      </span>
+                    </div>
+                    <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
+                    <div className="hs-tags mb-3">
+                      <span className="hs-tag">{job.workType || 'remote'}</span>
+                      {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
+                      {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
+                      {job.source ? <span className="hs-tag">{job.source}</span> : null}
+                    </div>
+                    <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
+                      {job.aiSummary || job.aiInsight || job.description}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="hs-score" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
+                    <span className="font-mono text-[9px] text-[var(--hs-app-muted)]">{formatPosted(job)}</span>
+                    {job.isHotJob ? <span className="hs-pill hs-pill-success text-[9px]">Hot</span> : null}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <div className="p-10 text-center">
+              <Briefcase className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-muted)]" />
+              <div className="text-[15px] font-semibold">No matches loaded yet</div>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--hs-app-muted)]">
+                Run Scout now. It will use your resume, career paths, salary floor, and remote preferences.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <aside className="space-y-5">
+          <section className="hs-block">
+            <div className="hs-block-header">
+              <div>
+                <div className="hs-label mb-1">Why these roles</div>
+                <div className="font-display text-[16px] font-semibold">Today's digest</div>
+              </div>
+            </div>
+            {digest.map((item, index) => (
+              <div key={item} className="flex gap-3 border-b border-[var(--hs-app-border)] px-5 py-4 last:border-b-0">
+                <span className="font-mono text-[10px] font-bold text-[var(--hs-app-muted)]">{String(index + 1).padStart(2, '0')}</span>
+                <p className="text-[13px] leading-6 text-[var(--hs-app-fg)]">{item}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="hs-block">
+            <div className="hs-block-header">
+              <div>
+                <div className="hs-label mb-1">Pipeline</div>
+                <div className="font-display text-[16px] font-semibold">Recent activity</div>
+              </div>
+            </div>
+            <div className="space-y-0">
+              <div className="border-b border-[var(--hs-app-border)] px-5 py-4 text-[12px]">
+                <strong>Scout found {filteredAndSortedJobs.length} matches</strong>
+                <div className="mt-1 font-mono text-[10px] text-[var(--hs-app-muted)]">Latest local session</div>
+              </div>
+              <div className="border-b border-[var(--hs-app-border)] px-5 py-4 text-[12px]">
+                <strong>{pipelineCount} jobs are in your pipeline</strong>
+                <div className="mt-1 font-mono text-[10px] text-[var(--hs-app-muted)]">Saved, applied, or interviewing</div>
+              </div>
+              <Link to="/saved" className="flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-[var(--hs-app-bg)]">
+                Open saved library
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      {selectedJob && (
+        <JobDetailsPanel
+          selectedJob={selectedJob}
+          saveJob={handleSaveJob}
+          dismissJob={dismissJob}
+          trackJobClick={trackJobClick}
+          handleAiAction={handleAiAction}
+          aiAction={aiAction}
+          aiResult={aiResult}
+          actionLoading={actionLoading}
+          downloadResume={downloadResume}
+          onClose={() => setSelectedJob(null)}
+          isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
+          isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
+        />
+      )}
+    </div>
   );
 }

@@ -1,124 +1,162 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { Briefcase, LayoutDashboard, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import {
+  Bookmark,
+  ClipboardCheck,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  MessageSquareText,
+  Moon,
+  Settings,
+  Sun,
+  Timer,
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
-import { ThemeToggle } from './ui/theme-toggle';
+
+function getNavGroups(dashboardCount?: string, savedCount?: string) {
+  return [
+    {
+      label: 'Workspace',
+      items: [
+        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, count: dashboardCount },
+      ],
+    },
+    {
+      label: 'Library',
+      items: [
+        { name: 'Saved Jobs', path: '/saved', icon: Bookmark, count: savedCount },
+        { name: 'Resume', path: '/resume', icon: FileText },
+      ],
+    },
+    {
+      label: 'AI Tools',
+      items: [
+        { name: 'Cover Letters', path: '/cover-letters', icon: Mail },
+        { name: 'Interview Prep', path: '/interview-prep', icon: HelpCircle },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { name: 'Settings', path: '/settings', icon: Settings },
+      ],
+    },
+  ];
+}
+
+
+function initials(name?: string, email?: string) {
+  const source = name || email || 'User';
+  return source
+    .split(/\s|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'U';
+}
+
+import { useDashboardJobs } from '../hooks/useDashboardJobs';
 
 export function Sidebar() {
-  const { profile, logout, isImpersonating, stopImpersonating } = useAuth();
+  const { profile, user, logout, isImpersonating, stopImpersonating, updateProfile } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { filteredAndSortedJobs, stats } = useDashboardJobs(user, profile, updateProfile);
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(true);
 
-  const navItems = [
-    { name: 'Daily Jobs', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Job Tracker', path: '/tracker', icon: Briefcase },
-    { name: 'Settings', path: '/settings', icon: Settings },
-  ];
+  const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
+  const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
+  const navGroups = getNavGroups(dashboardCount, savedCount);
+
+  const plan = profile?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
+  const nextHour = String(profile?.preferredDeliveryHour ?? 8).padStart(2, '0');
 
   return (
-    <div className={cn("relative flex h-screen flex-col border-r border-border bg-surface/50 transition-all duration-300 ease-in-out", isCollapsed ? "w-20" : "w-72")}>
-      {/* Toggle Button */}
+    <aside className="hs-sidebar">
+      <Link to="/dashboard" className="hs-sidebar-logo">
+        <span className="hs-wordmark">Hireschema</span>
+        <span className="hs-badge">{plan}</span>
+      </Link>
+
+      <div className="hs-scout-card">
+        <div className="hs-scout-row">
+          <span className="hs-label">Scout</span>
+          <span className="hs-dot" />
+        </div>
+        <div className="font-mono text-[11px] font-semibold text-[var(--hs-app-fg)]">
+          Next run — {nextHour}:00
+        </div>
+        <div className="mt-1 text-[11px] text-[var(--hs-app-muted)]">
+          Daily Apify scan · resume-matched
+        </div>
+      </div>
+
       <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-[1.6rem] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-surface-hover"
+        type="button"
+        onClick={toggleTheme}
+        className="mx-2 mb-1 flex items-center justify-center rounded border border-[var(--hs-app-border)] px-3 py-2 text-[11px] text-[var(--hs-app-muted)] transition hover:bg-[var(--hs-app-bg)] hover:text-[var(--hs-app-fg)]"
       >
-        {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        {theme === 'dark' ? <Moon className="mr-2 h-3.5 w-3.5" /> : <Sun className="mr-2 h-3.5 w-3.5" />}
+        <span className="font-mono text-[10px]">Toggle theme</span>
       </button>
 
-      <div className="flex h-[4.5rem] items-center border-b border-border px-5">
-        <div className="flex items-center justify-center rounded-xl border border-border bg-surface-hover p-2 shrink-0">
-          <Briefcase className="h-4 w-4 text-foreground" />
-        </div>
-        <div className={cn("ml-3 overflow-hidden transition-all duration-300 whitespace-nowrap", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-          <span className="text-xl font-medium leading-none tracking-[-0.02em] text-foreground">Hireschema</span>
-          <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-foreground-muted">Remote Job Agent</p>
-        </div>
-      </div>
-      
-      {isImpersonating && !isCollapsed && (
-        <div className="m-4 rounded-xl border border-[var(--ember-300)] bg-[var(--ember-tint)] p-4 text-center text-xs font-medium text-foreground">
-          <p className="mb-2">Impersonating: {profile?.email}</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full bg-surface text-foreground"
-            onClick={() => {
-              stopImpersonating();
-              window.location.href = '/kingdomofkumar';
-            }}
-          >
-            Stop Impersonating
-          </Button>
-        </div>
+      {isImpersonating && (
+        <button
+          type="button"
+          onClick={() => {
+            stopImpersonating();
+            window.location.href = '/kingdomofkumar';
+          }}
+          className="mx-3 mb-2 rounded-md border border-[var(--hs-app-warn)] bg-[var(--hs-app-warn-bg)] px-3 py-2 text-left text-[11px] text-[var(--hs-app-fg)]"
+        >
+          Stop impersonating {profile?.email}
+        </button>
       )}
 
-      {isImpersonating && isCollapsed && (
-        <div className="m-2 flex justify-center">
-          <div className="h-2 w-2 rounded-full bg-[var(--ember-400)]" title={`Impersonating: ${profile?.email}`} />
-        </div>
-      )}
+      <nav className="hs-nav">
+        {navGroups.map((group) => (
+          <React.Fragment key={group.label}>
+            <div className="hs-nav-section">{group.label}</div>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+              return (
+                <Link key={item.path} to={item.path} className={cn('hs-nav-item', active && 'active')}>
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
+                  <span>{item.name}</span>
+                  {item.count ? <span className="hs-nav-count">{item.count}</span> : null}
+                </Link>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </nav>
 
-      <div className="flex-1 overflow-y-auto py-6">
-        <nav className="space-y-2 px-3">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                title={isCollapsed ? item.name : undefined}
-                className={cn(
-                  "group flex items-center rounded-lg py-3 font-medium transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] border border-transparent",
-                  isCollapsed ? "justify-center px-0" : "px-3 text-sm",
-                  isActive
-                    ? "bg-[var(--ember-tint)] text-foreground border-[var(--ember-400)]"
-                    : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-5 w-5 shrink-0",
-                    !isCollapsed && "mr-3 h-4 w-4",
-                    isActive ? "text-background dark:text-foreground" : "text-foreground-muted group-hover:text-foreground"
-                  )}
-                />
-                <span className={cn("truncate transition-all duration-300", isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100")}>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="border-t border-border p-3">
-        <div className={cn("mb-4 flex items-center", isCollapsed ? "justify-center" : "justify-start")}>
-          <ThemeToggle isCollapsed={isCollapsed} />
-        </div>
-        <div className={cn("mb-4 flex items-center rounded-xl border border-border bg-background/70 py-2", isCollapsed ? "justify-center px-0" : "px-3")}>
+      <div className="hs-sidebar-footer">
+        <div className="mb-3 flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-[var(--hs-app-bg)]">
           {profile?.photoURL ? (
-            <img src={profile.photoURL} alt="Profile" className={cn("rounded-full border border-border object-cover shrink-0", isCollapsed ? "h-8 w-8" : "mr-3 h-10 w-10")} referrerPolicy="no-referrer" />
+            <img src={profile.photoURL} alt="" className="h-[30px] w-[30px] rounded border border-[var(--hs-app-border)] object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <div className={cn("flex items-center justify-center rounded-full bg-border font-medium text-foreground-muted shrink-0", isCollapsed ? "h-8 w-8 text-xs" : "mr-3 h-10 w-10 text-sm")}>
-              {profile?.displayName?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+            <div className="flex h-[30px] w-[30px] items-center justify-center rounded border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] font-mono text-[11px] font-bold text-[var(--hs-app-muted)]">
+              {initials(profile?.displayName, profile?.email)}
             </div>
           )}
-          <div className={cn("min-w-0 flex-1 overflow-hidden transition-all duration-300", isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100")}>
-            <p className="truncate text-sm font-medium text-foreground">{profile?.displayName || 'User'}</p>
-            <p className="truncate text-xs text-foreground-muted">{profile?.email}</p>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold text-[var(--hs-app-fg)]">
+              {profile?.displayName || 'Rupesh Kumar'}
+            </div>
+            <div className="truncate font-mono text-[10px] text-[var(--hs-app-muted)]">{plan} Plan</div>
           </div>
         </div>
-        <Button 
-          variant="outline" 
-          title={isCollapsed ? "Sign Out" : undefined}
-          className={cn("w-full transition-all", isCollapsed ? "justify-center px-0" : "justify-start text-foreground-muted")} 
-          onClick={logout}
-        >
-          <LogOut className={cn("h-4 w-4 shrink-0", !isCollapsed && "mr-2")} />
-          {!isCollapsed && <span>Sign Out</span>}
-        </Button>
+        <button type="button" className="hs-btn w-full justify-start" onClick={logout}>
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out
+        </button>
       </div>
-    </div>
+    </aside>
   );
 }

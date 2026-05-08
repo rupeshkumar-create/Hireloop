@@ -22,7 +22,11 @@ function getBearerToken(req: VercelRequest): string | null {
 async function verifySuperAdmin(token: string) {
   const auth = getAdminAuth();
   const decoded = await auth.verifyIdToken(token);
-  if (decoded.superAdmin !== true) {
+  
+  const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
+  const userEmail = decoded.email?.toLowerCase();
+
+  if (decoded.superAdmin !== true && !ADMIN_EMAILS.includes(userEmail || '')) {
     throw Object.assign(new Error('Not authorized as super admin.'), { status: 403 });
   }
   return decoded;
@@ -83,6 +87,17 @@ function buildListItem(u: RawUser) {
   };
 }
 
+function toPreferences(v: unknown): Record<string, unknown> | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const p = v as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  if (typeof p.remoteOnly === 'boolean') result.remoteOnly = p.remoteOnly;
+  if (typeof p.salaryFloor === 'number') result.salaryFloor = p.salaryFloor;
+  if (p.salaryFloor === null) result.salaryFloor = null;
+  if (Array.isArray(p.locations)) result.locations = p.locations.filter((l: unknown) => typeof l === 'string');
+  return Object.keys(result).length ? result : undefined;
+}
+
 function buildDetail(u: RawUser) {
   const lp = u.learningProfile;
   const learningProfile =
@@ -96,6 +111,8 @@ function buildDetail(u: RawUser) {
   return {
     ...buildListItem(u),
     learningProfile,
+    preferences: toPreferences(u.preferences),
+    matchingPreferences: toPreferences(u.matchingPreferences),
     resumeText: toOptionalString(u.resumeText),
     seenJobFingerprints: toStringArray(u.seenJobFingerprints),
     learningSignals: u.learningSignals && typeof u.learningSignals === 'object' ? u.learningSignals : undefined,

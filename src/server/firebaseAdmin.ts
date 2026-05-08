@@ -53,8 +53,17 @@ function initFirebaseAdmin() {
 
   let serviceAccount: Record<string, unknown>;
   try {
-    serviceAccount = JSON.parse(raw);
+    let cleanRaw = raw.trim();
+    // Strip leading/trailing single or double quotes if present
+    if ((cleanRaw.startsWith("'") && cleanRaw.endsWith("'")) || (cleanRaw.startsWith('"') && cleanRaw.endsWith('"'))) {
+      cleanRaw = cleanRaw.slice(1, -1).trim();
+    }
+    
+    console.log('[firebaseAdmin] Parsing service account key (length:', cleanRaw.length, ')');
+    serviceAccount = JSON.parse(cleanRaw);
+    console.log('[firebaseAdmin] Successfully parsed service account for project:', serviceAccount.project_id);
   } catch (error: any) {
+    console.error('[firebaseAdmin] Critical Parse Error:', error.message);
     throw new Error(`Server Configuration Error: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON. ${error.message}`);
   }
 

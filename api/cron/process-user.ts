@@ -24,6 +24,7 @@ import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
 import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
 import type { DailyJob } from '../../src/types/dailyJob';
+import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
 
@@ -79,8 +80,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const location: string = profile.location || '';
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
+          const targetCount = profile.plan === 'pro' ? 100 : 60;
           const { jobs: discovered, sources } = await researchJobs(
-            { careerPaths, resumeText, jobType, location, targetCount: 60 }
+            { careerPaths, resumeText, jobType, location, targetCount }
           );
 
           console.log(
@@ -109,6 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               jobType,
               seenFingerprints,
               limit,
+              minMatchScore: 75,
               matchingPreferences: profile.matchingPreferences || profile.preferences,
             }
           );
@@ -159,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ].slice(-MAX_SEEN_FINGERPRINTS);
 
           await db.collection('users').doc(uid).set(
-            {
+            stripUndefinedDeep({
               dailyJobs: jobs,
               dailyJobsMeta: {
                 requestedLimit,
@@ -181,7 +184,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ),
               matchReadiness: profile.matchReadiness,
               seenJobFingerprints: nextFingerprints,
-            },
+            }),
             { merge: true }
           );
 
@@ -193,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .doc(uid)
             .collection('daily_matches')
             .doc(date)
-            .set({
+            .set(stripUndefinedDeep({
               userId: uid,
               date,
               generatedAt: fetchedAt,
@@ -209,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               emailSent: false,
               qualityLimited,
               warnings,
-            });
+            }));
         },
 
         // ── Send email ──────────────────────────────────────────────────────

@@ -399,6 +399,7 @@ export function JobTracker() {
   };
 
   return (
+    <div className="hs-view">
     <PageShell
       title="Job Tracker"
       description="Manage and track your job applications."
@@ -778,5 +779,6 @@ export function JobTracker() {
       )}
       </div>
     </PageShell>
+    </div>
   );
 }

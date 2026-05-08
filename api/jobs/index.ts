@@ -10,6 +10,7 @@ import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist';
 import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator';
 import { verifyHttpUrl } from '../../src/services/urlVerifier';
 import { formatLocalDate } from '../../src/lib/localDate.js';
+import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -47,11 +48,19 @@ async function verifyUser(req: VercelRequest): Promise<string | null> {
   return decoded.uid;
 }
 
-async function runPipeline(uid: string, runDate: string, req: VercelRequest): Promise<void> {
+type JobPipelineResult = {
+  status: 'completed' | 'failed' | 'skipped';
+  jobs: DailyJob[];
+  debug: Record<string, unknown>;
+};
+
+async function runPipeline(uid: string, runDate: string, req: VercelRequest): Promise<JobPipelineResult> {
   const db = getAdminDb();
   const baseUrl = getBaseUrl(req);
+  let storedJobs: DailyJob[] = [];
+  let debug: Record<string, unknown> = {};
 
-  await processUserCronRun(
+  const result = await processUserCronRun(
     { userId: uid, runDate, bypassActiveCheck: true },
     {
       loadUser: async (userId) => {
@@ -68,14 +77,19 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         );
       },
       generateJobs: async (profile, limit) => {
-        const careerPaths: string[] = profile.careerPaths || [];
+        console.log('[api/jobs] Starting generateJobs for user:', uid);
+        const careerPaths = resolveCareerPaths(profile);
+        console.log('[api/jobs] Career paths:', careerPaths);
         const resumeText: string = profile.resumeText || '';
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
         const targetDiscoveryCount = Math.max(30, limit * 6);
 
+        console.log('[api/jobs] Checking ATS sources...');
         const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
+        console.log('[api/jobs] Found ATS sources:', atsSources.length);
+
         const atsJobs = atsSources.length
           ? await fetchAtsJobs(atsSources, {
               fetchFn: fetch,
@@ -86,6 +100,16 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
               perSourceTimeoutMs: 4500,
             })
           : [];
+        console.log('[api/jobs] Found ATS jobs:', atsJobs.length);
+        debug = {
+          ...debug,
+          careerPaths,
+          jobType,
+          hasResumeText: resumeText.trim().length > 0,
+          atsSourceCount: atsSources.length,
+          atsJobCount: atsJobs.length,
+          targetDiscoveryCount,
+        };
 
         const byFingerprint = new Set<string>();
         const combined: any[] = [];
@@ -98,9 +122,15 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
 
         if (combined.length < targetDiscoveryCount) {
           const missing = targetDiscoveryCount - combined.length;
+          console.log(`[api/jobs] Discovery gap: ${missing}. Calling researchJobs...`);
           const { jobs: feedJobs } = await researchJobs(
             { careerPaths, resumeText, jobType, location, targetCount: Math.max(20, missing) }
           );
+          console.log('[api/jobs] researchJobs returned:', feedJobs.length);
+          debug = {
+            ...debug,
+            apifyJobCount: feedJobs.length,
+          };
           for (const job of feedJobs) {
             if (!job?.fingerprint) continue;
             if (byFingerprint.has(job.fingerprint)) continue;
@@ -111,8 +141,18 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         }
 
         const discovered = combined;
+        console.log('[api/jobs] Total discovered jobs for matching:', discovered.length);
+        debug = {
+          ...debug,
+          discoveredCount: discovered.length,
+        };
 
         if (discovered.length === 0) {
+          debug = {
+            ...debug,
+            matchedCount: 0,
+            emptyReason: 'No jobs discovered from ATS or Apify.',
+          };
           return { jobs: [], requestedLimit: limit, usedBackfill: false, totalValidatedJobs: 0, unseenCount: 0, seenCount: 0 };
         }
 
@@ -127,6 +167,15 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
             matchingPreferences: profile.matchingPreferences || profile.preferences,
           }
         );
+        debug = {
+          ...debug,
+          matchedCount: matchResult.jobs.length,
+          scoredCount: matchResult.scoredCount,
+          usedFallback: matchResult.usedFallback,
+          qualityFilteredCount: matchResult.qualityFilteredCount,
+          dedupedCount: matchResult.dedupedCount,
+          emptyReason: matchResult.jobs.length === 0 ? 'Jobs were discovered but no jobs survived matching.' : undefined,
+        };
 
         return {
           jobs: matchResult.jobs,
@@ -140,6 +189,7 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
       storeJobs: async (userId, date, profile, generated) => {
         const fetchedAt = new Date().toISOString();
         const jobs: DailyJob[] = generated.jobs || [];
+        storedJobs = jobs;
         const requestedLimit = generated.requestedLimit ?? jobs.length;
         const qualityFilteredCount = generated.qualityFilteredCount ?? 0;
         const dedupedCount = generated.dedupedCount ?? 0;
@@ -153,7 +203,7 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         ].slice(-MAX_SEEN_FINGERPRINTS);
 
         await db.collection('users').doc(userId).set(
-          {
+          stripUndefinedDeep({
             dailyJobs: jobs,
             dailyJobsMeta: {
               requestedLimit,
@@ -170,7 +220,7 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
             lastSuccessfulJobRunLocalDate: date,
             matchReadiness: profile.matchReadiness,
             seenJobFingerprints: nextFingerprints,
-          },
+          }),
           { merge: true }
         );
 
@@ -180,9 +230,9 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
         await db
           .collection('users').doc(userId)
           .collection('daily_matches').doc(date)
-          .set({
-            userId,
-            date,
+            .set(stripUndefinedDeep({
+              userId,
+              date,
             generatedAt: fetchedAt,
             jobs,
             jobCount: jobs.length,
@@ -194,9 +244,9 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
             deliveryTimezone,
             deliveryLocalDate: date,
             emailSent: false,
-            qualityLimited,
-            warnings,
-          });
+              qualityLimited,
+              warnings,
+            }));
       },
       sendDailyEmail: async (email, jobs) => {
         try {
@@ -212,6 +262,21 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
       },
     }
   );
+
+  if (result.status !== 'completed') {
+    const runSnap = await db.collection('cronRuns').doc(`${uid}_${runDate}`).get().catch(() => null);
+    const failureReason = runSnap?.exists ? runSnap.data()?.failureReason : undefined;
+    return {
+      status: result.status,
+      jobs: storedJobs,
+      debug: {
+        ...debug,
+        failureReason,
+      },
+    };
+  }
+
+  return { status: 'completed', jobs: storedJobs, debug };
 }
 
 async function readStoredJobs(uid: string, runDate: string): Promise<DailyJob[]> {
@@ -243,7 +308,10 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     });
   }
 
-  if (githubToken && githubRepo) {
+  const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
+
+  if (githubToken && githubRepo && !isLocal) {
+    console.log('[api/jobs] Dispatching to GitHub Actions...');
     let ghResponse: Response;
     const ghAbort = new AbortController();
     const ghTimeout = setTimeout(() => ghAbort.abort(), 5000);
@@ -280,13 +348,22 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
   }
 
-  await runPipeline(uid, runDate, req);
-  const jobs = await readStoredJobs(uid, runDate);
+  const pipelineResult = await runPipeline(uid, runDate, req);
+  const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
+  if (pipelineResult.status !== 'completed') {
+    return res.status(500).json({
+      error: 'Daily job generation did not complete.',
+      status: pipelineResult.status,
+      ...(isLocal ? { debug: pipelineResult.debug } : {}),
+    });
+  }
+
   return res.status(200).json({
     status: 'completed',
     runDate,
     jobs,
     jobCount: jobs.length,
+    ...(isLocal ? { debug: pipelineResult.debug } : {}),
     message: jobs.length > 0
       ? `${jobs.length} jobs curated for you.`
       : 'No matching jobs were found for today. Try broadening your career paths or work preferences.',
@@ -298,23 +375,35 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
   const userSnap = await db.collection('users').doc(uid).get();
   const profile = userSnap.exists ? userSnap.data() || {} : {};
   const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
-  await runPipeline(uid, runDate, req);
-  const jobs = await readStoredJobs(uid, runDate);
-  return res.status(200).json({ jobs });
+  const pipelineResult = await runPipeline(uid, runDate, req);
+  const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
+  const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
+  return res.status(200).json({
+    jobs,
+    ...(isLocal ? { debug: pipelineResult.debug, status: pipelineResult.status } : {}),
+  });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log(`[api/jobs] Received ${req.method} request`);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   let uid: string | null = null;
   try {
     uid = await verifyUser(req);
+    console.log('[api/jobs] User verified:', uid);
     if (!uid) return res.status(401).json({ error: 'Missing Authorization header' });
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired auth token' });
+  } catch (error: any) {
+    console.error('[api/jobs] Auth failed:', error.code || error.message);
+    const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
+    return res.status(401).json({
+      error: 'Invalid or expired auth token',
+      ...(isLocal ? { detail: error.code || error.message } : {}),
+    });
   }
 
   const mode = typeof req.body?.mode === 'string' ? req.body.mode.trim() : 'request';
+  console.log('[api/jobs] Mode:', mode);
 
   try {
     if (mode === 'request') return await handleAsyncDispatch(uid, req, res);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { suggestCareerPaths } from '../services/aiService';
+import { generateCareerPathSuggestions } from '../services/careerPathGenerator';
 import {
   normalizeResumeText,
   type NormalizedUserPreferences,
@@ -29,8 +30,12 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       const resumeRaw = rawText;
       const resumeCleaned = normalizeResumeText(resumeRaw);
 
-      if (!resumeCleaned) {
-        toast.error('The provided resume text did not contain readable content.');
+      if (!resumeCleaned || resumeCleaned.length < 10) {
+        console.error('Resume extraction failed or content too short:', { 
+          rawLength: rawText.length, 
+          cleanedLength: resumeCleaned?.length 
+        });
+        toast.error('Could not extract readable text from this file. Please try a different format or ensure the file is not a scanned image.');
         return false;
       }
 
@@ -66,10 +71,18 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         syncLegacyPreferenceFields(normalizedPreferences);
       toast.success("Job preferences automatically configured!");
 
-      const extractedStructuredProfile = await extractResume(resumeCleaned);
+      let extractedStructuredProfile = await extractResume(resumeCleaned);
+      let displayName = profile?.displayName;
+
       if (extractedStructuredProfile) {
         structuredProfile = extractedStructuredProfile;
         toast.success("Structured resume profile created!");
+        
+        // Use extracted name as source of truth if available
+        if (extractedStructuredProfile.fullName && extractedStructuredProfile.fullName.length > 2) {
+          displayName = extractedStructuredProfile.fullName;
+          toast.success(`Profile name updated to: ${displayName}`);
+        }
       }
 
       const extractedResumeSummary = await summarizeResume(resumeCleaned);
@@ -77,14 +90,27 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         resumeSummary = extractedResumeSummary;
       }
 
+      let careerPathSuggestions = profile?.careerPathSuggestions;
+      let selectedCareerPathId = profile?.selectedCareerPathId;
+
+      // Always generate new career paths for a new resume upload
       if (!options?.careerPathsOverride || options.careerPathsOverride.length === 0) {
-        const suggestedPaths = await suggestCareerPaths(
+        console.log('Generating career path suggestions for resume...');
+        const suggestedPaths = await generateCareerPathSuggestions(
           resumeCleaned,
           profile?.antiSlopEnabled !== false
         );
+        console.log('Suggested paths received:', suggestedPaths);
+        
         if (suggestedPaths && suggestedPaths.length > 0) {
-          paths = suggestedPaths;
+          paths = suggestedPaths.map(p => p.title);
+          careerPathSuggestions = suggestedPaths;
+          selectedCareerPathId = suggestedPaths[0].id;
+          console.log('Updated paths list:', paths);
           toast.success("Career paths automatically detected!");
+        } else {
+          console.warn('No career paths were suggested by the AI.');
+          toast.info("Could not auto-generate career paths. You can add them manually in settings.");
         }
       }
 
@@ -94,6 +120,15 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         toast.success("Resume analysis complete!");
       }
 
+      console.log('Final profile update payload:', {
+        resumeRaw: '...',
+        resumeCleaned: '...',
+        resumeSummary,
+        structuredProfile,
+        careerPaths: paths,
+        displayName
+      });
+
       await updateProfile({
         resumeRaw,
         resumeCleaned,
@@ -102,6 +137,9 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         preferences: normalizedPreferences,
         resumeText: resumeCleaned,
         careerPaths: paths,
+        careerPathSuggestions,
+        selectedCareerPathId,
+        displayName,
         resumeAnalysis: analysis,
         jobType: legacyPreferenceFields.jobType,
         minSalary: legacyPreferenceFields.minSalary,
@@ -141,20 +179,30 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       if (file.type === 'text/plain' || file.name.endsWith('.md')) {
         text = await file.text();
       } else if (file.type === 'application/pdf') {
-        // @ts-ignore
-        const pdfWorkerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        // unpkg is more reliable for specific versioned ESM modules than cdnjs
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
         
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        
+        let fullText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          // @ts-ignore
-          const pageText = textContent.items.map((item) => item.str).join(' ');
-          text += pageText + '\n';
+          
+          // Better text extraction that handles individual items and spacing
+          const pageText = textContent.items
+            .map((item: any) => {
+              if ('str' in item) return item.str;
+              return '';
+            })
+            .join(' ');
+          
+          fullText += pageText + '\n';
         }
+        text = fullText;
       } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const mammoth = await import('mammoth');
         const arrayBuffer = await file.arrayBuffer();
@@ -165,9 +213,9 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         setAnalyzingResume(false);
         return;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error parsing file", err);
-      toast.error("Could not parse the file. Please try a different format.");
+      toast.error(`Could not parse the file: ${err.message || 'Unknown error'}. Please try a different format.`);
       setAnalyzingResume(false);
       return;
     }

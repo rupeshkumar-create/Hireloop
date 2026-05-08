@@ -13,11 +13,19 @@ export type AdminUserListItem = {
   careerPaths?: string[];
 };
 
+export type AdminUserPreferences = {
+  remoteOnly?: boolean;
+  salaryFloor?: number | null;
+  locations?: string[];
+};
+
 export type AdminUserDetail = AdminUserListItem & {
   learningProfile?: {
     jobPreferences?: string;
     writingStyle?: string;
   };
+  preferences?: AdminUserPreferences;
+  matchingPreferences?: AdminUserPreferences;
   resumeText?: string;
   seenJobFingerprints?: string[];
   learningSignals?: ScoutLearningContext;
@@ -35,6 +43,8 @@ type RawAdminUserRecord = {
   minSalary?: unknown;
   careerPaths?: unknown;
   learningProfile?: unknown;
+  preferences?: unknown;
+  matchingPreferences?: unknown;
   resumeText?: unknown;
   seenJobFingerprints?: unknown;
   learningSignals?: unknown;
@@ -101,6 +111,18 @@ function toLearningProfile(value: unknown): AdminUserDetail['learningProfile'] |
   return normalized.jobPreferences || normalized.writingStyle ? normalized : undefined;
 }
 
+function toPreferences(value: unknown): AdminUserPreferences | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const p = value as Record<string, unknown>;
+  const result: AdminUserPreferences = {};
+  if (typeof p.remoteOnly === 'boolean') result.remoteOnly = p.remoteOnly;
+  const sf = toOptionalNumber(p.salaryFloor);
+  if (sf !== undefined) result.salaryFloor = sf;
+  const locs = toStringArray(p.locations);
+  if (locs?.length) result.locations = locs;
+  return Object.keys(result).length ? result : undefined;
+}
+
 export function buildAdminUserListItem(user: RawAdminUserRecord): AdminUserListItem {
   return {
     id: user.id,
@@ -120,6 +142,8 @@ export function buildAdminUserDetail(user: RawAdminUserRecord): AdminUserDetail 
   return {
     ...buildAdminUserListItem(user),
     learningProfile: toLearningProfile(user.learningProfile),
+    preferences: toPreferences(user.preferences),
+    matchingPreferences: toPreferences(user.matchingPreferences),
     resumeText: toOptionalString(user.resumeText),
     seenJobFingerprints: toStringArray(user.seenJobFingerprints),
     learningSignals:

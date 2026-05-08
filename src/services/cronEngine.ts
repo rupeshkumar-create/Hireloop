@@ -175,13 +175,10 @@ export async function processUserCronRun(
 
   const profile = loadedUser.data;
   const effectiveCareerPaths = resolveCareerPaths(profile);
-  const readiness =
-    profile.matchReadiness && profile.matchReadiness.status
-      ? profile.matchReadiness
-      : computeMatchReadiness({
-          ...profile,
-          careerPaths: effectiveCareerPaths,
-        });
+  const readiness = computeMatchReadiness({
+    ...profile,
+    careerPaths: effectiveCareerPaths,
+  });
   const hasResumeText =
     typeof profile.resumeText === 'string' && profile.resumeText.trim().length > 0;
 

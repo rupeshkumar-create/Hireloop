@@ -142,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 displayName: currentUser.displayName || '',
                 photoURL: currentUser.photoURL || '',
                 plan: 'free',
+                jobType: 'remote',
                 receiveDailyAlerts: true,
                 antiSlopEnabled: true,
                 deliveryTimezone: browserTimeZone,

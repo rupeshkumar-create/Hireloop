@@ -1,41 +1,121 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { ArrowRight, Moon, Sun, ShieldCheck, Zap, Repeat, Layout, Terminal } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button';
-import { Briefcase, FileText, LayoutGrid, ArrowRight, CheckCircle2, Star, Globe, Terminal, Code2, Send, ChevronDown, Shield, Mail, Sparkles } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useTheme } from '../contexts/ThemeContext';
 
-const TypewriterText = ({ text, delay = 0 }: { text: string, delay?: number }) => {
-  const [displayedText, setDisplayedText] = useState('');
+const marquee = [
+  'Remote · Worldwide',
+  '50+ Resume Signals',
+  'Apify Job Discovery',
+  'ATS Integrity Checks',
+  'Cover Letter Drafts',
+  'Daily Fresh Matches',
+  'Learning Loop',
+  'Job Tracker Built-in',
+];
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    const startTyping = () => {
-      let i = 0;
-      setDisplayedText('');
-      interval = setInterval(() => {
-        setDisplayedText(text.slice(0, i));
-        i++;
-        if (i > text.length) {
-          clearInterval(interval);
-          setTimeout(startTyping, 3000); // Restart after 3s
-        }
-      }, 30);
-    };
-    const initialTimer = setTimeout(startTyping, delay);
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
-    };
-  }, [text, delay]);
+const features = [
+  {
+    title: 'Hard validation before AI scoring',
+    tag: 'Validator',
+    icon: ShieldCheck,
+    desc: "Deterministic rules reject listings that fail remote, location, salary, freshness, or link checks. AI only helps after a job has cleared the practical filters.",
+  },
+  {
+    title: 'Resume-grounded match scores',
+    tag: 'Matcher',
+    icon: Zap,
+    desc: 'The match score is derived from your actual resume text, career paths, seniority, skills, location preferences, and salary floor.',
+  },
+  {
+    title: 'A system that learns from you',
+    tag: 'Learning loop',
+    icon: Repeat,
+    desc: 'Every save, dismiss, application, and click becomes a signal for the next Scout cycle, without overriding your hard filters.',
+  },
+  {
+    title: 'Application drafts on demand',
+    tag: 'AI tasks',
+    icon: Terminal,
+    desc: 'Generate a tailored cover letter, resume variant, cold email, or interview prep set from a real job description when you need it.',
+  },
+  {
+    title: 'Tracker built in',
+    tag: 'Pipeline',
+    icon: Layout,
+    desc: 'Matched jobs flow into a clean tracker so your search does not become a spreadsheet graveyard by week two.',
+  },
+];
 
-  return <span>{displayedText}<span className="animate-pulse">_</span></span>;
-};
+function JobMockup() {
+  return (
+    <div className="hs-job-stack" aria-hidden="true">
+      <div className="hs-job-card back">
+        <div className="flex items-center gap-3">
+          <span className="hs-company-mark">LN</span>
+          <div>
+            <div className="text-xs text-[var(--hs-land-muted)]">Linear</div>
+            <div className="text-sm font-semibold">Product Engineer</div>
+          </div>
+        </div>
+      </div>
+      <div className="hs-job-card mid">
+        <div className="flex items-center gap-3">
+          <span className="hs-company-mark">ST</span>
+          <div>
+            <div className="text-xs text-[var(--hs-land-muted)]">Stripe</div>
+            <div className="text-sm font-semibold">Operations Manager</div>
+          </div>
+        </div>
+      </div>
+      <div className="hs-job-card front">
+        <div className="mb-5 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <span className="hs-company-mark">VR</span>
+            <div>
+              <div className="text-xs text-[var(--hs-land-muted)]">Vercel</div>
+              <div className="text-[15px] font-semibold">Customer Success Manager</div>
+            </div>
+          </div>
+          <span className="hs-score" style={{ '--score': '94%' } as React.CSSProperties}>94</span>
+        </div>
+        <div className="hs-tags mb-4">
+          <span className="hs-tag">Remote · Global</span>
+          <span className="hs-tag">Customer Success</span>
+          <span className="hs-tag">Operations</span>
+          <span className="hs-tag">$60k+</span>
+        </div>
+        {[
+          ['Resume fit', '91%'],
+          ['Seniority', '88%'],
+          ['ATS quality', '74%'],
+        ].map(([label, width]) => (
+          <div key={label} className="mb-3 flex items-center gap-3">
+            <span className="w-24 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--hs-land-muted)]">{label}</span>
+            <span className="h-[3px] flex-1 bg-[var(--hs-land-border)]">
+              <span className="block h-full bg-[var(--hs-land-fg)]" style={{ width }} />
+            </span>
+          </div>
+        ))}
+        <div className="mt-5 flex gap-5 border-t border-[var(--hs-land-border)] pt-4 text-xs text-[var(--hs-land-muted)]">
+          <span>Posted <strong className="text-[var(--hs-land-fg)]">2 days ago</strong></span>
+          <span>Applications <strong className="text-[var(--hs-land-fg)]">Active</strong></span>
+          <span>ATS <strong className="text-[var(--hs-land-fg)]">Clean</strong></span>
+        </div>
+        <div className="mt-4 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--hs-land-muted)]">
+          <span className="hs-dot" />
+          Agent scanning now
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingPage() {
   const { user, loading } = useAuth();
-  const { scrollYProgress } = useScroll();
-  const yBg = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
+  const { theme, toggleTheme } = useTheme();
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
@@ -46,270 +126,218 @@ export function LandingPage() {
   }
 
   return (
-    <>
-      {/* Hero Section */}
-      <section className="relative flex min-h-[90vh] flex-col justify-center overflow-hidden px-6 pb-24 pt-12 md:pt-20">
-        <div className="relative z-10 mx-auto max-w-7xl text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <h1 className="mb-6 text-5xl leading-[0.98] tracking-[-0.04em] text-foreground md:text-7xl lg:text-[5.5rem]">
-              Your AI agent for <br className="hidden md:block" />
-              <span className="text-foreground-muted">remote job hunting.</span>
-            </h1>
-            <p className="mx-auto mb-5 max-w-2xl text-lg leading-8 text-foreground-muted md:text-xl">
-              Built exclusively for remote job seekers. Upload your resume and let the agent find, filter, and apply to remote opportunities worldwide - while you focus on what matters.
-            </p>
-            <p className="mb-10 inline-block rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground-muted">
-              Not for in-office or on-site roles. 100% remote job opportunities only.
-            </p>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link to="/login">
-                <Button variant="action" size="lg" className="h-14 px-8 text-base">
-                  Start Your Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <span className="text-sm text-foreground-muted font-medium">Free to start. No credit card required.</span>
+    <div className="hs-landing">
+      <nav className="hs-land-nav">
+        <div className="hs-land-container hs-land-nav-inner">
+          <Link to="/" className="hs-land-wordmark text-lg text-[var(--hs-land-fg)] no-underline">Hireschema</Link>
+          <div className="flex items-center gap-6">
+            <a href="#how" className="hidden text-sm text-[var(--hs-land-muted)] no-underline transition hover:text-[var(--hs-land-fg)] md:inline">How it works</a>
+            <a href="#features" className="hidden text-sm text-[var(--hs-land-muted)] no-underline transition hover:text-[var(--hs-land-fg)] md:inline">Features</a>
+            <button
+              onClick={toggleTheme}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--hs-land-border)] text-[var(--hs-land-muted)] transition hover:bg-[var(--hs-land-surface)] hover:text-[var(--hs-land-fg)]"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
+            <Link to="/login" className="hidden text-sm text-[var(--hs-land-muted)] no-underline transition hover:text-[var(--hs-land-fg)] sm:inline">Sign in</Link>
+            <Link to="/login" className="hs-land-cta !px-5 !py-2 !text-[13px]">Start free</Link>
+          </div>
+        </div>
+      </nav>
+
+      <section className="hs-land-hero">
+        <div className="hs-land-container">
+          <div className="hs-land-hero-grid">
+            <div className="max-w-[560px]">
+              <p className="hs-land-eyebrow mb-7">AI Recruiting Agent · Remote Only</p>
+              <h1 className="hs-display hs-display-hero mb-6">
+                The quiet agent<br />
+                that finds your<br />
+                <em className="text-[var(--hs-land-accent)]">next</em> remote role.
+              </h1>
+              <p className="mb-10 max-w-[460px] text-lg leading-8 text-[var(--hs-land-muted)]">
+                Upload your resume. Hireschema scouts job sources daily, scores every match against your profile, and delivers only the roles worth your attention.
+              </p>
+              <div className="flex flex-wrap items-center gap-5">
+                <Link to="/login" className="hs-land-cta">
+                  Start for free
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--hs-land-muted)]">No credit card required</span>
+              </div>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Agent Workflow Section */}
-      <section id="agent-workflow" className="relative border-y border-border bg-background py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-20 text-center">
-            <h2 className="mb-4 text-3xl tracking-tight text-foreground md:text-5xl">The Autonomous Pipeline</h2>
-            <p className="text-foreground-muted text-lg">Watch how the Hireschema agent handles the entire application lifecycle.</p>
-          </div>
-
-          <div className="space-y-32">
-            {/* Step 1: Upload */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="grid md:grid-cols-2 gap-12 items-center"
-            >
-              <div className="order-2 md:order-1">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface font-mono text-xs font-medium tracking-[0.2em] text-foreground">01</div>
-                <h3 className="mb-4 text-3xl text-foreground">Feed the Agent</h3>
-                <p className="text-lg text-foreground-muted leading-relaxed mb-6">
-                  Upload your master resume. The agent instantly parses your experience, extracts your core skills, and establishes a baseline profile to match against the global job market.
-                </p>
-                <ul className="space-y-3 text-foreground-muted font-medium">
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-foreground" /> Extracts 50+ semantic data points</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-foreground" /> Identifies optimal career trajectories</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-foreground" /> Sets baseline for match-scoring</li>
-                </ul>
-              </div>
-              <div className="order-1 md:order-2 relative">
-                <div className="absolute inset-0 rotate-3 rounded-xl bg-border"></div>
-                <motion.div 
-                  animate={{ y: [0, -8, 0] }} 
-                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} 
-                  className="relative z-10 flex h-80 flex-col items-center justify-center rounded-xl border border-border bg-surface p-8"
-                >
-                  <FileText className="h-16 w-16 text-foreground-muted mb-6" />
-                  <div className="w-full space-y-3 max-w-xs mx-auto">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-surface-hover">
-                      <motion.div 
-                        animate={{ width: ["0%", "100%", "0%"] }}
-                        transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                        className="h-full bg-foreground"
-                      ></motion.div>
-                    </div>
-                    <div className="flex justify-between text-xs text-foreground-muted font-mono">
-                      <span>Analyzing document structure...</span>
-                      <span>Looping...</span>
-                    </div>
-                  </div>
-                  <div className="mt-8 flex flex-wrap gap-2 justify-center">
-                    {['React', 'Node.js', 'System Design', 'Leadership'].map((tag, i) => (
-                      <motion.span 
-                        key={tag}
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{ repeat: Infinity, duration: 2, delay: i * 0.2 }}
-                        className="rounded-md border border-border bg-surface-hover px-3 py-1 text-xs font-medium text-foreground-muted"
-                      >
-                        {tag}
-                      </motion.span>
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-
-            {/* Step 2: Search */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="grid md:grid-cols-2 gap-12 items-center"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 -rotate-3 rounded-xl bg-border-strong"></div>
-                <motion.div 
-                  animate={{ y: [0, -8, 0] }} 
-                  transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }} 
-                  className="relative z-10 flex h-80 flex-col overflow-hidden rounded-xl border border-border bg-surface p-6 font-mono text-sm"
-                >
-                  <div className="flex items-center gap-2 mb-4 border-b border-border-strong pb-4">
-                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
-                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
-                    <div className="h-3 w-3 rounded-full bg-surface-hover"></div>
-                    <span className="text-foreground-muted text-xs ml-2">agent_runtime.sh</span>
-                  </div>
-                  <div className="text-foreground-muted space-y-2 flex-1 overflow-hidden">
-                    <p><TypewriterText text="> Initializing Deep Web Sourcing protocols..." delay={200} /></p>
-                    <p><TypewriterText text='> Generating Boolean: "remote" AND "React" AND "TypeScript" (site:greenhouse.io OR site:lever.co)' delay={1200} /></p>
-                    <p><TypewriterText text="> Bypassing job boards. Scraping direct ATS listings..." delay={2200} /></p>
-                    <p><TypewriterText text="> Found 1,420 raw matches." delay={3000} /></p>
-                    <p><TypewriterText text="> Applying semantic filters (Salary > $120k)..." delay={3800} /></p>
-                    <motion.div 
-                      animate={{ opacity: [0, 1, 0] }}
-                      transition={{ repeat: Infinity, duration: 4, delay: 4.5 }}
-                      className="text-foreground mt-4 font-medium"
-                    >
-                      [SUCCESS] Curated 10 high-probability matches.
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </div>
-              <div>
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface font-mono text-xs font-medium tracking-[0.2em] text-foreground">02</div>
-                <h3 className="mb-4 text-3xl text-foreground">Deep Web Sourcing</h3>
-                <p className="text-lg text-foreground-muted leading-relaxed mb-6">
-                  The AI acts as an elite executive sourcer. It deeply analyzes your specific tech stack and generates highly optimized Boolean search queries. Instead of scraping noisy job boards, it scours the internet and directly searches Applicant Tracking Systems (Greenhouse, Lever, Workable) to find hidden remote gems perfectly matched to your resume.
-                </p>
-                <ul className="space-y-3 text-foreground-muted font-medium">
-                  <li className="flex items-center gap-2"><Globe className="h-5 w-5 text-foreground" /> Bypasses noisy job boards to find direct listings</li>
-                  <li className="flex items-center gap-2"><Terminal className="h-5 w-5 text-foreground" /> Generates complex Boolean ATS queries based on your skills</li>
-                  <li className="flex items-center gap-2"><Star className="h-5 w-5 text-foreground" /> Scores and ranks the hidden matches against your resume</li>
-                </ul>
-              </div>
-            </motion.div>
-
-            {/* Step 3: Tailor */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="grid md:grid-cols-2 gap-12 items-center"
-            >
-              <div className="order-2 md:order-1">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface font-mono text-xs font-medium tracking-[0.2em] text-foreground">03</div>
-                <h3 className="mb-4 text-3xl text-foreground">Autonomous Tailoring</h3>
-                <p className="text-lg text-foreground-muted leading-relaxed mb-6">
-                  Sending a generic resume is a waste of time. The agent reads the specific job description and automatically rewrites bullet points, swaps keywords, and restructures your file to beat the ATS.
-                </p>
-                <ul className="space-y-3 text-foreground-muted font-medium">
-                  <li className="flex items-center gap-2"><Code2 className="h-5 w-5 text-foreground" /> Injects missing job description keywords</li>
-                  <li className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-foreground" /> Rewrites bullets for maximum impact</li>
-                  <li className="flex items-center gap-2"><FileText className="h-5 w-5 text-foreground" /> Generates a ready-to-download Markdown file</li>
-                </ul>
-              </div>
-              <div className="order-1 md:order-2 relative">
-                <div className="absolute inset-0 rotate-2 rounded-xl bg-border"></div>
-                <motion.div 
-                  animate={{ y: [0, -8, 0] }} 
-                  transition={{ repeat: Infinity, duration: 3.8, ease: "easeInOut" }} 
-                  className="relative z-10 flex h-80 flex-col rounded-xl border border-border bg-surface p-6"
-                >
-                  <div className="flex justify-between items-center mb-4 pb-2 border-b border-border">
-                    <span className="text-xs font-medium text-foreground-muted">ORIGINAL</span>
-                    <ArrowRight className="h-4 w-4 text-foreground-muted" />
-                    <span className="text-xs font-medium text-foreground">TAILORED BY AGENT</span>
-                  </div>
-                  <div className="flex-1 flex gap-4 overflow-hidden text-[10px] md:text-xs font-mono">
-                    <div className="flex-1 rounded-xl border border-border bg-background p-4 text-foreground-muted line-through decoration-border-strong decoration-2">
-                      - Built web apps using React.<br/><br/>
-                      - Managed state for the team.<br/><br/>
-                      - Improved speed by 20%.
-                    </div>
-                    <div className="flex-1 rounded-xl border border-border-strong bg-surface-hover p-4 text-foreground">
-                      - Architected scalable <span className="rounded-md bg-border-strong px-1 text-foreground">React/Next.js</span> applications.<br/><br/>
-                      - Implemented complex state management using <span className="rounded-md bg-border-strong px-1 text-foreground">Redux Toolkit</span>.<br/><br/>
-                      - Optimized Core Web Vitals, reducing LCP by <span className="rounded-md bg-border-strong px-1 text-foreground">20%</span>.
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-
-            {/* Step 4: Outreach */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              className="grid md:grid-cols-2 gap-12 items-center"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 -rotate-2 rounded-xl bg-border"></div>
-                <motion.div 
-                  animate={{ y: [0, -8, 0] }} 
-                  transition={{ repeat: Infinity, duration: 4.2, ease: "easeInOut" }} 
-                  className="relative z-10 flex h-80 flex-col overflow-hidden rounded-xl border border-border bg-surface"
-                >
-                  <div className="bg-surface-hover p-3 flex items-center gap-4 border-b border-border">
-                    <div className="text-xs text-foreground-muted font-medium">New Message</div>
-                  </div>
-                  <div className="p-4 border-b border-border space-y-2 text-sm">
-                    <div className="flex"><span className="text-foreground-muted w-16">To:</span> <span className="text-foreground font-medium">hiring@stripe.com</span></div>
-                    <div className="flex"><span className="text-foreground-muted w-16">Subject:</span> <span className="text-foreground font-medium">Application for Frontend Engineer - [Your Name]</span></div>
-                  </div>
-                  <div className="p-4 text-sm text-foreground-muted leading-relaxed flex-1 bg-background">
-                    <p>Hi Team,</p>
-                    <p className="mt-2">I noticed the Frontend Engineer opening and was impressed by the recent updates to your API dashboard.</p>
-                    <p className="mt-2 inline-block rounded-md bg-border px-2 py-1 text-foreground animate-pulse">
-                      [Agent is drafting based on your 5 years of React experience...]
-                    </p>
-                  </div>
-                  <div className="p-3 bg-surface border-t border-border flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-xs text-foreground-muted">
-                      <FileText className="h-4 w-4" /> Tailored_Resume.md attached
-                    </div>
-                    <Button size="sm" className="px-4"><Send className="h-3 w-3 mr-2" /> Send via Gmail</Button>
-                  </div>
-                </motion.div>
-              </div>
-              <div>
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface font-mono text-xs font-medium tracking-[0.2em] text-foreground">04</div>
-                <h3 className="mb-4 text-3xl text-foreground">1-Click Outreach</h3>
-                <p className="text-lg text-foreground-muted leading-relaxed mb-6">
-                  Applying through portals is a black hole. The agent drafts a highly personalized cold email directed at the hiring manager, attaches your newly tailored resume, and opens it directly in your Gmail ready to send.
-                </p>
-                <ul className="space-y-3 text-foreground-muted font-medium">
-                  <li className="flex items-center gap-2"><Mail className="h-5 w-5 text-foreground" /> Opens directly in your native Gmail</li>
-                  <li className="flex items-center gap-2"><Shield className="h-5 w-5 text-foreground" /> Sends from your own email address</li>
-                  <li className="flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-foreground" /> Automatically logs to your Kanban tracker</li>
-                </ul>
-              </div>
-            </motion.div>
-
+            <JobMockup />
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="border-t border-border bg-background py-24 text-center">
-        <div className="mx-auto max-w-3xl px-6">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-foreground-muted">
-            <Globe className="h-3 w-3" /> Remote Job Seekers Only
+      <div className="hs-marquee" aria-hidden="true">
+        <div className="hs-marquee-inner">
+          {[...marquee, ...marquee].map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
+        </div>
+      </div>
+
+      <section className="border-b border-[var(--hs-land-border)]">
+        <div className="hs-land-container hs-land-stats">
+          <div className="hs-land-stat pl-0">
+            <span className="hs-display block text-[clamp(36px,5vw,56px)] leading-none">100%</span>
+            <span className="hs-land-eyebrow mt-3 block">Remote-first search</span>
           </div>
-          <h2 className="mb-6 text-4xl tracking-tight text-foreground md:text-5xl">Land your next remote role faster.</h2>
-          <p className="mb-10 text-lg text-foreground-muted">
-            Hireschema is purpose-built for remote professionals. If you're looking for an office job, this isn't for you. If you want to work from anywhere - deploy your agent now.
-          </p>
-          <Link to="/login">
-            <Button size="lg" className="h-14 px-8 text-base">
-              Start your free remote job search
-            </Button>
-          </Link>
+          <div className="hs-land-stat">
+            <span className="hs-display block text-[clamp(36px,5vw,56px)] leading-none">50+</span>
+            <span className="hs-land-eyebrow mt-3 block">Resume signals parsed</span>
+          </div>
+          <div className="hs-land-stat pr-0">
+            <span className="hs-display block text-[clamp(36px,5vw,56px)] leading-none">Daily</span>
+            <span className="hs-land-eyebrow mt-3 block">Fresh matches</span>
+          </div>
         </div>
       </section>
-    </>
+
+      <section id="how" className="hs-land-section">
+        <div className="hs-land-container">
+          <div className="mb-16 flex flex-col justify-between gap-8 md:flex-row md:items-end">
+            <div>
+              <p className="hs-land-eyebrow mb-3">The autonomous pipeline</p>
+              <h2 className="hs-display hs-display-section">Three steps.<br />Zero noise.</h2>
+            </div>
+            <p className="max-w-xs text-lg leading-8 text-[var(--hs-land-muted)]">The agent runs on its own. You show up when there is something worth seeing.</p>
+          </div>
+          <div className="hs-land-steps">
+            <div className="hs-land-step pl-0">
+              <span className="hs-land-eyebrow mb-6 block">01 / Upload</span>
+              <h3 className="hs-display mb-4 text-2xl">Feed the agent your resume</h3>
+              <p className="text-[15px] leading-7 text-[var(--hs-land-muted)]">Hireschema parses your experience into semantic signals: skills, seniority, preferred domains, location, salary floor, and career trajectory.</p>
+            </div>
+            <div className="hs-land-step">
+              <span className="hs-land-eyebrow mb-6 block">02 / Scout</span>
+              <h3 className="hs-display mb-4 text-2xl">The agent searches daily</h3>
+              <p className="text-[15px] leading-7 text-[var(--hs-land-muted)]">Scout pulls live listings, deduplicates, and applies deterministic filters before ranking anything against your profile.</p>
+            </div>
+            <div className="hs-land-step pr-0">
+              <span className="hs-land-eyebrow mb-6 block">03 / Match</span>
+              <h3 className="hs-display mb-4 text-2xl">You get the top results</h3>
+              <p className="text-[15px] leading-7 text-[var(--hs-land-muted)]">The final shortlist blends fit, freshness, company signal, salary, and your learning history into a calm dashboard.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" className="hs-land-section bg-[var(--hs-land-surface)] !py-24">
+        <div className="hs-land-container hs-feature-grid">
+          <div className="md:sticky md:top-32 h-fit">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <p className="hs-land-eyebrow mb-5 text-[var(--hs-land-accent)]">Why Hireschema</p>
+              <h2 className="hs-display text-[clamp(28px,4vw,42px)] font-semibold leading-[1.15] mb-6">
+                The interface is calm.<br />
+                <span className="text-[var(--hs-land-accent)]">The agent is <span className="italic font-serif">not</span>.</span>
+              </h2>
+              <p className="max-w-sm text-[15px] leading-relaxed text-[var(--hs-land-muted)]">
+                While you are busy, the engine is running Scout queries, validating listings, scoring fits, and building a ranked shortlist.
+              </p>
+              <div className="mt-12 hidden md:block">
+                <div className="h-px w-24 bg-[var(--hs-land-border)] mb-4" />
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--hs-land-muted)]">
+                  Autonomous Job Discovery
+                </p>
+              </div>
+            </motion.div>
+          </div>
+          <div className="space-y-4">
+            {features.map((feature, idx) => (
+              <motion.article 
+                key={feature.title} 
+                className={`hs-feature-item !py-24 ${idx === 0 ? 'border-t-0 pt-0' : ''}`}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, margin: "-100px" }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <div className="flex items-start gap-5">
+                  <div className="mt-1 p-2.5 rounded-lg border border-[var(--hs-land-border)] bg-[var(--hs-land-bg)]">
+                    <feature.icon className="h-5 w-5 text-[var(--hs-land-accent)]" />
+                  </div>
+                  <div>
+                    <div className="hs-feature-tag mb-4">{feature.tag}</div>
+                    <h3 className="hs-display text-2xl font-semibold mb-4 group-hover:text-[var(--hs-land-accent)] transition-colors tracking-tight">{feature.title}</h3>
+                    <p className="text-[15px] leading-relaxed text-[var(--hs-land-muted)] max-w-xl">{feature.desc}</p>
+                  </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="hs-land-section">
+        <div className="hs-land-container">
+          <p className="hs-land-eyebrow mb-3">Pricing</p>
+          <h2 className="hs-display hs-display-section">Start free.<br />Scale when ready.</h2>
+          <div className="grid grid-cols-2 gap-8 mt-14">
+            <div className="hs-price-card relative overflow-hidden border border-[var(--hs-land-border)] p-8">
+              <span className="hs-land-eyebrow mb-5 block">Free</span>
+              <div className="hs-display mb-2 text-5xl font-semibold">$0</div>
+              <p className="mb-8 text-sm text-[var(--hs-land-muted)]">forever · no card needed</p>
+              <ul className="mb-12 space-y-4 text-[14px] leading-relaxed text-[var(--hs-land-muted)]">
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Up to 5 matched jobs per day</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Resume parsing and profile setup</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Daily job refresh cycle</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Built-in job tracker</li>
+              </ul>
+              <Link to="/login" className="hs-land-cta w-full !bg-transparent !text-[var(--hs-land-fg)] hover:!bg-[var(--hs-land-surface)]">Get started</Link>
+            </div>
+            <div className="hs-price-card relative overflow-hidden bg-[var(--hs-land-bg)]">
+              <div className="absolute top-0 right-0 p-4">
+                <span className="hs-pill hs-pill-success text-[9px]">Most Popular</span>
+              </div>
+              <span className="hs-land-eyebrow mb-5 block text-[var(--hs-land-accent)]">Pro</span>
+              <div className="hs-display mb-2 text-5xl font-semibold">$19</div>
+              <p className="mb-8 text-sm text-[var(--hs-land-muted)]">per month · cancel anytime</p>
+              <ul className="mb-12 space-y-4 text-[14px] leading-relaxed text-[var(--hs-land-muted)]">
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Unlimited daily matches</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> AI cover letter and resume tailoring</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Interview prep per role</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Career path recommendations</li>
+                <li className="flex items-center gap-3"><Zap className="h-3.5 w-3.5 text-[var(--hs-land-accent)]" /> Daily email digest of top matches</li>
+              </ul>
+              <Link to="/login" className="hs-land-cta w-full">Start Pro trial</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="hs-land-section">
+        <div className="hs-land-container flex flex-col justify-between gap-10 md:flex-row md:items-end">
+          <div>
+            <p className="hs-land-eyebrow mb-4">Ready to start</p>
+            <h2 className="hs-display hs-display-section">Your next role is out there.<br />The agent will find it.</h2>
+          </div>
+          <div>
+            <Link to="/login" className="hs-land-cta">
+              Start for free
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <p className="mt-3 text-sm text-[var(--hs-land-muted)]">No credit card required.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer className="hs-land-container flex flex-col justify-between gap-4 py-10 text-sm text-[var(--hs-land-muted)] md:flex-row">
+        <Link to="/" className="hs-land-wordmark text-[var(--hs-land-fg)] no-underline">Hireschema</Link>
+        <div className="flex gap-5">
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/blog">Blog</Link>
+          <Link to="/login">Sign in</Link>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em]">© 2026 Hireschema</span>
+      </footer>
+    </div>
   );
 }

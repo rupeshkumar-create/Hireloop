@@ -9,15 +9,15 @@ Do not route tasks to unapproved models.
 ### Task Map
 
 - `query_generation` -> `openai/gpt-4o-mini`
-- `job_scoring` -> `google/gemini-3.1-pro`
-- `email_generation` -> `anthropic/claude-opus-4.6`
-- `resume_tailoring` -> `anthropic/claude-opus-4.6`
-- `resume_extraction` -> `openai/gpt-5.4-pro`
+- `job_scoring` -> `google/gemini-pro-1.5`
+- `email_generation` -> `anthropic/claude-3.5-sonnet`
+- `resume_tailoring` -> `anthropic/claude-3.5-sonnet`
+- `resume_extraction` -> `openai/gpt-4o`
 - `career_path_suggestion` -> `openai/gpt-4o-mini`
 - `resume_analysis` -> `openai/gpt-4o-mini`
 - `job_preference_extraction` -> `openai/gpt-4o-mini`
-- `resume_summary` -> `google/gemini-3.1-pro`
-- `text_improvement` -> `anthropic/claude-opus-4.6`
+- `resume_summary` -> `google/gemini-pro-1.5`
+- `text_improvement` -> `anthropic/claude-3.5-sonnet`
 - `recruiter_email_extraction` -> `openai/gpt-4o-mini`
 - `interview_questions` -> `anthropic/claude-3.5-sonnet`
 - `salary_insights` -> `anthropic/claude-3.5-sonnet`
@@ -45,7 +45,7 @@ OpenRouter ID:
 #### The Auditor (`The Brain`)
 
 Model:
-`google/gemini-3.1-pro`
+`google/gemini-pro-1.5`
 
 Use cases:
 - job scoring
@@ -57,12 +57,12 @@ Use this model where the system needs stronger reasoning over many jobs or a den
 This model is the main ranking engine.
 
 OpenRouter ID:
-`google/gemini-3.1-pro`
+`google/gemini-pro-1.5`
 
 #### The Ghostwriter (`Auto-Outreach & Resumes`)
 
 Model:
-`anthropic/claude-opus-4.6`
+`anthropic/claude-3.5-sonnet`
 
 Use cases:
 - tailored resume generation
@@ -74,12 +74,12 @@ Rule:
 Use this model for high-quality user-facing writing where tone and polish matter most.
 
 OpenRouter ID:
-`anthropic/claude-opus-4.6`
+`anthropic/claude-3.5-sonnet`
 
 #### The Specialist (`Structured Extraction`)
 
 Model:
-`openai/gpt-5.4-pro`
+`openai/gpt-4o`
 
 Use cases:
 - structured resume extraction
@@ -89,7 +89,7 @@ Rule:
 Use this model for structured profile extraction when schema fidelity matters more than speed.
 
 OpenRouter ID:
-`openai/gpt-5.4-pro`
+`openai/gpt-4o`
 
 #### The Interviewer (`Coaching Content`)
 

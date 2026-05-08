@@ -1,5 +1,102 @@
-# Monochrome + Ember
-### A design system for interfaces that respond with precision
+# Hireschema Design System
+### Editorial landing page + minimal command-center app
+
+---
+
+## 2026 Redesign Update
+
+Hireschema now uses two related but intentionally distinct visual modes:
+
+| Surface | Direction | Primary Feeling |
+|---|---|---|
+| Public homepage | Warm editorial, serif-led, remote-agent positioning | Calm, credible, handcrafted |
+| Logged-in app | Linear/Vercel-inspired command center | Precise, quiet, operational |
+
+The homepage should sell the idea: **“The quiet agent that finds your next remote role.”**
+
+The app should make the product feel like an instrument: Scout status, daily matches, pipeline state, resume profile, cover letters, and interview prep all live in one restrained workspace.
+
+---
+
+## 0 · Current Implementation
+
+Implemented surfaces:
+
+- `src/pages/LandingPage.tsx` owns the public homepage and uses the editorial landing system directly.
+- `src/components/Sidebar.tsx` defines the fixed app sidebar with Scout status, theme toggle, workspace/library/AI tool navigation, user card, and plan badge.
+- `src/App.tsx` provides the logged-in topbar with per-route metadata and Scout actions.
+- `src/pages/Dashboard.tsx` renders the daily Scout command center using live job data from `useDashboardJobs`.
+- `src/pages/SavedJobs.tsx`, `src/pages/ResumeProfile.tsx`, `src/pages/CoverLetters.tsx`, and `src/pages/InterviewPrep.tsx` provide the new Library and AI Tools sections.
+- `src/index.css` contains the scoped `hs-*` design tokens and classes for both surfaces.
+
+---
+
+## 1 · Public Homepage
+
+### Thesis
+
+The homepage is not a SaaS template. It should feel like a quiet, serious editorial product for people who are tired of noisy job boards.
+
+Core copy:
+
+> The quiet agent that finds your next remote role.
+
+### Homepage Tokens
+
+```css
+--hs-land-bg: oklch(97% 0.012 80);
+--hs-land-surface: oklch(99% 0.005 80);
+--hs-land-fg: oklch(20% 0.02 60);
+--hs-land-muted: oklch(48% 0.015 60);
+--hs-land-border: oklch(89% 0.012 80);
+--hs-land-accent: oklch(58% 0.16 35);
+--hs-land-display: "Iowan Old Style", "Charter", Georgia, serif;
+```
+
+### Homepage Rules
+
+- Use serif display typography for the hero and major section headlines.
+- Keep the background warm and paper-like, never flat white.
+- Use the animated job-card stack to make the product concrete without screenshots.
+- Avoid fake customer quotes, fake metrics, and exaggerated claims.
+- CTA copy should stay direct: `Start for free`, `Start Pro trial`, `No credit card required`.
+
+---
+
+## 2 · Logged-In App
+
+### Thesis
+
+The app is a daily job-search cockpit. It should feel operational, not decorative. Scout is the active agent; the user is reviewing signal.
+
+### App Tokens
+
+```css
+--hs-app-bg: oklch(99% 0.005 54);
+--hs-app-surface: oklch(100% 0 0);
+--hs-app-fg: oklch(18% 0.015 54);
+--hs-app-muted: oklch(54% 0.015 54);
+--hs-app-border: oklch(92% 0.008 54);
+--hs-app-border-strong: oklch(80% 0.015 54);
+--hs-app-accent: oklch(58% 0.18 54);
+--hs-app-accent-subtle: oklch(93% 0.03 54);
+```
+
+Dark mode uses the same `hs-*` tokens with deeper neutral surfaces and a vibrant ember-orange accent.
+
+### App Rules
+
+- Fixed left sidebar width: `220px`.
+- Topbar height: `60px`.
+- Surfaces use 1px borders and value layering, not heavy shadows.
+- Match cards expose company, role, location, salary, source, score, and summary.
+- The dashboard should prefer one main action: `Generate daily jobs`.
+- The AI tools should remain grounded in saved resume and real job descriptions.
+
+---
+
+# Legacy: Monochrome + Ember
+### Previous design system retained for reference
 
 ---
 
@@ -529,4 +626,3 @@ Direct, instrumental, calm. The interface speaks like a precise tool.
 > *"A silent interface that responds with precision."*
 
 Quiet at rest. Warm where touched. Nothing wasted.
-

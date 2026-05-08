@@ -30,8 +30,22 @@ export async function callOpenAI(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages, response_format, model }),
   });
+
+  const text = await response.text();
+  if (!text) {
+    throw new Error('API returned an empty response. This might be a timeout.');
+  }
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error('Failed to parse AI response:', text);
+    throw new Error('API returned an invalid response format.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
+    const error = data;
     if (
       error.status === 402 ||
       error.status === 429 ||
@@ -45,14 +59,14 @@ export async function callOpenAI(
     }
     throw new Error(error.error || 'Failed to call OpenAI proxy');
   }
-  return response.json();
+  return data;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Anti-slop writing filter (used in all user-facing text generation)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ANTI_SLOP_PROMPT = `
+export const ANTI_SLOP_PROMPT = `
 === AI HUMANIZER ENGINE - ANTI-SLOP FILTER (STRICT) ===
 
 You are writing on behalf of a real human professional. Every word must sound like it came from a person, not a language model. Apply ALL of the following rules without exception.
@@ -260,6 +274,7 @@ Respond ONLY with the JSON object.`;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ExtractedResumeProfile {
+  fullName: string;
   skills: string[];
   techStack: string[];
   seniority: string;
@@ -272,6 +287,7 @@ export async function extractResume(resumeText: string): Promise<ExtractedResume
 
 Return a JSON object:
 {
+  "fullName": "",
   "skills": [],
   "techStack": [],
   "seniority": "",
@@ -302,6 +318,7 @@ ${resumeText.substring(0, 6000)}`;
     if (!validation.passed) throw new Error(validation.reason || 'Invalid structured profile');
 
     return {
+      fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       techStack: Array.isArray(parsed.techStack) ? parsed.techStack : [],
       seniority: typeof parsed.seniority === 'string' ? parsed.seniority : '',
@@ -329,7 +346,7 @@ ${resumeText.substring(0, 6000)}`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'google/gemini-2.5-pro-preview-03-25'
+      'google/gemini-pro-1.5'
     );
     return response.choices?.[0]?.message?.content?.trim() || '';
   } catch (error) {
@@ -362,7 +379,7 @@ Rewrite the text according to the instruction. Return ONLY the new text without 
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-opus-4'
+      'anthropic/claude-3.5-sonnet'
     );
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch {
@@ -427,7 +444,7 @@ Return ONLY the email body.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4'
+        'anthropic/claude-3.5-sonnet'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty cold email generated');
@@ -486,7 +503,8 @@ Write a highly personalized, professional, and concise cold email to a hiring ma
 User's specific writing style preferences learned from past edits: ${writingStyleContext}
 
 Rules:
-- Under 120 words.
+- Under 200 words.
+- Mention ${jobTitle} and ${company} explicitly.
 - Highlight the 1-2 most relevant skills from the resume for this specific role.
 - Mention one genuine, specific thing about ${company} that shows real interest.
 - End with a direct, low-friction CTA (e.g., "Happy to jump on a 20-min call this week.").
@@ -501,7 +519,7 @@ Return ONLY the email body. No subject line.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4'
+        'anthropic/claude-3.5-sonnet'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty cold email generated');
@@ -569,7 +587,7 @@ Return ONLY clean Markdown.`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-opus-4'
+      'anthropic/claude-3.5-sonnet'
     );
     if (response.choices?.[0]?.message?.content) {
       return response.choices[0].message.content.trim();
@@ -606,7 +624,7 @@ Format in clean Markdown. Under 200 words. No fluff.`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-opus-4'
+      'anthropic/claude-3.5-sonnet'
     );
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch {
@@ -696,7 +714,7 @@ Return ONLY the tailored resume in the exact Markdown format above.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-opus-4'
+        'anthropic/claude-3.5-sonnet'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty tailored resume generated');
@@ -707,7 +725,47 @@ Return ONLY the tailored resume in the exact Markdown format above.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 10: Learning Profile Update
+// Agent 10: Cover Letter Generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function generateCoverLetter(
+  jobTitle: string,
+  company: string,
+  resumeText: string,
+  antiSlopEnabled: boolean = true,
+  writingStyleContext: string = ''
+): Promise<string> {
+  const prompt = `You are an expert career coach. Write a cover letter for the ${jobTitle} role at ${company}.
+
+${writingStyleContext ? `Writing style notes: ${writingStyleContext}\n` : ''}
+
+Rules:
+- 3 paragraphs, 200–300 words total.
+- Paragraph 1: Hook — specific connection to ${company} and the role. No generic opening.
+- Paragraph 2: Value — 2 concrete achievements or skills from the resume that directly match the job.
+- Paragraph 3: Close — direct, confident CTA. One sentence.
+- Mention ${jobTitle} and ${company} explicitly.
+- Do not fabricate experience. Ground everything in the resume text below.
+
+${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
+
+Resume:
+${resumeText.slice(0, 4000)}
+
+Return ONLY the cover letter body. No "Dear Hiring Manager" salutation and no sign-off — the UI adds those.`;
+
+  const response = await callOpenAI(
+    [{ role: 'user', content: prompt }],
+    undefined,
+    'anthropic/claude-3.5-sonnet'
+  );
+  const content = response.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error('Empty cover letter generated');
+  return content;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent 11: Learning Profile Update
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateLearningProfile(

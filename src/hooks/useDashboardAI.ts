@@ -58,7 +58,7 @@ export function useDashboardAI(profile: any) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Tailored_Resume_${job?.company?.replace(/\\s+/g, '_') || 'Job'}.md`;
+    a.download = `Tailored_Resume_${job?.company?.replace(/\s+/g, '_') || 'Job'}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

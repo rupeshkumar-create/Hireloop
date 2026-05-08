@@ -19,10 +19,10 @@ import {
   addDoc,
   query,
   where,
-  getDocs,
   doc,
   getDoc,
   setDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { toast } from 'sonner';
 import type { DailyJob } from '../types/dailyJob';
@@ -81,26 +81,41 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   // ── Stats ───────────────────────────────────────────────────────────────────
 
-  const fetchStats = async () => {
+  useEffect(() => {
     if (!user) return;
     setStatsLoading(true);
-    try {
-      const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
+
+    const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       let saved = 0, applied = 0, interviewing = 0;
       snapshot.forEach((d) => {
         const data = d.data();
-        if (data.status === 'saved') saved++;
-        if (data.status === 'applied') applied++;
-        if (data.status === 'interviewing') interviewing++;
+        const status = data.status || 'saved';
+        if (status === 'saved') saved++;
+        if (status === 'applied') applied++;
+        if (status === 'interviewing') interviewing++;
       });
-      setStats({ saved, applied, interviewing });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
+      
+      const nextStats = {
+        saved,
+        applied,
+        interviewing,
+        total: snapshot.size
+      };
+      setStats(nextStats as any);
       setStatsLoading(false);
-    }
+    }, (error) => {
+      console.error('[useDashboardJobs] stats listener failed:', error);
+      setStatsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const fetchStats = () => {
+    // No-op now as we use onSnapshot
   };
+
 
   // ── Load jobs from Firestore ────────────────────────────────────────────────
 
@@ -210,7 +225,19 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   const requestJobs = async () => {
     if (!user || generatingJobs) return;
+
+    // Prevent redundant runs if jobs were already generated for today
+    const now = new Date();
+    const today = resolveTodayLocalDateKey(now, profile);
+    const fetchDate = resolveLocalDateForLastFetch(profile, now);
+    
+    if (fetchDate === today && jobs.length > 0) {
+      toast.info("Scout has already found your matches for today. Come back tomorrow for a fresh batch!");
+      return;
+    }
+
     setGeneratingJobs(true);
+
 
     // Track whether we handed off to GitHub Actions async pipeline.
     // If true we must NOT clear generatingJobs in finally — the reactive
@@ -218,7 +245,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     let asyncDispatched = false;
 
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
 
       // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
       // Returns 202 immediately; GitHub Actions runs the full pipeline and
@@ -274,6 +301,14 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         const reqErr = await requestResponse.json().catch(() => ({}));
         if (reqErr && typeof (reqErr as any).error === 'string' && (reqErr as any).error.trim()) {
           message = (reqErr as any).error.trim();
+          const debug = (reqErr as any).debug;
+          const detail =
+            debug && typeof debug === 'object'
+              ? ((debug as any).failureReason || (debug as any).emptyReason)
+              : (reqErr as any).detail;
+          if (typeof detail === 'string' && detail.trim()) {
+            message = `${message}: ${detail.trim()}`;
+          }
         } else {
           const text = await requestResponse.text().catch(() => '');
           const trimmed = text.trim();

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, MessageSquare, TrendingUp, Sparkles, Download, Loader2, X, Eye } from 'lucide-react';
+import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, MessageSquare, TrendingUp, Sparkles, Download, Loader2, X, Eye, CheckCircle2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Job } from '../../types/dashboard';
@@ -37,87 +36,84 @@ export function JobDetailsPanel({
   const isFallbackUrl = isJobUrlFallback(selectedJob);
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface"
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          onClick={(e) => e.stopPropagation()}
+          className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] font-sans shadow-2xl"
         >
           <button 
             onClick={onClose}
-            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 transition-colors hover:bg-background"
+            className="absolute right-4 top-4 z-10 rounded-full bg-[var(--hs-app-bg)] p-2 transition-colors hover:bg-[var(--hs-app-bg)]"
           >
-            <X className="h-5 w-5 text-foreground-muted" />
+            <X className="h-5 w-5 text-[var(--hs-app-muted)]" />
           </button>
 
           <div className="p-6 md:p-8 overflow-y-auto flex-1">
-            <div className="flex justify-between items-start mb-1 pr-10">
-              <h2 className="text-3xl tracking-tight text-foreground">{selectedJob.title}</h2>
+            <div className="flex justify-between items-start mb-2 pr-10">
+              <h2 className="hs-section-title text-[var(--hs-app-fg)]">{selectedJob.title}</h2>
               {selectedJob.matchScore !== undefined && (
-                <Badge variant={selectedJob.matchScore >= 80 ? 'success' : 'secondary'} className="font-medium">
-                  {selectedJob.matchScore}% Match
-                </Badge>
+                <span className="hs-score ml-3 mt-1 shrink-0" style={{ '--score': `${selectedJob.matchScore}%` } as React.CSSProperties}>
+                  {selectedJob.matchScore}
+                </span>
               )}
             </div>
-            <p className="text-xl font-medium text-foreground-muted mb-6">{selectedJob.company}</p>
+            <p className="text-[14px] font-medium text-[var(--hs-app-muted)] mb-5">{selectedJob.company}</p>
             
             <div className="flex gap-3 mb-8">
-              <Button
-                variant="action"
-                className="flex-1"
-                size="lg"
-                title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
-                onClick={() => {
-                  trackJobClick(selectedJob);
-                  window.open(applyUrl, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                {isFallbackUrl ? 'Find & Apply' : 'Apply Now'} <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-              <Button
-                variant={isSaved ? 'secondary' : 'outline'}
-                size="lg"
-                className="border-border bg-surface"
-                disabled={isSaved || isSaving}
-                onClick={() => saveJob(selectedJob)}
-                title={isSaved ? 'Already saved to tracker' : 'Save to Tracker'}
-              >
-                {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <BookmarkPlus className="h-5 w-5" />}
-                {isSaved ? 'Saved' : isSaving ? 'Saving...' : 'Save Job'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="text-foreground-muted"
-                onClick={() => {
-                  dismissJob(selectedJob);
-                  onClose();
-                }}
-              >
-                Not for me
-              </Button>
+              {!isSaved ? (
+                <button
+                  type="button"
+                  className="hs-btn hs-btn-primary flex-1 justify-center py-2.5"
+                  disabled={isSaving}
+                  onClick={() => saveJob(selectedJob)}
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />}
+                  {isSaving ? 'Saving...' : 'Save Job'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="hs-btn hs-btn-primary flex-1 justify-center py-2.5"
+                    title={isFallbackUrl ? 'Search for this job on Google' : 'Open application page'}
+                    onClick={() => {
+                      trackJobClick(selectedJob);
+                      window.open(applyUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    {isFallbackUrl ? 'Find & Apply' : 'Apply Now'} <ExternalLink className="h-4 w-4" />
+                  </button>
+                  <button type="button" className="hs-btn opacity-50 cursor-default" disabled>
+                    <CheckCircle2 className="h-4 w-4" /> Saved
+                  </button>
+                </>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-8">
-              <Badge variant="outline" className="border-border bg-background px-4 py-1.5 font-medium normal-case tracking-normal"><MapPin className="mr-1.5 h-4 w-4" /> {selectedJob.location}</Badge>
-              <Badge variant="outline" className="border-border bg-background px-4 py-1.5 font-medium normal-case tracking-normal"><DollarSign className="mr-1.5 h-4 w-4" /> {selectedJob.salary || 'Not specified'}</Badge>
+            <div className="hs-tags mb-6">
+              <span className="hs-tag flex items-center gap-1"><MapPin className="h-3 w-3" /> {selectedJob.location || 'Remote'}</span>
+              <span className="hs-tag flex items-center gap-1"><DollarSign className="h-3 w-3" /> {selectedJob.salary || 'Salary not listed'}</span>
+              {selectedJob.workType && <span className="hs-tag">{selectedJob.workType}</span>}
             </div>
 
             <div className="space-y-8">
-              <div className="rounded-xl border border-border bg-background p-6">
-                <h4 className="mb-4 text-xl text-foreground">About the Role</h4>
-                <p className="text-foreground-muted leading-relaxed whitespace-pre-wrap">{selectedJob.description}</p>
+              <div className="rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-6">
+                <h4 className="mb-3 text-[14px] font-semibold text-[var(--hs-app-fg)]">About the Role</h4>
+                <p className="text-[var(--hs-app-muted)] leading-7 whitespace-pre-wrap text-[13px]">{selectedJob.description}</p>
               </div>
-              
+
               {selectedJob.requirements && selectedJob.requirements.length > 0 && (
-                <div className="rounded-xl border border-border bg-background p-6">
-                  <h4 className="mb-4 text-xl text-foreground">Requirements</h4>
-                  <ul className="space-y-3">
+                <div className="rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-6">
+                  <h4 className="mb-3 text-[14px] font-semibold text-[var(--hs-app-fg)]">Requirements</h4>
+                  <ul className="space-y-3 font-sans text-[15px]">
                     {selectedJob.requirements.map((req, i) => (
-                      <li key={i} className="text-foreground-muted flex items-start">
-                        <span className="mr-3 mt-2 h-1.5 w-1.5 rounded-full bg-foreground-muted flex-shrink-0" />
-                        <span className="leading-relaxed">{req}</span>
+                      <li key={i} className="text-[var(--hs-app-muted)] flex items-start text-[13px]">
+                        <span className="mr-3 mt-2 h-1.5 w-1.5 rounded-full bg-[var(--hs-app-muted)] flex-shrink-0" />
+                        <span className="leading-6">{req}</span>
                       </li>
                     ))}
                   </ul>
@@ -126,21 +122,21 @@ export function JobDetailsPanel({
             </div>
           </div>
 
-          <div className="border-t border-border bg-background/80 p-6 md:p-8">
-            <h4 className="mb-4 text-xl text-foreground">AI Copilot</h4>
+          <div className="border-t border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-6 md:p-8">
+            <h4 className="mb-4 text-[15px] font-semibold text-[var(--hs-app-fg)]">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('email', selectedJob)}>
-                <Mail className="mr-2 h-4 w-4 text-primary" /> Cold Email
-              </Button>
-              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('resume', selectedJob)}>
-                <FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Tailor Resume
-              </Button>
-              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('interview', selectedJob)}>
-                <MessageSquare className="mr-2 h-4 w-4 text-foreground-muted" /> Interview Prep
-              </Button>
-              <Button variant="outline" className="border-border bg-surface hover:bg-surface-hover" onClick={() => handleAiAction('salary', selectedJob)}>
-                <TrendingUp className="mr-2 h-4 w-4 text-foreground-muted" /> Salary Data
-              </Button>
+              <button type="button" className="hs-btn" onClick={() => handleAiAction('email', selectedJob)}>
+                <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
+              </button>
+              <button type="button" className="hs-btn" onClick={() => handleAiAction('resume', selectedJob)}>
+                <FileText className="h-3.5 w-3.5" /> Tailor Resume
+              </button>
+              <button type="button" className="hs-btn" onClick={() => handleAiAction('interview', selectedJob)}>
+                <MessageSquare className="h-3.5 w-3.5" /> Interview Prep
+              </button>
+              <button type="button" className="hs-btn" onClick={() => handleAiAction('salary', selectedJob)}>
+                <TrendingUp className="h-3.5 w-3.5" /> Salary Data
+              </button>
             </div>
           </div>
 
@@ -150,27 +146,27 @@ export function JobDetailsPanel({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="max-h-[50vh] overflow-y-auto border-t border-border bg-surface p-6 md:p-8"
+                className="max-h-[50vh] overflow-y-auto border-t border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] p-6 md:p-8"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h4 className="flex items-center gap-2 text-xl text-foreground">
-                    <Sparkles className="h-5 w-5 text-primary" />
+                  <h4 className="flex items-center gap-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">
+                    <Sparkles className="h-5 w-5 text-[var(--hs-app-accent)]" />
                     {aiAction === 'email' && 'Cold Email Draft'}
                     {aiAction === 'resume' && 'Tailored Resume'}
                     {aiAction === 'interview' && 'Interview Questions'}
                     {aiAction === 'salary' && 'Salary Insights'}
                   </h4>
                   {aiAction === 'resume' && !actionLoading && (
-                    <Button variant="outline" size="sm" onClick={() => downloadResume(selectedJob)}>
-                      <Download className="mr-2 h-4 w-4" /> Download .md
-                    </Button>
+                    <button type="button" className="hs-btn" onClick={() => downloadResume(selectedJob)}>
+                      <Download className="h-3.5 w-3.5" /> Download .md
+                    </button>
                   )}
                 </div>
                 
                 {actionLoading ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-foreground" />
-                    <p className="text-sm text-foreground-muted">
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--hs-app-muted)]" />
+                    <p className="text-sm text-[var(--hs-app-muted)]">
                       {aiAction === 'resume' ? 'Tailoring your resume to this role…' : 'Generating…'}
                     </p>
                   </div>
@@ -180,30 +176,22 @@ export function JobDetailsPanel({
                     {aiAction === 'resume' && typeof aiResult === 'string' && aiResult ? (
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <Button
-                            variant="action"
-                            size="sm"
-                            onClick={() => setShowResumePreview(true)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" /> Preview & Download Resume
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadResume(selectedJob)}
-                          >
-                            <Download className="mr-2 h-4 w-4" /> Download .md
-                          </Button>
+                          <button type="button" className="hs-btn hs-btn-primary" onClick={() => setShowResumePreview(true)}>
+                            <Eye className="h-3.5 w-3.5" /> Preview & Download
+                          </button>
+                          <button type="button" className="hs-btn" onClick={() => downloadResume(selectedJob)}>
+                            <Download className="h-3.5 w-3.5" /> Download .md
+                          </button>
                         </div>
                         {/* Compact text preview */}
-                        <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background p-4">
-                          <pre className="whitespace-pre-wrap text-xs text-foreground-muted leading-relaxed font-mono">
+                        <div className="max-h-64 overflow-y-auto rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
+                          <pre className="whitespace-pre-wrap text-xs text-[var(--hs-app-muted)] leading-relaxed font-mono">
                             {aiResult.slice(0, 1200)}{aiResult.length > 1200 ? '\n\n…[open full preview]' : ''}
                           </pre>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-foreground-muted bg-background p-6 rounded-xl border border-border">
+                      <div className="text-[var(--hs-app-muted)] bg-[var(--hs-app-bg)] p-6 rounded-xl border border-[var(--hs-app-border)]">
                         {aiAction === 'interview' && Array.isArray(aiResult) ? (
                           <ul className="list-decimal pl-5 space-y-3">
                             {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
@@ -217,10 +205,10 @@ export function JobDetailsPanel({
                     )}
 
                     {aiAction === 'email' && (
-                      <div className="mt-8 border-t border-border pt-6 space-y-4">
-                        <Button 
-                          className="w-full" 
-                          size="lg"
+                      <div className="mt-8 border-t border-[var(--hs-app-border)] pt-6 space-y-4">
+                        <button
+                          type="button"
+                          className="hs-btn hs-btn-primary w-full justify-center py-2.5"
                           onClick={async () => {
                             let optimizedResume = profile?.resumeText || '';
                             if (profile?.resumeText) {
@@ -254,9 +242,9 @@ export function JobDetailsPanel({
                             window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=Application for ${selectedJob.title}&body=${mailBody}`, '_blank');
                           }}
                         >
-                          <Mail className="mr-2 h-5 w-5" /> Open in Gmail with Tailored Resume
-                        </Button>
-                        <p className="text-sm text-foreground-muted text-center">
+                          <Mail className="h-3.5 w-3.5" /> Open in Gmail with Tailored Resume
+                        </button>
+                        <p className="text-sm text-[var(--hs-app-muted)] text-center">
                           This will download a tailored resume for you to attach, and then open Gmail with this draft.
                         </p>
                       </div>

@@ -17,7 +17,7 @@ import type {
   GhostModeRunResult,
   GhostModeTargetUser,
 } from '../types/adminGhostMode';
-import type { AdminUserListItem, AdminUserDetail } from '../lib/adminUsers';
+import type { AdminUserListItem, AdminUserDetail, AdminUserPreferences } from '../lib/adminUsers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +124,15 @@ function AdminModalHeader({
 
 // ── User Detail Modal ────────────────────────────────────────────────────────
 
+function fmtPreferences(p?: AdminUserPreferences): string | undefined {
+  if (!p) return undefined;
+  const parts: string[] = [];
+  if (p.remoteOnly !== undefined) parts.push(p.remoteOnly ? 'Remote only' : 'Open to onsite');
+  if (p.salaryFloor != null) parts.push(`Salary floor: $${p.salaryFloor.toLocaleString()}`);
+  if (p.locations?.length) parts.push(`Locations: ${p.locations.join(', ')}`);
+  return parts.length ? parts.join(' · ') : undefined;
+}
+
 function UserDetailModal({
   user,
   onClose,
@@ -143,6 +152,8 @@ function UserDetailModal({
     ['Last Active', fmtDate(user.lastActiveAt)],
     ['Resume', user.resumeText ? `${user.resumeText.length} chars` : undefined],
     ['Seen Fingerprints', user.seenJobFingerprints?.length],
+    ['Preferences', fmtPreferences(user.preferences)],
+    ['Matching Preferences', fmtPreferences(user.matchingPreferences)],
     ['Job Preferences', user.learningProfile?.jobPreferences],
     ['Writing Style', user.learningProfile?.writingStyle],
   ];
@@ -236,10 +247,7 @@ function EditUserModal({
               onChange={e => setJobType(e.target.value)}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground"
             >
-              <option value="both">Both</option>
-              <option value="remote">Remote</option>
-              <option value="onsite">On-site</option>
-              <option value="hybrid">Hybrid</option>
+              <option value="remote">Remote Only</option>
             </select>
           </div>
           <div className="space-y-2">
@@ -387,10 +395,15 @@ export function AdminDashboard() {
     const headers = await getHeaders();
     const res = await fetch(url, { ...options, headers: { ...headers, ...(options.headers as any) } });
     const text = await res.text();
-    let data: any = null;
-    try { data = JSON.parse(text); } catch {}
+    let data: any = {};
+    try { 
+      if (text) data = JSON.parse(text); 
+    } catch (e) {
+      console.warn('Failed to parse API response as JSON', e);
+    }
+    
     if (!res.ok) throw new Error(data?.error || text || `HTTP ${res.status}`);
-    return data;
+    return data || {};
   };
 
   // ── Load users ─────────────────────────────────────────────────────────────
@@ -399,9 +412,9 @@ export function AdminDashboard() {
     setLoading(true);
     try {
       const data = await apiCall('/api/admin/users');
-      setUsers(Array.isArray(data.users) ? data.users : []);
+      setUsers(data && Array.isArray(data.users) ? data.users : []);
     } catch (err: any) {
-      toast.error('Failed to load users: ' + err.message);
+      toast.error('Failed to load users: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }

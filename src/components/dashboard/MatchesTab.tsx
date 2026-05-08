@@ -278,10 +278,22 @@ function JobCard({
         </div>
 
         {/* Header row */}
-        <div className="flex justify-between items-start gap-3" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
-          <div className="min-w-0">
-            <h3 className="text-lg font-medium leading-tight tracking-[-0.01em] text-foreground">{job.title}</h3>
-            <p className="text-foreground-muted font-medium mt-0.5">{job.company}</p>
+        <div className="flex justify-between items-start gap-4" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
+          <div className="flex gap-3 min-w-0">
+            {job.logoUrl && (
+              <div className="h-12 w-12 rounded-lg border border-border bg-white p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                <img src={job.logoUrl} alt={job.company} className="h-full w-full object-contain" />
+              </div>
+            )}
+            {!job.logoUrl && (
+              <div className="h-12 w-12 rounded-lg border border-border bg-surface flex items-center justify-center shrink-0">
+                <span className="text-lg font-bold text-foreground-muted">{job.company.charAt(0)}</span>
+              </div>
+            )}
+            <div className="min-w-0">
+              <h3 className="text-lg font-medium leading-tight tracking-[-0.01em] text-foreground">{job.title}</h3>
+              <p className="text-foreground-muted font-medium mt-0.5">{job.company}</p>
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
             {job.matchScore !== undefined && (
@@ -293,16 +305,28 @@ function JobCard({
           </div>
         </div>
 
+        {/* Quick AI Insight */}
+        {job.aiInsight && (
+          <div className="mt-3 rounded-lg bg-[rgba(var(--ember-rgb),0.08)] border border-[rgba(var(--ember-rgb),0.12)] p-2.5">
+            <p className="text-xs text-foreground italic flex gap-1.5">
+              <Zap className="h-3.5 w-3.5 shrink-0 text-[var(--ember-400)]" />
+              "{job.aiInsight}"
+            </p>
+          </div>
+        )}
+
         {/* Meta row */}
         <div className="flex flex-wrap gap-3 mt-3 text-sm text-foreground-muted" onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
           {job.location && (
             <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" />{job.location}</div>
           )}
-          {(job.salary || job.estimatedSalary) && (
+          {(job.salary || job.salaryMin || job.estimatedSalary) && (
             <div className="flex items-center gap-1">
               <DollarSign className="h-3.5 w-3.5 shrink-0" />
-              {job.salary || job.estimatedSalary}
-              {!job.salary && job.estimatedSalary && (
+              {job.salaryMin && job.salaryMax 
+                ? `$${(job.salaryMin/1000).toFixed(0)}k – $${(job.salaryMax/1000).toFixed(0)}k` 
+                : job.salary || job.estimatedSalary}
+              {!job.salary && !job.salaryMin && job.estimatedSalary && (
                 <span className="text-xs text-foreground-muted/70">(est.)</span>
               )}
             </div>
@@ -544,7 +568,7 @@ export function MatchesTab({
                 <div>
                   <p className="font-medium text-foreground">Finding remote jobs for you…</p>
                   <p className="mt-1 text-sm text-foreground-muted max-w-xs">
-                    Perplexity is scanning live job boards for each of your career paths. Claude is scoring and enriching every match. Takes about 60–90 seconds.
+                    Apify is scanning live job boards and career sites for each of your career paths. Takes about 60–90 seconds.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-foreground-muted/60">
@@ -562,13 +586,13 @@ export function MatchesTab({
                   <p className="mt-1 text-sm text-foreground-muted max-w-xs">
                     {isProPlan(plan)
                       ? 'Generate your 10 personalised remote matches right now, or wait for the daily cron at 8 AM IST.'
-                      : 'Your 1 daily remote match will appear automatically at 8 AM IST.'}
+                      : 'Generate your first remote match now, or wait for the automatic delivery at 8 AM IST.'}
                   </p>
                 </div>
-                {isProPlan(plan) && onRequestJobs && (
+                {onRequestJobs && (
                   <Button variant="action" onClick={onRequestJobs} className="mt-2">
                     <Zap className="mr-2 h-4 w-4" />
-                    Find my remote jobs now
+                    {jobs.length === 0 && !lastFetchTime ? 'Find my first remote jobs' : 'Find my remote jobs now'}
                   </Button>
                 )}
               </>
