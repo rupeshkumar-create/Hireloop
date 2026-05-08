@@ -46,8 +46,19 @@ function isLocalRequest(req: VercelRequest): boolean {
   );
 }
 
+function normalizeGithubRepoValue(raw: string): string {
+  const value = raw.trim();
+  if (!value) return '';
+
+  return value
+    .replace(/^https?:\/\/github\.com\//i, '')
+    .replace(/^github\.com\//i, '')
+    .replace(/\.git$/i, '')
+    .replace(/^\/+|\/+$/g, '');
+}
+
 function resolveGithubRepo(): string {
-  const explicit = (process.env.GITHUB_REPO || '').trim();
+  const explicit = normalizeGithubRepoValue(process.env.GITHUB_REPO || '');
   if (explicit) return explicit;
 
   const owner = (process.env.VERCEL_GIT_REPO_OWNER || '').trim();
@@ -55,6 +66,21 @@ function resolveGithubRepo(): string {
   if (owner && slug) return `${owner}/${slug}`;
 
   return '';
+}
+
+function resolveGithubDispatchToken(): string {
+  return (
+    (process.env.GITHUB_DISPATCH_TOKEN || '').trim() ||
+    (process.env.GITHUB_PAT || '').trim()
+  );
+}
+
+function resolveGithubRef(): string {
+  return (
+    (process.env.GITHUB_DISPATCH_REF || '').trim() ||
+    (process.env.VERCEL_GIT_COMMIT_REF || '').trim() ||
+    'main'
+  );
 }
 
 function githubDispatchHint(status: number): string {
@@ -68,6 +94,49 @@ function githubDispatchHint(status: number): string {
     return 'Check that .github/workflows/generate-jobs.yml includes repository_dispatch for generate-jobs-for-user.';
   }
   return 'Check the GitHub Actions workflow and repository dispatch configuration.';
+}
+
+async function dispatchRepositoryEvent(
+  githubRepo: string,
+  githubToken: string,
+  uid: string,
+  runDate: string
+): Promise<Response> {
+  return await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
+    method: 'POST',
+    headers: {
+      Authorization: `token ${githubToken}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'hireschema-job-dispatch',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    body: JSON.stringify({
+      event_type: 'generate-jobs-for-user',
+      client_payload: { userId: uid, runDate, force: true },
+    }),
+  });
+}
+
+async function dispatchWorkflowRun(
+  githubRepo: string,
+  githubToken: string,
+  uid: string
+): Promise<Response> {
+  return await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/generate-jobs.yml/dispatches`, {
+    method: 'POST',
+    headers: {
+      Authorization: `token ${githubToken}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'hireschema-job-dispatch',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    body: JSON.stringify({
+      ref: resolveGithubRef(),
+      inputs: { user_id: uid },
+    }),
+  });
 }
 
 async function verifyUser(req: VercelRequest): Promise<string | null> {
@@ -320,7 +389,7 @@ async function readStoredJobs(uid: string, runDate: string): Promise<DailyJob[]>
 }
 
 async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
-  const githubToken = (process.env.GITHUB_DISPATCH_TOKEN || '').trim();
+  const githubToken = resolveGithubDispatchToken();
   const githubRepo = resolveGithubRepo();
 
   const db = getAdminDb();
@@ -361,19 +430,7 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     const ghAbort = new AbortController();
     const ghTimeout = setTimeout(() => ghAbort.abort(), 5000);
     try {
-      ghResponse = await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
-        method: 'POST',
-        headers: {
-          Authorization: `token ${githubToken}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event_type: 'generate-jobs-for-user',
-          client_payload: { userId: uid, runDate, force: true },
-        }),
-        signal: ghAbort.signal,
-      });
+      ghResponse = await dispatchRepositoryEvent(githubRepo, githubToken, uid, runDate);
     } catch (fetchErr) {
       console.error('[jobs/index] GitHub fetch threw:', fetchErr);
       ghResponse = { ok: false, status: 0 } as any;
@@ -389,11 +446,32 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
       });
     }
 
-    const body = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
-    console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
-    return res.status(500).json({
-      error: `GitHub job dispatch failed (${ghResponse.status || 'network error'}). ${githubDispatchHint(ghResponse.status || 0)}`,
-    });
+    const dispatchBody = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
+    console.error('[jobs/index] Repository dispatch failed:', ghResponse.status, dispatchBody);
+
+    try {
+      const workflowResponse = await dispatchWorkflowRun(githubRepo, githubToken, uid);
+      if (workflowResponse.ok) {
+        return res.status(202).json({
+          status: 'dispatched',
+          runDate,
+          message: 'Job generation started via GitHub workflow dispatch. Your dashboard will update automatically in about 2 minutes.',
+        });
+      }
+
+      const workflowBody = workflowResponse.text ? await workflowResponse.text().catch(() => '') : '';
+      console.error('[jobs/index] Workflow dispatch failed:', workflowResponse.status, workflowBody);
+      return res.status(500).json({
+        error:
+          `GitHub job dispatch failed (${ghResponse.status || 'network error'}), and workflow dispatch also failed (${workflowResponse.status || 'network error'}). ` +
+          githubDispatchHint(workflowResponse.status || ghResponse.status || 0),
+      });
+    } catch (workflowErr) {
+      console.error('[jobs/index] Workflow dispatch threw:', workflowErr);
+      return res.status(500).json({
+        error: `GitHub job dispatch failed (${ghResponse.status || 'network error'}). ${githubDispatchHint(ghResponse.status || 0)}`,
+      });
+    }
   }
 
   const pipelineResult = await runPipeline(uid, runDate, req);
