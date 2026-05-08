@@ -39,6 +39,37 @@ function getBaseUrl(req: VercelRequest): string {
   return `${proto}://${host}`;
 }
 
+function isLocalRequest(req: VercelRequest): boolean {
+  return Boolean(
+    req.headers.host?.includes('localhost') ||
+    req.headers.host?.includes('127.0.0.1')
+  );
+}
+
+function resolveGithubRepo(): string {
+  const explicit = (process.env.GITHUB_REPO || '').trim();
+  if (explicit) return explicit;
+
+  const owner = (process.env.VERCEL_GIT_REPO_OWNER || '').trim();
+  const slug = (process.env.VERCEL_GIT_REPO_SLUG || '').trim();
+  if (owner && slug) return `${owner}/${slug}`;
+
+  return '';
+}
+
+function githubDispatchHint(status: number): string {
+  if (status === 401 || status === 403) {
+    return 'Check GITHUB_DISPATCH_TOKEN permissions and repository access.';
+  }
+  if (status === 404) {
+    return 'Check GITHUB_REPO or confirm the Vercel project is linked to the correct GitHub repository.';
+  }
+  if (status === 422) {
+    return 'Check that .github/workflows/generate-jobs.yml includes repository_dispatch for generate-jobs-for-user.';
+  }
+  return 'Check the GitHub Actions workflow and repository dispatch configuration.';
+}
+
 async function verifyUser(req: VercelRequest): Promise<string | null> {
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -289,8 +320,8 @@ async function readStoredJobs(uid: string, runDate: string): Promise<DailyJob[]>
 }
 
 async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
-  const githubToken = process.env.GITHUB_DISPATCH_TOKEN;
-  const githubRepo = process.env.GITHUB_REPO;
+  const githubToken = (process.env.GITHUB_DISPATCH_TOKEN || '').trim();
+  const githubRepo = resolveGithubRepo();
 
   const db = getAdminDb();
   const userSnap = await db.collection('users').doc(uid).get();
@@ -308,7 +339,21 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     });
   }
 
-  const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
+  const isLocal = isLocalRequest(req);
+
+  // On Vercel/serverless we must dispatch to GitHub Actions. The synchronous
+  // pipeline is too slow and causes the 30s/60s request to die with HTTP 500.
+  if (!isLocal && !githubToken) {
+    return res.status(500).json({
+      error: 'Server configuration error: missing GITHUB_DISPATCH_TOKEN. On Vercel, daily job generation must run through GitHub Actions.',
+    });
+  }
+
+  if (!isLocal && !githubRepo) {
+    return res.status(500).json({
+      error: 'Server configuration error: could not resolve the GitHub repository for job dispatch. Set GITHUB_REPO or connect the Vercel project to the correct GitHub repo.',
+    });
+  }
 
   if (githubToken && githubRepo && !isLocal) {
     console.log('[api/jobs] Dispatching to GitHub Actions...');
@@ -346,6 +391,9 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
 
     const body = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
     console.error('[jobs/index] GitHub dispatch failed:', ghResponse.status, body);
+    return res.status(500).json({
+      error: `GitHub job dispatch failed (${ghResponse.status || 'network error'}). ${githubDispatchHint(ghResponse.status || 0)}`,
+    });
   }
 
   const pipelineResult = await runPipeline(uid, runDate, req);
