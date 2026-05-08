@@ -68,9 +68,9 @@ const LP_STYLE = `
     font-family: var(--lp-font-d); font-weight:400; line-height:1.04;
     letter-spacing:-.02em; color:var(--lp-fg);
   }
-  .lp-dh { font-size:clamp(52px,7vw,96px); }
+  .lp-dh { font-size:clamp(38px,5.2vw,68px); }
   .lp-ds { font-size:clamp(32px,4vw,52px); }
-  .lp-body-lg { font-size:18px; line-height:1.65; color:var(--lp-muted); }
+  .lp-body-lg { font-size:16px; line-height:1.65; color:var(--lp-muted); }
   .lp-body-sm { font-size:14px; line-height:1.55; color:var(--lp-muted); }
 
   /* reveal animations */
@@ -179,7 +179,7 @@ const LP_STYLE = `
 
   /* hero */
   .lp-hero {
-    padding:96px 0 80px; border-bottom:1px solid var(--lp-border);
+    padding:52px 0 44px; border-bottom:1px solid var(--lp-border);
     position:relative; overflow:hidden;
   }
   .lp-hero::before {
@@ -197,10 +197,10 @@ const LP_STYLE = `
     align-items:center; position:relative; z-index:1;
   }
   .lp-hero-left { max-width:560px; }
-  .lp-hero-eyebrow { margin-bottom:28px; }
-  .lp-hero-hl { margin-bottom:24px; }
+  .lp-hero-eyebrow { margin-bottom:16px; }
+  .lp-hero-hl { margin-bottom:16px; }
   .lp-hero-hl em { font-style:italic; color:var(--lp-accent); }
-  .lp-hero-sub { max-width:440px; margin-bottom:40px; }
+  .lp-hero-sub { max-width:440px; margin-bottom:28px; }
   .lp-hero-cta-row { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
   .lp-cta-note {
     font-family:var(--lp-font-m); font-size:11px; font-weight:500;
@@ -218,7 +218,7 @@ const LP_STYLE = `
   .lp-fi-4 { animation-delay:.46s; }
 
   /* job card mockup */
-  .lp-mockup { position:relative; height:430px; }
+  .lp-mockup { position:relative; height:360px; }
   .lp-jcard {
     position:absolute;
     background:var(--lp-surface); border:1px solid var(--lp-border);
@@ -434,13 +434,47 @@ const LP_STYLE = `
   .lp-cta-inner { display:flex; align-items:flex-end; justify-content:space-between; gap:48px; }
 
   /* footer */
-  .lp-footer { padding:40px 0; }
-  .lp-footer-inner { display:flex; align-items:center; justify-content:space-between; gap:24px; }
-  .lp-footer-brand { font-family:var(--lp-font-d); font-size:15px; color:var(--lp-fg); text-decoration:none; }
-  .lp-footer-links { display:flex; gap:24px; list-style:none; padding:0; margin:0; }
-  .lp-footer-links a { font-size:13px; color:var(--lp-muted); text-decoration:none; transition:color 200ms ease; }
-  .lp-footer-links a:hover { color:var(--lp-fg); }
-  .lp-footer-copy { font-family:var(--lp-font-m); font-size:10px; letter-spacing:.08em; color:var(--lp-muted); }
+  .lp-footer { border-top:1px solid var(--lp-border); }
+  .lp-footer-top { padding:64px 0 48px; }
+  .lp-footer-grid {
+    display:grid; grid-template-columns:2.2fr 1fr 1fr 1fr; gap:48px; align-items:start;
+  }
+  /* brand column */
+  .lp-footer-logo { font-family:var(--lp-font-d); font-size:20px; font-weight:400; color:var(--lp-fg); text-decoration:none; display:block; margin-bottom:12px; }
+  .lp-footer-tagline { font-size:13px; line-height:1.6; color:var(--lp-muted); max-width:210px; margin-bottom:28px; }
+  .lp-footer-socials { display:flex; gap:10px; }
+  .lp-footer-social {
+    width:34px; height:34px; border:1px solid var(--lp-border); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--lp-muted); text-decoration:none;
+    transition:border-color 200ms, color 200ms, background 200ms;
+  }
+  .lp-footer-social:hover { border-color:var(--lp-fg); color:var(--lp-fg); background:var(--lp-surface); }
+  /* nav columns */
+  .lp-footer-col-ttl {
+    font-family:var(--lp-font-m); font-size:10px; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--lp-fg);
+    margin-bottom:18px; display:block;
+  }
+  .lp-footer-col-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:11px; }
+  .lp-footer-col-list a { font-size:13px; color:var(--lp-muted); text-decoration:none; transition:color 200ms; }
+  .lp-footer-col-list a:hover { color:var(--lp-fg); }
+  /* status badge */
+  .lp-status-badge {
+    display:inline-flex; align-items:center; gap:7px; margin-top:20px;
+    padding:5px 10px; border:1px solid oklch(72% .12 145 / .5);
+    border-radius:20px; font-family:var(--lp-font-m); font-size:10px;
+    letter-spacing:.06em; color:oklch(52% .14 145); background:oklch(96% .04 145 / .3);
+  }
+  .lp-status-dot { width:6px; height:6px; border-radius:50%; background:oklch(60% .18 145); flex-shrink:0; animation:lp-pulse-g 2s ease-in-out infinite; }
+  @keyframes lp-pulse-g { 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
+  /* bottom bar */
+  .lp-footer-bottom { border-top:1px solid var(--lp-border); padding:20px 0; }
+  .lp-footer-bottom-inner { display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .lp-footer-copy { font-family:var(--lp-font-m); font-size:11px; letter-spacing:.04em; color:oklch(60% .015 60); }
+  .lp-footer-legal { display:flex; gap:20px; list-style:none; padding:0; margin:0; flex-wrap:wrap; }
+  .lp-footer-legal a { font-size:11px; color:oklch(60% .015 60); text-decoration:none; transition:color 200ms; }
+  .lp-footer-legal a:hover { color:var(--lp-fg); }
 
   /* responsive */
   @media(max-width:900px){
@@ -460,14 +494,15 @@ const LP_STYLE = `
     .lp-plan:first-child { border-right:none; border-bottom:1px solid var(--lp-border); }
     .lp-plan { padding:40px 24px; }
     .lp-cta-inner { flex-direction:column; align-items:flex-start; }
-    .lp-footer-inner { flex-direction:column; align-items:flex-start; gap:16px; }
-    .lp-footer-links { flex-wrap:wrap; gap:16px; }
+    .lp-footer-grid { grid-template-columns:1fr 1fr; gap:40px; }
+    .lp-footer-bottom-inner { flex-direction:column; align-items:flex-start; gap:12px; }
     .lp-section-hdr { flex-direction:column; align-items:flex-start; }
     .lp-nav-actions .lp-nav-link:not(:last-child) { display:none; }
   }
   @media(max-width:600px){
-    .lp-hero { padding:64px 0 56px; }
+    .lp-hero { padding:32px 0 28px; }
     .lp-how,.lp-features,.lp-testi,.lp-pricing,.lp-cta { padding:64px 0; }
+    .lp-footer-grid { grid-template-columns:1fr; gap:32px; }
   }
   @media(prefers-reduced-motion:reduce){
     .lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s { opacity:1 !important; transform:none !important; }
@@ -918,18 +953,90 @@ export function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <hr style={{ border: 'none', borderTop: '1px solid var(--lp-border)' }} />
       <footer className="lp-footer">
-        <div className="lp-container">
-          <div className="lp-footer-inner">
-            <Link to="/" className="lp-footer-brand">Hireschema</Link>
-            <ul className="lp-footer-links">
-              <li><Link to="/privacy">Privacy</Link></li>
-              <li><Link to="/terms">Terms</Link></li>
-              <li><Link to="/blog">Blog</Link></li>
-              <li><Link to="/login">Sign in</Link></li>
-            </ul>
-            <span className="lp-footer-copy">© 2025 Hireschema</span>
+        <div className="lp-footer-top">
+          <div className="lp-container">
+            <div className="lp-footer-grid">
+
+              {/* Brand column */}
+              <div>
+                <Link to="/" className="lp-footer-logo">Hireschema</Link>
+                <p className="lp-footer-tagline">Your autonomous job-search agent. Daily matches, zero noise.</p>
+                <div className="lp-footer-socials">
+                  <a href="https://twitter.com/hireschema" className="lp-footer-social" aria-label="X / Twitter" rel="noopener noreferrer" target="_blank">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631z"/></svg>
+                  </a>
+                  <a href="https://linkedin.com/company/hireschema" className="lp-footer-social" aria-label="LinkedIn" rel="noopener noreferrer" target="_blank">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                  </a>
+                  <a href="https://github.com/hireschema" className="lp-footer-social" aria-label="GitHub" rel="noopener noreferrer" target="_blank">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                  </a>
+                  <a href="mailto:hello@hireschema.com" className="lp-footer-social" aria-label="Email">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg>
+                  </a>
+                </div>
+                <div className="lp-status-badge">
+                  <span className="lp-status-dot" />
+                  All systems operational
+                </div>
+              </div>
+
+              {/* Product column */}
+              <div>
+                <span className="lp-footer-col-ttl">Product</span>
+                <ul className="lp-footer-col-list">
+                  <li><Link to="/dashboard">Dashboard</Link></li>
+                  <li><Link to="/jobs">Job Tracker</Link></li>
+                  <li><Link to="/dashboard">Resume Builder</Link></li>
+                  <li><Link to="/dashboard">Interview Prep</Link></li>
+                  <li><Link to="/settings">Settings</Link></li>
+                </ul>
+              </div>
+
+              {/* Company column */}
+              <div>
+                <span className="lp-footer-col-ttl">Company</span>
+                <ul className="lp-footer-col-list">
+                  <li><a href="#about">About</a></li>
+                  <li><a href="#pricing">Pricing</a></li>
+                  <li><a href="#changelog">Changelog</a></li>
+                  <li><a href="mailto:hello@hireschema.com">Contact</a></li>
+                  <li><a href="#blog">Blog</a></li>
+                </ul>
+              </div>
+
+              {/* Legal column */}
+              <div>
+                <span className="lp-footer-col-ttl">Legal</span>
+                <ul className="lp-footer-col-list">
+                  <li><Link to="/privacy">Privacy Policy</Link></li>
+                  <li><Link to="/terms">Terms of Service</Link></li>
+                  <li><Link to="/cookies">Cookie Policy</Link></li>
+                  <li><Link to="/gdpr">Data &amp; GDPR</Link></li>
+                  <li><Link to="/security">Security</Link></li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* bottom bar */}
+        <div className="lp-footer-bottom">
+          <div className="lp-container">
+            <div className="lp-footer-bottom-inner">
+              <span className="lp-footer-copy">
+                © {new Date().getFullYear()} Hireschema, Inc. · All rights reserved.
+              </span>
+              <ul className="lp-footer-legal">
+                <li><Link to="/privacy">Privacy</Link></li>
+                <li><Link to="/terms">Terms</Link></li>
+                <li><Link to="/cookies">Cookies</Link></li>
+                <li><Link to="/gdpr">GDPR</Link></li>
+                <li><a href="mailto:hello@hireschema.com">Contact</a></li>
+              </ul>
+            </div>
           </div>
         </div>
       </footer>
