@@ -8,9 +8,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Super Admin: custom claim set server-side via POST /api/admin/bootstrap
+    // Super Admin: custom claim OR known admin emails
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.superAdmin == true;
+      return isAuthenticated() && (
+        request.auth.token.superAdmin == true ||
+        request.auth.token.email == 'rupesh7126@gmail.com' ||
+        request.auth.token.email == 'kv3244@gmail.com'
+      );
     }
 
     function isOwner(userId) {

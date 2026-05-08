@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection, getDocs, getDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { cn } from '../lib/utils';
 import { runAdminGhostMode } from '../services/adminGhostMode';
@@ -18,6 +18,7 @@ import type {
   GhostModeTargetUser,
 } from '../types/adminGhostMode';
 import type { AdminUserListItem, AdminUserDetail, AdminUserPreferences } from '../lib/adminUsers';
+import { buildAdminUserListItem, buildAdminUserDetail } from '../lib/adminUsers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -410,19 +411,12 @@ export function AdminDashboard() {
   // ── Load users ─────────────────────────────────────────────────────────────
 
   const loadUsers = async () => {
+    if (!realUser) return;
     setLoading(true);
     setLoadError(null);
     try {
-      const token = await realUser?.getIdToken(true); // force-refresh token
-      if (!token) throw new Error('Not authenticated — try refreshing the page.');
-      const res = await fetch('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      const text = await res.text();
-      let data: any = {};
-      try { if (text) data = JSON.parse(text); } catch {}
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}: ${text?.slice(0, 200)}`);
-      const list = Array.isArray(data.users) ? data.users : [];
+      const snap = await getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc')));
+      const list = snap.docs.map(d => buildAdminUserListItem({ id: d.id, ...d.data() }));
       setUsers(list);
       if (list.length === 0) toast.info('No users found in database.');
     } catch (err: any) {
@@ -457,8 +451,9 @@ export function AdminDashboard() {
 
   const handleViewDetail = async (u: AdminUserListItem) => {
     try {
-      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
-      setDetailUser(data.user);
+      const snap = await getDoc(doc(db, 'users', u.id));
+      if (!snap.exists()) throw new Error('User document not found');
+      setDetailUser(buildAdminUserDetail({ id: snap.id, ...snap.data() }));
     } catch (err: any) {
       toast.error('Failed to load user details: ' + err.message);
     }
@@ -466,8 +461,9 @@ export function AdminDashboard() {
 
   const handleOpenGhost = async (u: AdminUserListItem) => {
     try {
-      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
-      setGhostUser(data.user as GhostModeTargetUser);
+      const snap = await getDoc(doc(db, 'users', u.id));
+      if (!snap.exists()) throw new Error('User document not found');
+      setGhostUser(buildAdminUserDetail({ id: snap.id, ...snap.data() }) as GhostModeTargetUser);
       setGhostResult(null);
     } catch (err: any) {
       toast.error('Failed to load user for Ghost Mode: ' + err.message);
@@ -478,10 +474,7 @@ export function AdminDashboard() {
     if (!editUser) return;
     setSaving(true);
     try {
-      await apiCall(`/api/admin/users?userId=${encodeURIComponent(editUser.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(patch),
-      });
+      await updateDoc(doc(db, 'users', editUser.id), patch as Record<string, unknown>);
       setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...patch } : u));
       toast.success(`Updated ${editUser.email}`);
       setEditUser(null);
@@ -495,10 +488,7 @@ export function AdminDashboard() {
   const handleTogglePlan = async (u: AdminUserListItem) => {
     const newPlan: Plan = u.plan === 'pro' ? 'free' : 'pro';
     try {
-      await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ plan: newPlan }),
-      });
+      await updateDoc(doc(db, 'users', u.id), { plan: newPlan });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, plan: newPlan } : x));
       toast.success(`${u.email} → ${newPlan}`);
     } catch (err: any) {
