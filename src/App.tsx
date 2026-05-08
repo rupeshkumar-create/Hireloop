@@ -66,6 +66,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/interview-prep': { eyebrow: 'AI-generated', title: 'Interview Prep.' },
     '/onboarding': { eyebrow: 'Setup', title: 'Calibrate your Scout.' },
     '/kingdomofkumar': { eyebrow: 'Admin', title: 'Kingdom dashboard.' },
+    '/superadmin': { eyebrow: 'Admin', title: 'Kingdom dashboard.' },
   };
   const current = meta[location.pathname] || meta['/dashboard'];
 
@@ -169,6 +170,14 @@ export default function App() {
           } />
 
           <Route path="/kingdomofkumar" element={
+            <AdminRoute>
+              <AppLayout>
+                <AdminDashboard />
+              </AppLayout>
+            </AdminRoute>
+          } />
+
+          <Route path="/superadmin" element={
             <AdminRoute>
               <AppLayout>
                 <AdminDashboard />

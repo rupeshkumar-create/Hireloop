@@ -13,13 +13,14 @@ import {
   Settings,
   Sun,
   Timer,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
 
-function getNavGroups(dashboardCount?: string, savedCount?: string) {
-  return [
+function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: boolean) {
+  const groups = [
     {
       label: 'Workspace',
       items: [
@@ -47,6 +48,17 @@ function getNavGroups(dashboardCount?: string, savedCount?: string) {
       ],
     },
   ];
+
+  if (isAdmin) {
+    groups.push({
+      label: 'Admin',
+      items: [
+        { name: 'SuperAdmin', path: '/superadmin', icon: ShieldCheck },
+      ],
+    });
+  }
+
+  return groups;
 }
 
 
@@ -70,7 +82,12 @@ export function Sidebar() {
 
   const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
-  const navGroups = getNavGroups(dashboardCount, savedCount);
+  
+  const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
+  const isAdmin = ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '');
+  
+  const navGroups = getNavGroups(dashboardCount, savedCount, isAdmin);
+
 
   const plan = profile?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
   const nextHour = String(profile?.preferredDeliveryHour ?? 8).padStart(2, '0');

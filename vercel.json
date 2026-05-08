@@ -23,6 +23,16 @@
       "path": "/api/cron/weekly-analysis",
       "schedule": "0 6 * * 6"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }
 
