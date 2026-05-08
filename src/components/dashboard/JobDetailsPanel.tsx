@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookmarkPlus, ExternalLink, MapPin, DollarSign, Mail, FileText, MessageSquare, TrendingUp, Sparkles, Download, Loader2, X, Eye, CheckCircle2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
 import { ResumePreviewModal } from './ResumePreviewModal';
+import { AiResultModal } from './AiResultModal';
 import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
 interface JobDetailsPanelProps {
@@ -32,7 +33,18 @@ export function JobDetailsPanel({
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
   const [showResumePreview, setShowResumePreview] = useState(false);
+  const [aiModalDismissed, setAiModalDismissed] = useState(false);
   const applyUrl = resolveJobApplicationUrlWithFallback(selectedJob);
+
+  // Reset dismissed state whenever a new interview/salary action starts
+  useEffect(() => {
+    if (aiAction === 'interview' || aiAction === 'salary') {
+      setAiModalDismissed(false);
+    }
+  }, [aiAction]);
+
+  const aiModalOpen =
+    (aiAction === 'interview' || aiAction === 'salary') && !aiModalDismissed;
   const isFallbackUrl = isJobUrlFallback(selectedJob);
   return (
     <AnimatePresence>
@@ -140,9 +152,10 @@ export function JobDetailsPanel({
             </div>
           </div>
 
+          {/* Inline panel — email & resume only (interview/salary open as modal) */}
           <AnimatePresence>
-            {aiAction && (
-              <motion.div 
+            {(aiAction === 'email' || aiAction === 'resume') && (
+              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -153,8 +166,6 @@ export function JobDetailsPanel({
                     <Sparkles className="h-5 w-5 text-[var(--hs-app-accent)]" />
                     {aiAction === 'email' && 'Cold Email Draft'}
                     {aiAction === 'resume' && 'Tailored Resume'}
-                    {aiAction === 'interview' && 'Interview Questions'}
-                    {aiAction === 'salary' && 'Salary Insights'}
                   </h4>
                   {aiAction === 'resume' && !actionLoading && (
                     <button type="button" className="hs-btn" onClick={() => downloadResume(selectedJob)}>
@@ -162,7 +173,7 @@ export function JobDetailsPanel({
                     </button>
                   )}
                 </div>
-                
+
                 {actionLoading ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-3">
                     <Loader2 className="h-6 w-6 animate-spin text-[var(--hs-app-muted)]" />
@@ -172,7 +183,6 @@ export function JobDetailsPanel({
                   </div>
                 ) : (
                   <div>
-                    {/* Resume action: show a styled preview button + mini preview */}
                     {aiAction === 'resume' && typeof aiResult === 'string' && aiResult ? (
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
@@ -183,7 +193,6 @@ export function JobDetailsPanel({
                             <Download className="h-3.5 w-3.5" /> Download .md
                           </button>
                         </div>
-                        {/* Compact text preview */}
                         <div className="max-h-64 overflow-y-auto rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
                           <pre className="whitespace-pre-wrap text-xs text-[var(--hs-app-muted)] leading-relaxed font-mono">
                             {aiResult.slice(0, 1200)}{aiResult.length > 1200 ? '\n\n…[open full preview]' : ''}
@@ -192,15 +201,9 @@ export function JobDetailsPanel({
                       </div>
                     ) : (
                       <div className="text-[var(--hs-app-muted)] bg-[var(--hs-app-bg)] p-6 rounded-xl border border-[var(--hs-app-border)]">
-                        {aiAction === 'interview' && Array.isArray(aiResult) ? (
-                          <ul className="list-decimal pl-5 space-y-3">
-                            {aiResult.map((q, i) => <li key={i} className="leading-relaxed">{q}</li>)}
-                          </ul>
-                        ) : (
-                          <div className="prose prose-sm max-w-none prose-zinc">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult as string}</ReactMarkdown>
-                          </div>
-                        )}
+                        <div className="prose prose-sm max-w-none prose-zinc">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult as string}</ReactMarkdown>
+                        </div>
                       </div>
                     )}
 
@@ -224,10 +227,8 @@ export function JobDetailsPanel({
                                 return;
                               }
                             }
-
                             const blob = new Blob([optimizedResume], { type: 'text/markdown' });
                             const url = URL.createObjectURL(blob);
-                            
                             const a = document.createElement('a');
                             a.href = url;
                             a.download = `${user?.displayName?.replace(/\s+/g, '_') || 'Candidate'}_Tailored_Resume.md`;
@@ -235,9 +236,7 @@ export function JobDetailsPanel({
                             a.click();
                             document.body.removeChild(a);
                             URL.revokeObjectURL(url);
-
                             toast.success('Tailored resume downloaded. Please attach it to your email.');
-
                             const mailBody = encodeURIComponent(`${aiResult}\n\nJob URL: ${applyUrl || ''}`);
                             window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=Application for ${selectedJob.title}&body=${mailBody}`, '_blank');
                           }}
@@ -264,6 +263,18 @@ export function JobDetailsPanel({
         resumeText={typeof aiResult === 'string' ? aiResult : ''}
         companyName={selectedJob.company}
         jobTitle={selectedJob.title}
+      />
+
+      {/* Interview Prep / Salary Insights popup */}
+      <AiResultModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalDismissed(true)}
+        type={aiAction === 'salary' ? 'salary' : 'interview'}
+        jobTitle={selectedJob.title}
+        company={selectedJob.company}
+        location={selectedJob.location}
+        content={aiResult}
+        isLoading={actionLoading}
       />
     </AnimatePresence>
   );
