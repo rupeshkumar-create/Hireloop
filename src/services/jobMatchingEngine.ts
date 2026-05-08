@@ -115,7 +115,7 @@ async function scoreJobsWithAI(
   Respond ONLY with the JSON array.`;
 
   try {
-    const response = await callAI([{ role: 'user', content: prompt }], 'google/gemini-pro-1.5');
+    const response = await callAI([{ role: 'user', content: prompt }], 'openai/gpt-4o-mini');
     const parsed = JSON.parse(response);
     const results: Record<string, { aiScore: number; aiReason: string; aiInsight: string }> = {};
     

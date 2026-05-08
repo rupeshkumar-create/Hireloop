@@ -121,7 +121,7 @@ registerGuardrailTask<EmailGenerationInput, string>('email_generation', {
   selfFix: async (output, input, validation) =>
     improveTextWithAI(
       output,
-      `Fix this email. Reason: ${validation.reason}. Keep it under 120 words. Include ${input.company}. Include ${input.jobTitle}. Remove generic language.`,
+      `Fix this email. Reason: ${validation.reason}. Keep it under 200 words. Include ${input.company}. Include ${input.jobTitle}. Remove generic language.`,
       input.writingStyleContext
     ),
 });
@@ -346,7 +346,7 @@ ${resumeText.substring(0, 6000)}`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'google/gemini-pro-1.5'
+      'openai/gpt-4o-mini'
     );
     return response.choices?.[0]?.message?.content?.trim() || '';
   } catch (error) {
@@ -379,7 +379,7 @@ Rewrite the text according to the instruction. Return ONLY the new text without 
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-3.5-sonnet'
+      'openai/gpt-4o'
     );
     return response.choices?.[0]?.message?.content?.trim() || originalText;
   } catch {
@@ -430,7 +430,7 @@ Write a cold email to ${input.recruiter.name} at ${input.job.company} about the 
 Rules:
 - Mention ${input.job.company}
 - Mention ${input.job.title}
-- Under 120 words
+- Under 200 words
 - Ground the message in this resume summary only
 - Do not invent background or recruiter facts
 
@@ -444,7 +444,7 @@ Return ONLY the email body.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-3.5-sonnet'
+        'openai/gpt-4o'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty cold email generated');
@@ -519,7 +519,7 @@ Return ONLY the email body. No subject line.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-3.5-sonnet'
+        'openai/gpt-4o'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty cold email generated');
@@ -587,7 +587,7 @@ Return ONLY clean Markdown.`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-3.5-sonnet'
+      'openai/gpt-4o'
     );
     if (response.choices?.[0]?.message?.content) {
       return response.choices[0].message.content.trim();
@@ -624,7 +624,7 @@ Format in clean Markdown. Under 200 words. No fluff.`;
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
       undefined,
-      'anthropic/claude-3.5-sonnet'
+      'openai/gpt-4o'
     );
     return response.choices?.[0]?.message?.content || 'Could not generate salary insights.';
   } catch {
@@ -714,7 +714,7 @@ Return ONLY the tailored resume in the exact Markdown format above.`;
       const response = await callOpenAI(
         [{ role: 'user', content: prompt }],
         undefined,
-        'anthropic/claude-3.5-sonnet'
+        'openai/gpt-4o'
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty tailored resume generated');
@@ -757,7 +757,7 @@ Return ONLY the cover letter body. No "Dear Hiring Manager" salutation and no si
   const response = await callOpenAI(
     [{ role: 'user', content: prompt }],
     undefined,
-    'anthropic/claude-3.5-sonnet'
+    'openai/gpt-4o'
   );
   const content = response.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error('Empty cover letter generated');
