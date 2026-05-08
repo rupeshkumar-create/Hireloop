@@ -59,20 +59,34 @@ export function requireApifyToken(token: string | undefined): string {
   return value;
 }
 
-export async function runCareerSiteActor(input: ApifyCareerSiteInput, token: string): Promise<ApifyCareerSiteItem[]> {
+export async function runCareerSiteActor(input: ApifyCareerSiteInput, token: string, timeoutMs = 50_000): Promise<ApifyCareerSiteItem[]> {
   const url = new URL(RUN_SYNC_ITEMS_URL);
   url.searchParams.set('token', token);
-  const response = await fetch(url.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Apify Actor failed with HTTP ${response.status}${text ? ': ' + text : ''}`);
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(input),
+      signal: ctrl.signal,
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Apify Actor failed with HTTP ${response.status}${text ? ': ' + text : ''}`);
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Apify Actor timed out after ${timeoutMs / 1000}s — configure GITHUB_DISPATCH_TOKEN + GITHUB_REPO in Vercel for async job generation.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  const data = await response.json();
-  return Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
 }
 
 export function pickString(item: Record<string, unknown>, keys: string[]): string {

@@ -351,10 +351,11 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const pipelineResult = await runPipeline(uid, runDate, req);
   const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
   if (pipelineResult.status !== 'completed') {
+    const failureReason = (pipelineResult.debug as any)?.failureReason || (pipelineResult.debug as any)?.emptyReason;
     return res.status(500).json({
-      error: 'Daily job generation did not complete.',
+      error: failureReason || 'Daily job generation did not complete.',
       status: pipelineResult.status,
-      ...(isLocal ? { debug: pipelineResult.debug } : {}),
+      debug: pipelineResult.debug,
     });
   }
 
@@ -363,7 +364,6 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     runDate,
     jobs,
     jobCount: jobs.length,
-    ...(isLocal ? { debug: pipelineResult.debug } : {}),
     message: jobs.length > 0
       ? `${jobs.length} jobs curated for you.`
       : 'No matching jobs were found for today. Try broadening your career paths or work preferences.',

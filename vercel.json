@@ -4,8 +4,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/jobs/index.ts": { "maxDuration": 300 },
-    "api/cron/process-user.ts": { "maxDuration": 300 },
+    "api/jobs/index.ts": { "maxDuration": 60 },
+    "api/cron/process-user.ts": { "maxDuration": 60 },
     "api/cron/daily-alerts.ts": { "maxDuration": 60 },
     "api/openai.ts": { "maxDuration": 60 },
     "api/admin/users.ts": { "maxDuration": 30 }
