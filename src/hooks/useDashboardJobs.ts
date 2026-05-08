@@ -247,6 +247,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     try {
       const idToken = await user.getIdToken(true);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
+
       // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
       // Returns 202 immediately; GitHub Actions runs the full pipeline and
       // writes results to Firestore; the useEffect above displays them.
@@ -254,7 +257,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
         body: JSON.stringify({ mode: 'request' }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (requestResponse.ok && requestResponse.status !== 202) {
         const payload = await requestResponse.json().catch(() => ({}));

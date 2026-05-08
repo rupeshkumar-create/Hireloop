@@ -123,20 +123,28 @@ async function dispatchWorkflowRun(
   githubToken: string,
   uid: string
 ): Promise<Response> {
-  return await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/generate-jobs.yml/dispatches`, {
-    method: 'POST',
-    headers: {
-      Authorization: `token ${githubToken}`,
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'hireschema-job-dispatch',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-    body: JSON.stringify({
-      ref: resolveGithubRef(),
-      inputs: { user_id: uid },
-    }),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  
+  try {
+    return await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/generate-jobs.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'hireschema-job-dispatch',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        ref: resolveGithubRef(),
+        inputs: { user_id: uid },
+      }),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function verifyUser(req: VercelRequest): Promise<string | null> {
@@ -414,13 +422,15 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   // pipeline is too slow and causes the 30s/60s request to die with HTTP 500.
   if (!isLocal && !githubToken) {
     return res.status(500).json({
-      error: 'Server configuration error: missing GITHUB_DISPATCH_TOKEN. On Vercel, daily job generation must run through GitHub Actions.',
+      error: 'Missing GITHUB_DISPATCH_TOKEN.',
+      detail: 'On Vercel, daily job generation takes ~2 minutes and must run via GitHub Actions. Please add GITHUB_DISPATCH_TOKEN to your Vercel Environment Variables.'
     });
   }
 
   if (!isLocal && !githubRepo) {
     return res.status(500).json({
-      error: 'Server configuration error: could not resolve the GitHub repository for job dispatch. Set GITHUB_REPO or connect the Vercel project to the correct GitHub repo.',
+      error: 'Could not resolve GitHub repository.',
+      detail: 'Set GITHUB_REPO (e.g. "owner/repo") in your Vercel environment so the Scout can dispatch job discovery tasks.'
     });
   }
 
