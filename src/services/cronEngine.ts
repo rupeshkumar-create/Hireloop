@@ -1,5 +1,5 @@
-import { getDailyMatchLimit } from '../lib/planLimits';
-import { computeMatchReadiness, evaluateDueDailyRun } from './jobDeliveryProfile';
+import { getDailyMatchLimit } from '../lib/planLimits.js';
+import { computeMatchReadiness, evaluateDueDailyRun } from './jobDeliveryProfile.js';
 
 export interface CronEligibleUser {
   plan?: string;

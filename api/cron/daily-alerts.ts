@@ -16,7 +16,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
 import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { evaluateDueUsers, queueCronRun } from '../../src/services/cronEngine';
+import { evaluateDueUsers, queueCronRun } from '../../src/services/cronEngine.js';
 
 const DISPATCH_BATCH_SIZE = 50;
 

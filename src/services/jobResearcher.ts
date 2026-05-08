@@ -6,9 +6,9 @@
  * Updated to use 'fantastic-jobs/career-site-job-listing-api' with enriched AI data.
  */
 
-import { normalizeApifyItem, requireApifyToken, runCareerSiteActor } from './jobSources/apifyCareerSite';
-import { normalizeLinkedInItem, runLinkedInActor } from './jobSources/apifyLinkedIn';
-import type { ApifyCareerSiteInput } from './jobSources/apifyCareerSite';
+import { normalizeApifyItem, requireApifyToken, runCareerSiteActor } from './jobSources/apifyCareerSite.js';
+import { normalizeLinkedInItem, runLinkedInActor } from './jobSources/apifyLinkedIn.js';
+import type { ApifyCareerSiteInput } from './jobSources/apifyCareerSite.js';
 
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
 export type JobSource = string;

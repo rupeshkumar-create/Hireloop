@@ -18,13 +18,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
 import { requireInternalCronSecret } from '../../src/server/cronAuth.js';
-import { processUserCronRun } from '../../src/services/cronEngine';
-import { computeNextJobDeliveryAt } from '../../src/services/jobDeliveryProfile';
-import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
-import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
-import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
-import type { DailyJob } from '../../src/types/dailyJob';
-import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer';
+import { processUserCronRun } from '../../src/services/cronEngine.js';
+import { computeNextJobDeliveryAt } from '../../src/services/jobDeliveryProfile.js';
+import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher.js';
+import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
+import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService.js';
+import type { DailyJob } from '../../src/types/dailyJob.js';
+import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
 

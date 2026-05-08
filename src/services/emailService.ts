@@ -1,4 +1,4 @@
-import type { DailyJob } from '../types/dailyJob';
+import type { DailyJob } from '../types/dailyJob.js';
 
 const sendResendEmail = async (payload: any) => {
   try {

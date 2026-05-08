@@ -1,4 +1,4 @@
-import { normalizeUserPreferences, type NormalizedUserPreferences } from './validator';
+import { normalizeUserPreferences, type NormalizedUserPreferences } from './validator.js';
 
 export interface DeliverySettingsInput {
   deliveryTimezone?: string;

@@ -1,4 +1,4 @@
-import { ApifyCareerSiteItem, NormalizedApifyJob, pickString, pickStringArray } from './apifyCareerSite';
+import { ApifyCareerSiteItem, NormalizedApifyJob, pickString, pickStringArray } from './apifyCareerSite.js';
 
 export type ApifyLinkedInInput = {
   keyword: string;

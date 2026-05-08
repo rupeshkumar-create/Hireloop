@@ -1,16 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
-import { processUserCronRun } from '../../src/services/cronEngine';
-import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile';
-import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher';
-import { matchAndRankJobs } from '../../src/services/jobMatchingEngine';
-import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService';
-import type { DailyJob } from '../../src/types/dailyJob';
-import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist';
-import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator';
-import { verifyHttpUrl } from '../../src/services/urlVerifier';
+import { processUserCronRun } from '../../src/services/cronEngine.js';
+import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile.js';
+import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher.js';
+import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
+import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService.js';
+import type { DailyJob } from '../../src/types/dailyJob.js';
+import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist.js';
+import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator.js';
+import { verifyHttpUrl } from '../../src/services/urlVerifier.js';
 import { formatLocalDate } from '../../src/lib/localDate.js';
-import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer';
+import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 

@@ -1,6 +1,6 @@
-import type { DiscoveredJob } from '../jobResearcher';
-import { jobFingerprint } from '../jobResearcher';
-import { extractGreenhouseToken } from './atsAllowlist';
+import type { DiscoveredJob } from '../jobResearcher.js';
+import { jobFingerprint } from '../jobResearcher.js';
+import { extractGreenhouseToken } from './atsAllowlist.js';
 
 type GreenhouseApiJob = {
   title?: string;
@@ -67,4 +67,3 @@ export async function fetchGreenhouseJobs(
     .map((j: any) => normaliseGreenhouseJob(companyName, j))
     .filter((j): j is DiscoveredJob => Boolean(j));
 }
-

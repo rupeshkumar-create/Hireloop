@@ -1,7 +1,7 @@
-import type { DiscoveredJob } from '../jobResearcher';
-import type { AtsSource } from './atsAllowlist';
-import { fetchGreenhouseJobs } from './greenhouse';
-import { fetchLeverJobs } from './lever';
+import type { DiscoveredJob } from '../jobResearcher.js';
+import type { AtsSource } from './atsAllowlist.js';
+import { fetchGreenhouseJobs } from './greenhouse.js';
+import { fetchLeverJobs } from './lever.js';
 
 export type VerifyUrlFn = (url: string) => Promise<boolean>;
 

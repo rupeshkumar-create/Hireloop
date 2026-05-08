@@ -1,6 +1,6 @@
-import type { DiscoveredJob, CallAIFn } from './jobResearcher';
-import type { DailyJob } from '../types/dailyJob';
-import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator';
+import type { DiscoveredJob, CallAIFn } from './jobResearcher.js';
+import type { DailyJob } from '../types/dailyJob.js';
+import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator.js';
 
 const STOP_WORDS = new Set([
   'and', 'the', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are',

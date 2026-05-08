@@ -1,7 +1,7 @@
-import type { DiscoveredJob } from '../jobResearcher';
-import { jobFingerprint } from '../jobResearcher';
-import { extractLeverToken } from './atsAllowlist';
-import { isRemoteLocationStrict } from './greenhouse';
+import type { DiscoveredJob } from '../jobResearcher.js';
+import { jobFingerprint } from '../jobResearcher.js';
+import { extractLeverToken } from './atsAllowlist.js';
+import { isRemoteLocationStrict } from './greenhouse.js';
 
 type LeverPosting = {
   text?: string;
@@ -68,4 +68,3 @@ export async function fetchLeverJobs(
     .map((p: any) => normaliseLeverPosting(companyName, p))
     .filter((j): j is DiscoveredJob => Boolean(j));
 }
-
