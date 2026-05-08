@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -336,29 +336,61 @@ const LP_STYLE = `
   /* features */
   .lp-features { padding:96px 0; border-bottom:1px solid var(--lp-border); }
   .lp-feat-grid { display:grid; grid-template-columns:5fr 7fr; gap:80px; align-items:start; }
-  .lp-feat-left { position:sticky; top:80px; }
+  .lp-feat-left { position:sticky; top:96px; }
+
+  /* animated left-panel body */
+  @keyframes lp-feat-in {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:none; }
+  }
+  .lp-feat-left-body { animation:lp-feat-in 380ms cubic-bezier(.22,1,.36,1) forwards; }
+  .lp-feat-left-eyebrow { font-family:var(--lp-font-m); font-size:10px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--lp-accent); margin-bottom:8px; }
+  .lp-feat-left-num { font-family:var(--lp-font-m); font-size:11px; font-weight:500; letter-spacing:.08em; color:var(--lp-muted); margin-bottom:16px; }
+  .lp-feat-left-title {
+    font-family:var(--lp-font-d); font-size:clamp(22px,2.4vw,30px); font-weight:400;
+    line-height:1.2; letter-spacing:-.01em; color:var(--lp-fg); margin-bottom:20px;
+  }
+  .lp-feat-left-desc { font-size:14px; line-height:1.7; color:var(--lp-muted); max-width:280px; }
+
+  /* progress dots */
+  .lp-feat-dots { display:flex; flex-direction:column; gap:10px; margin-top:40px; }
+  .lp-feat-dot-row { display:flex; align-items:center; gap:12px; cursor:pointer; padding:3px 0; background:none; border:none; text-align:left; }
+  .lp-feat-dot-pip {
+    width:5px; height:5px; border-radius:50%; flex-shrink:0;
+    background:var(--lp-border); transition:background 300ms, transform 300ms;
+  }
+  .lp-feat-dot-row.lp-feat-dot-active .lp-feat-dot-pip { background:var(--lp-accent); transform:scale(1.5); }
+  .lp-feat-dot-lbl { font-family:var(--lp-font-m); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--lp-muted); transition:color 300ms; }
+  .lp-feat-dot-row.lp-feat-dot-active .lp-feat-dot-lbl { color:var(--lp-fg); }
+
+  /* right list */
+  .lp-feat-list { display:flex; flex-direction:column; }
+  .lp-feat-item {
+    padding:56px 0; border-top:1px solid var(--lp-border);
+    transition:border-color 300ms ease; position:relative;
+  }
+  .lp-feat-item:last-child { border-bottom:1px solid var(--lp-border); }
+  .lp-feat-item.lp-feat-active { border-top-color:var(--lp-accent); }
+  .lp-feat-item-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
+  .lp-feat-ttl {
+    font-family:var(--lp-font-d); font-size:clamp(18px,1.8vw,22px); font-weight:400;
+    color:oklch(40% .02 60); transition:color 300ms, letter-spacing 300ms;
+  }
+  .lp-feat-item.lp-feat-active .lp-feat-ttl { color:var(--lp-fg); letter-spacing:.003em; }
+  .lp-feat-tag {
+    font-family:var(--lp-font-m); font-size:10px; font-weight:500; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--lp-muted); white-space:nowrap; padding-top:4px;
+    transition:color 300ms;
+  }
+  .lp-feat-item.lp-feat-active .lp-feat-tag { color:var(--lp-accent); }
+  .lp-feat-desc { font-size:14px; line-height:1.7; color:oklch(55% .015 60); transition:color 300ms; }
+  .lp-feat-item.lp-feat-active .lp-feat-desc { color:var(--lp-muted); }
+
   .lp-pull-quote {
     font-family:var(--lp-font-d); font-size:clamp(22px,3vw,32px); font-weight:400;
     line-height:1.25; letter-spacing:-.01em; color:var(--lp-fg); margin-top:24px;
   }
   .lp-pull-quote em { font-style:italic; }
-  .lp-feat-list { display:flex; flex-direction:column; }
-  .lp-feat-item {
-    padding:32px 0; border-top:1px solid var(--lp-border);
-    transition:background 250ms ease; position:relative;
-  }
-  .lp-feat-item:last-child { border-bottom:1px solid var(--lp-border); }
-  .lp-feat-item::before {
-    content:''; position:absolute; left:-32px; right:-32px; top:0; bottom:0;
-    background:oklch(20% .02 60 / .03); opacity:0;
-    transition:opacity 250ms ease; pointer-events:none;
-  }
-  .lp-feat-item:hover::before { opacity:1; }
-  .lp-feat-item-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:10px; }
-  .lp-feat-ttl { font-family:var(--lp-font-d); font-size:18px; font-weight:400; color:var(--lp-fg); transition:letter-spacing 300ms ease; }
-  .lp-feat-item:hover .lp-feat-ttl { letter-spacing:.005em; }
-  .lp-feat-tag { font-family:var(--lp-font-m); font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--lp-muted); white-space:nowrap; padding-top:3px; }
-  .lp-feat-desc { font-size:14px; line-height:1.65; color:var(--lp-muted); }
 
   /* testimonial */
   .lp-testi {
@@ -487,6 +519,7 @@ export function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const [activeFeat, setActiveFeat] = useState(0);
 
   // inject styles once
   useEffect(() => {
@@ -567,6 +600,23 @@ export function LandingPage() {
 
     document.querySelectorAll('.lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s,.lp-stat,.lp-step').forEach(el => io.observe(el));
 
+    return () => io.disconnect();
+  }, []);
+
+  // feature item scroll tracking
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const idx = Number((e.target as HTMLElement).dataset.feat);
+            if (!Number.isNaN(idx)) setActiveFeat(idx);
+          }
+        });
+      },
+      { rootMargin: '-20% 0px -55% 0px' },
+    );
+    document.querySelectorAll('[data-feat]').forEach(el => io.observe(el));
     return () => io.disconnect();
   }, []);
 
@@ -751,16 +801,41 @@ export function LandingPage() {
       <section id="features" className="lp-features">
         <div className="lp-container">
           <div className="lp-feat-grid">
+
+            {/* sticky left — updates as you scroll right */}
             <div className="lp-feat-left lp-reveal-l">
-              <p className="lp-eyebrow" style={{ marginBottom: 16 }}>Why Hireschema</p>
-              <p className="lp-pull-quote">The interface is calm.<br />The agent is <em>not</em>.</p>
-              <p className="lp-body-sm" style={{ marginTop: 20, maxWidth: 280 }}>
-                While you're busy, the engine is running Scout queries, validating listings, scoring fits, and building a ranked shortlist — every single day.
-              </p>
+              <p className="lp-feat-left-eyebrow">Why Hireschema</p>
+              <div key={activeFeat} className="lp-feat-left-body">
+                <p className="lp-feat-left-num">0{activeFeat + 1} / 0{FEATURES.length}</p>
+                <h3 className="lp-feat-left-title">{FEATURES[activeFeat].title}</h3>
+                <p className="lp-feat-left-desc">{FEATURES[activeFeat].desc}</p>
+              </div>
+              {/* progress dots */}
+              <div className="lp-feat-dots">
+                {FEATURES.map((f, i) => (
+                  <button
+                    key={f.tag}
+                    className={`lp-feat-dot-row${i === activeFeat ? ' lp-feat-dot-active' : ''}`}
+                    onClick={() => {
+                      document.querySelector<HTMLElement>(`[data-feat="${i}"]`)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                  >
+                    <span className="lp-feat-dot-pip" />
+                    <span className="lp-feat-dot-lbl">{f.tag}</span>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* scrollable right — each item activates the left panel */}
             <div className="lp-feat-list">
               {FEATURES.map((f, i) => (
-                <div key={f.tag} className={`lp-feat-item lp-reveal lp-d${i + 1}`}>
+                <div
+                  key={f.tag}
+                  data-feat={i}
+                  className={`lp-feat-item lp-reveal lp-d${i + 1}${i === activeFeat ? ' lp-feat-active' : ''}`}
+                >
                   <div className="lp-feat-item-hdr">
                     <h3 className="lp-feat-ttl">{f.title}</h3>
                     <span className="lp-feat-tag">{f.tag}</span>
@@ -769,6 +844,7 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </section>
