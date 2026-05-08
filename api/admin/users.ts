@@ -119,11 +119,6 @@ function buildDetail(u: RawUser) {
   };
 }
 
-const LIST_FIELDS = [
-  'email', 'displayName', 'plan', 'createdAt', 'lastActiveAt',
-  'jobType', 'location', 'minSalary', 'careerPaths',
-] as const;
-
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 1000;
 
@@ -151,12 +146,12 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
   let snapshot: any;
 
   try {
-    snapshot = await db.collection('users').orderBy('createdAt', 'desc').select(...LIST_FIELDS).limit(limit).get();
+    snapshot = await db.collection('users').orderBy('createdAt', 'desc').limit(limit).get();
   } catch (err: any) {
     const msg: string = err?.message || '';
-    if (msg.includes('requires an index') || msg.includes('FAILED_PRECONDITION')) {
-      // Fallback: unordered query, sort in memory
-      snapshot = await db.collection('users').select(...LIST_FIELDS).limit(limit).get();
+    if (msg.includes('requires an index') || msg.includes('FAILED_PRECONDITION') || msg.includes('index')) {
+      // createdAt index not created yet — fall back to unordered full scan, sort in memory
+      snapshot = await db.collection('users').limit(limit).get();
     } else {
       throw err;
     }

@@ -1,10 +1,13 @@
 import React, { useRef } from 'react';
-import { X, Download, FileText, Eye } from 'lucide-react';
+import { X, Download, FileText, Eye, FileJson } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import html2pdf from 'html2pdf.js';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
+import { saveAs } from 'file-saver';
 import { Button } from '../ui/button';
+import { toast } from 'sonner';
 
 interface Props {
   isOpen: boolean;
@@ -19,72 +22,83 @@ interface Props {
 const S = {
   page: {
     fontFamily: '"Garamond", "Georgia", "Times New Roman", serif',
-    fontSize: '12px',
-    lineHeight: '1.55',
+    fontSize: '12.5px',
+    lineHeight: '1.6',
     color: '#1a1a1a',
     background: '#fff',
-    padding: '52px 56px',
-    minHeight: '1056px',
-    maxWidth: '800px',
+    padding: '60px 70px',
+    minHeight: '1056px', // A4 height at 96dpi
+    maxWidth: '820px',
     margin: '0 auto',
     boxSizing: 'border-box' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  contentWrapper: {
+    flex: '1',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'flex-start' as const,
   },
   name: {
-    fontSize: '28px',
+    fontSize: '32px',
     fontWeight: '700',
     textAlign: 'center' as const,
-    letterSpacing: '-0.015em',
-    margin: '0 0 6px 0',
+    letterSpacing: '-0.02em',
+    margin: '0 0 8px 0',
     color: '#111',
     fontFamily: '"Garamond", "Georgia", serif',
+    textTransform: 'uppercase' as const,
   },
   contactLine: {
     textAlign: 'center' as const,
-    fontSize: '11.5px',
+    fontSize: '11px',
     color: '#555',
-    margin: '0 0 20px 0',
-    letterSpacing: '0.01em',
+    margin: '0 0 24px 0',
+    letterSpacing: '0.03em',
   },
   sectionHeader: {
-    fontSize: '10.5px',
+    fontSize: '11px',
     fontWeight: '700',
-    letterSpacing: '0.14em',
+    letterSpacing: '0.15em',
     textTransform: 'uppercase' as const,
     color: '#111',
     borderBottom: '1.5px solid #111',
-    paddingBottom: '3px',
-    marginTop: '20px',
-    marginBottom: '10px',
+    paddingBottom: '4px',
+    marginTop: '28px',
+    marginBottom: '12px',
   },
   h3: {
-    fontSize: '12.5px',
+    fontSize: '14px',
     fontWeight: '700',
     color: '#111',
-    margin: '10px 0 2px 0',
+    margin: '12px 0 3px 0',
+    display: 'flex',
+    justifyContent: 'space-between',
   },
   italicLine: {
-    fontSize: '11px',
-    color: '#555',
+    fontSize: '11.5px',
+    color: '#444',
     fontStyle: 'italic' as const,
-    margin: '0 0 4px 0',
+    margin: '0 0 6px 0',
     display: 'block' as const,
   },
   para: {
-    fontSize: '12px',
+    fontSize: '12.5px',
     color: '#333',
-    lineHeight: '1.55',
-    margin: '4px 0',
+    lineHeight: '1.6',
+    margin: '6px 0',
   },
   ul: {
-    margin: '4px 0 8px 0',
-    paddingLeft: '18px',
+    margin: '6px 0 12px 0',
+    paddingLeft: '20px',
     listStyleType: 'disc' as const,
   },
   li: {
-    fontSize: '12px',
+    fontSize: '12.5px',
     color: '#333',
-    lineHeight: '1.55',
-    marginBottom: '3px',
+    lineHeight: '1.6',
+    marginBottom: '5px',
   },
   strong: {
     fontWeight: '700',
@@ -93,7 +107,7 @@ const S = {
   hr: {
     border: 'none',
     borderTop: '1px solid #ddd',
-    margin: '16px 0',
+    margin: '20px 0',
   },
 };
 
@@ -179,16 +193,88 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
   const downloadPdf = async () => {
     if (!resumeRef.current) return;
     const opt = {
-      margin:      [0.5, 0.5, 0.5, 0.5] as [number, number, number, number],
+      margin:      [0.2, 0.2, 0.2, 0.2] as [number, number, number, number],
       filename:    `Resume_${companyName.replace(/\s+/g, '_')}.pdf`,
       image:       { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 3, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
       jsPDF:       { unit: 'in', format: 'letter', orientation: 'portrait' as const },
     };
-    await html2pdf().set(opt).from(resumeRef.current).save();
+    try {
+      await html2pdf().set(opt).from(resumeRef.current).save();
+      toast.success('Resume downloaded as PDF');
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  const downloadDocx = async () => {
+    try {
+      const lines = resumeText.split('\n');
+      const children: any[] = [];
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('# ')) {
+          children.push(new Paragraph({
+            text: trimmed.replace('# ', '').toUpperCase(),
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 200, after: 100 },
+          }));
+        } else if (trimmed.startsWith('## ')) {
+          children.push(new Paragraph({
+            text: trimmed.replace('## ', '').toUpperCase(),
+            heading: HeadingLevel.HEADING_2,
+            border: { bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 6 } },
+            spacing: { before: 400, after: 200 },
+          }));
+        } else if (trimmed.startsWith('### ')) {
+          children.push(new Paragraph({
+            text: trimmed.replace('### ', ''),
+            heading: HeadingLevel.HEADING_3,
+            spacing: { before: 200, after: 100 },
+          }));
+        } else if (trimmed.startsWith('- ')) {
+          children.push(new Paragraph({
+            text: trimmed.replace('- ', ''),
+            bullet: { level: 0 },
+            spacing: { before: 100, after: 100 },
+          }));
+        } else if (isContactLine(trimmed)) {
+          children.push(new Paragraph({
+            text: trimmed,
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 100, after: 300 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            text: trimmed,
+            spacing: { before: 100, after: 100 },
+          }));
+        }
+      });
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: children,
+        }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `Resume_${companyName.replace(/\s+/g, '_')}.docx`);
+      toast.success('Resume downloaded as DOCX');
+    } catch (err) {
+      console.error('DOCX generation failed:', err);
+      toast.error('Failed to generate DOCX. Please try again.');
+    }
   };
 
   if (!isOpen) return null;
+
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 md:p-8">
@@ -214,7 +300,10 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={downloadPdf}>
-              <Download className="mr-1.5 h-4 w-4" /> Download PDF
+              <Download className="mr-1.5 h-4 w-4 text-red-500" /> PDF
+            </Button>
+            <Button size="sm" variant="outline" onClick={downloadDocx}>
+              <Download className="mr-1.5 h-4 w-4 text-blue-500" /> DOCX
             </Button>
             <button
               onClick={onClose}
@@ -229,10 +318,12 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
         <div className="flex-1 overflow-y-auto bg-[#f0ece4] p-8">
           <div
             ref={resumeRef}
-            className="border border-border bg-white"
+            className="border border-border bg-white shadow-xl"
             style={S.page}
           >
-            <ResumeMarkdown text={resumeText} />
+            <div style={S.contentWrapper}>
+              <ResumeMarkdown text={resumeText} />
+            </div>
           </div>
         </div>
       </motion.div>

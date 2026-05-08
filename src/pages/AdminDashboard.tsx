@@ -370,6 +370,7 @@ export function AdminDashboard() {
 
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   // Modals
@@ -410,17 +411,30 @@ export function AdminDashboard() {
 
   const loadUsers = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await apiCall('/api/admin/users');
-      setUsers(data && Array.isArray(data.users) ? data.users : []);
+      const token = await realUser?.getIdToken(true); // force-refresh token
+      if (!token) throw new Error('Not authenticated — try refreshing the page.');
+      const res = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const text = await res.text();
+      let data: any = {};
+      try { if (text) data = JSON.parse(text); } catch {}
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}: ${text?.slice(0, 200)}`);
+      const list = Array.isArray(data.users) ? data.users : [];
+      setUsers(list);
+      if (list.length === 0) toast.info('No users found in database.');
     } catch (err: any) {
-      toast.error('Failed to load users: ' + (err.message || 'Unknown error'));
+      const msg = err.message || 'Unknown error';
+      setLoadError(msg);
+      toast.error('Failed to load users: ' + msg, { duration: 8000 });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { void loadUsers(); }, []);
+  useEffect(() => { void loadUsers(); }, [realUser]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
 
@@ -634,6 +648,18 @@ export function AdminDashboard() {
       {/* Table */}
       {loading ? (
         <div className="py-16 text-center text-foreground-muted">Loading users…</div>
+      ) : loadError ? (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-6 py-8 text-center">
+          <p className="text-sm font-medium text-red-400">Failed to load users</p>
+          <p className="mt-2 font-mono text-xs text-foreground-muted break-all">{loadError}</p>
+          <button
+            type="button"
+            onClick={loadUsers}
+            className="mt-4 rounded-md border border-border px-4 py-2 text-xs text-foreground-muted hover:text-foreground"
+          >
+            Retry
+          </button>
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
