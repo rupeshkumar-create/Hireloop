@@ -1,6 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaults';
 
 type AtsProvider = 'greenhouse' | 'lever';
 
@@ -23,7 +23,7 @@ function initAdmin() {
 
   const dbId = (
     process.env.FIRESTORE_DATABASE_ID ||
-    firebaseConfig.firestoreDatabaseId ||
+    FALLBACK_FIRESTORE_DATABASE_ID ||
     ''
   ).trim();
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);

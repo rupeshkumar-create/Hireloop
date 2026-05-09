@@ -18,7 +18,6 @@
 
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
 
 // ── Pull in shared business-logic from src/ ──────────────────────────────────
 // These modules are pure TypeScript with no browser-specific imports.
@@ -31,6 +30,7 @@ import {
 } from '../src/services/cronEngine';
 import type { DailyJob } from '../src/types/dailyJob';
 import { formatLocalDate } from '../src/lib/localDate';
+import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaults';
 import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500;
@@ -48,7 +48,7 @@ function initAdmin() {
 
   const dbId = (
     process.env.FIRESTORE_DATABASE_ID ||
-    firebaseConfig.firestoreDatabaseId ||
+    FALLBACK_FIRESTORE_DATABASE_ID ||
     ''
   ).trim();
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
