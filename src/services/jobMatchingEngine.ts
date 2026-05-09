@@ -105,20 +105,21 @@ async function scoreJobsWithAI(
   ${jobs.map((job, i) => `[${i}] Title: ${job.title} | Company: ${job.company} | AI Enriched Summary: ${job.aiDescriptionEnriched || job.description.substring(0, 500)}`).join('\n\n')}
   
   Return a JSON array of objects:
-  [{ 
-    "index": number, 
-    "score": number, 
-    "reason": "Internal reason for score", 
-    "insight": "One-sentence summary of why this job was selected for the user" 
+  [{
+    "index": number,
+    "score": number,
+    "reason": "Internal reason for score",
+    "insight": "One-sentence summary of why this job was selected for the user"
   }, ...]
-  
-  Respond ONLY with the JSON array.`;
+
+  Respond ONLY with the raw JSON array. Do NOT wrap it in markdown code
+  fences (no \`\`\`json ... \`\`\`), do NOT add commentary before or after.`;
 
   try {
     const response = await callAI([{ role: 'user', content: prompt }], 'openai/gpt-4o-mini');
-    const parsed = JSON.parse(response);
+    const parsed = parseAiJsonArray(response);
     const results: Record<string, { aiScore: number; aiReason: string; aiInsight: string }> = {};
-    
+
     if (Array.isArray(parsed)) {
       parsed.forEach((item: any) => {
         const job = jobs[item.index];
@@ -130,11 +131,45 @@ async function scoreJobsWithAI(
           };
         }
       });
+    } else {
+      console.warn('[jobMatchingEngine] AI response did not parse to an array; falling back to deterministic only.');
     }
     return results;
   } catch (error) {
     console.error('[jobMatchingEngine] AI Scoring failed:', error);
     return {};
+  }
+}
+
+/**
+ * Robust JSON-array parser for LLM output.
+ * gpt-4o-mini frequently wraps responses in ```json ... ``` despite being
+ * told not to. Strip fences, then fall back to slicing the first [...]
+ * substring so a leading/trailing sentence doesn't kill the whole response.
+ */
+function parseAiJsonArray(raw: string): unknown {
+  if (!raw) return null;
+  let text = raw.trim();
+
+  // Strip surrounding code fences: ```json\n...\n``` or ```\n...\n```
+  const fenceMatch = text.match(/^```(?:json|JSON)?\s*([\s\S]*?)\s*```$/);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Fall back to extracting the first [...] block
+    const arrayMatch = text.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        return JSON.parse(arrayMatch[0]);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 }
 
