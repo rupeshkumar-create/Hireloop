@@ -139,17 +139,33 @@ async function processUser(
       storeJobs: async (uid, date, profile, generated) => {
         const fetchedAt = new Date().toISOString();
         const jobs: DailyJob[] = generated.jobs || [];
+        const requestedLimit = generated.requestedLimit ?? jobs.length;
+        const deliveryTimezone = profile.deliveryTimezone || 'UTC';
 
         const newFingerprints = jobs.map((j) => jobFingerprint(j.title, j.company));
         const nextFingerprints = [
           ...new Set([...(profile.seenJobFingerprints || []), ...newFingerprints]),
         ].slice(-MAX_SEEN_FINGERPRINTS);
 
+        // dailyJobsMeta MUST be refreshed every run. The frontend's
+        // resolveLocalDateForLastFetch prefers dailyJobsMeta.deliveryLocalDate
+        // over lastJobFetchTime, so if we leave a stale meta from yesterday
+        // the dashboard keeps spinning indefinitely.
         await db.collection('users').doc(uid).set(
           stripUndefinedDeep({
             dailyJobs: jobs,
             lastJobFetchTime: fetchedAt,
+            lastSuccessfulJobRunLocalDate: date,
             seenJobFingerprints: nextFingerprints,
+            dailyJobsMeta: {
+              requestedLimit,
+              returnedCount: jobs.length,
+              qualityFilteredCount: generated.qualityFilteredCount ?? 0,
+              dedupedCount: generated.dedupedCount ?? 0,
+              deliveryTimezone,
+              deliveryLocalDate: date,
+              qualityLimited: jobs.length < requestedLimit,
+            },
           }),
           { merge: true }
         );
@@ -171,6 +187,11 @@ async function processUser(
                 jobs,
                 jobCount: jobs.length,
                 sources,
+                requestedLimit,
+                returnedCount: jobs.length,
+                deliveryTimezone,
+                deliveryLocalDate: date,
+                qualityLimited: jobs.length < requestedLimit,
               })
             );
         }
