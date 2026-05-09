@@ -566,7 +566,6 @@ const PRO_FEATURES = [
   'Interview prep questions per role',
   'Career path recommendations',
   'Priority learning loop updates',
-  'Daily email digest of top matches',
 ];
 
 function ArrowIcon() {

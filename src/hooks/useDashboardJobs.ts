@@ -149,7 +149,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
             warnings: record.warnings || [],
             deliveryTimezone: record.deliveryTimezone || timeZone,
             deliveryLocalDate: record.deliveryLocalDate || today,
-            emailSent: record.emailSent === true,
           });
           setLastFetchTime(record.generatedAt || today);
           foundInDaily = true;

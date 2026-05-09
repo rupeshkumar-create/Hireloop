@@ -321,8 +321,8 @@ export function Settings() {
 
             <div className="pt-4 border-t border-border flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-foreground-muted block">Daily Job Alerts</label>
-                <p className="text-xs text-foreground-muted mt-0.5">Receive an email every day with your top AI-curated job matches.</p>
+                <label className="text-sm font-medium text-foreground-muted block">Daily Job Matches</label>
+                <p className="text-xs text-foreground-muted mt-0.5">Generate fresh AI-curated job matches automatically each day. Turn off to pause the daily run.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input 

@@ -127,7 +127,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn(),
       storeJobs: vi.fn(),
-      sendDailyEmail: vi.fn(),
     };
 
     const result = await processUserCronRun(
@@ -166,7 +165,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
       storeJobs: vi.fn().mockResolvedValue(undefined),
-      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
     };
 
     const result = await processUserCronRun(
@@ -206,7 +204,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn(),
       storeJobs: vi.fn(),
-      sendDailyEmail: vi.fn(),
     };
 
     const result = await processUserCronRun(
@@ -216,7 +213,6 @@ describe('processUserCronRun', () => {
 
     expect(result.status).toBe('skipped');
     expect(deps.generateJobs).not.toHaveBeenCalled();
-    expect(deps.sendDailyEmail).not.toHaveBeenCalled();
   });
 
   it('uses structured roles when career paths are missing', async () => {
@@ -242,7 +238,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
       storeJobs: vi.fn().mockResolvedValue(undefined),
-      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
     };
 
     const result = await processUserCronRun(
@@ -279,7 +274,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
       storeJobs: vi.fn().mockResolvedValue(undefined),
-      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
     };
 
     const result = await processUserCronRun(
@@ -297,7 +291,7 @@ describe('processUserCronRun', () => {
     );
   });
 
-  it('stores jobs before sending email', async () => {
+  it('stores jobs after generation completes', async () => {
     const order: string[] = [];
 
     const deps = {
@@ -322,31 +316,31 @@ describe('processUserCronRun', () => {
         status: 'queued',
       } as CronRunRecord),
       markRun: vi.fn().mockResolvedValue(undefined),
-      generateJobs: vi.fn().mockResolvedValue({
-        jobs: [
-          {
-            title: 'Frontend Engineer',
-            company: 'Acme',
-            location: 'Remote',
-            salary: 'Competitive',
-            description: 'Build UI',
-            url: 'https://jobs.example.com/1',
-            requirements: [],
-            matchScore: 92,
-            datePosted: '2026-04-16T00:00:00.000Z',
-          },
-        ],
-        requestedLimit: 10,
-        usedBackfill: false,
-        totalValidatedJobs: 1,
-        unseenCount: 1,
-        seenCount: 0,
+      generateJobs: vi.fn().mockImplementation(async () => {
+        order.push('generate');
+        return {
+          jobs: [
+            {
+              title: 'Frontend Engineer',
+              company: 'Acme',
+              location: 'Remote',
+              salary: 'Competitive',
+              description: 'Build UI',
+              url: 'https://jobs.example.com/1',
+              requirements: [],
+              matchScore: 92,
+              datePosted: '2026-04-16T00:00:00.000Z',
+            },
+          ],
+          requestedLimit: 10,
+          usedBackfill: false,
+          totalValidatedJobs: 1,
+          unseenCount: 1,
+          seenCount: 0,
+        };
       }),
       storeJobs: vi.fn().mockImplementation(async () => {
         order.push('store');
-      }),
-      sendDailyEmail: vi.fn().mockImplementation(async () => {
-        order.push('email');
       }),
     };
 
@@ -356,7 +350,7 @@ describe('processUserCronRun', () => {
     );
 
     expect(result.status).toBe('completed');
-    expect(order).toEqual(['store', 'email']);
+    expect(order).toEqual(['generate', 'store']);
     expect(deps.generateJobs).toHaveBeenCalledWith(expect.any(Object), 10);
   });
 
@@ -379,7 +373,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn().mockResolvedValue(undefined),
       generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
       storeJobs: vi.fn().mockResolvedValue(undefined),
-      sendDailyEmail: vi.fn().mockResolvedValue(undefined),
     };
 
     await processUserCronRun({ userId: 'user_free', runDate: '2026-04-16' }, deps);
@@ -397,7 +390,6 @@ describe('processUserCronRun', () => {
       markRun: vi.fn(),
       generateJobs: vi.fn(),
       storeJobs: vi.fn(),
-      sendDailyEmail: vi.fn(),
     };
 
     const result = await processUserCronRun(
@@ -409,7 +401,7 @@ describe('processUserCronRun', () => {
     expect(deps.loadUser).not.toHaveBeenCalled();
   });
 
-  it('marks the run failed when email delivery fails after storage', async () => {
+  it('marks the run failed when storage throws', async () => {
     const deps = {
       loadUser: vi.fn().mockResolvedValue({
         id: 'user_123',
@@ -441,8 +433,7 @@ describe('processUserCronRun', () => {
           },
         ],
       }),
-      storeJobs: vi.fn().mockResolvedValue(undefined),
-      sendDailyEmail: vi.fn().mockRejectedValue(new Error('smtp failed')),
+      storeJobs: vi.fn().mockRejectedValue(new Error('firestore unavailable')),
     };
 
     const result = await processUserCronRun(
@@ -452,6 +443,5 @@ describe('processUserCronRun', () => {
 
     expect(result.status).toBe('failed');
     expect(deps.storeJobs).toHaveBeenCalledTimes(1);
-    expect(deps.sendDailyEmail).toHaveBeenCalledTimes(1);
   });
 });

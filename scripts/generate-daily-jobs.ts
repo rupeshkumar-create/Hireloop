@@ -13,7 +13,6 @@
  *
  * Required env vars (stored as GitHub secrets):
  *   FIREBASE_SERVICE_ACCOUNT_KEY   (JSON string of service account)
- *   RESEND_API_KEY
  *   FIRESTORE_DATABASE_ID          (optional, omit for default database)
  */
 
@@ -25,7 +24,6 @@ import { getFirestore } from 'firebase-admin/firestore';
 // `tsx` resolves them directly at runtime.
 import { researchJobs, jobFingerprint } from '../src/services/jobResearcher';
 import { matchAndRankJobs } from '../src/services/jobMatchingEngine';
-import { buildDailyJobAlertsEmailPayload } from '../src/services/emailService';
 import {
   isActiveCronUser,
   processUserCronRun,
@@ -50,29 +48,6 @@ function initAdmin() {
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 
   return { db };
-}
-
-// ── Email sender (calls Resend directly, no /api/resend proxy) ───────────────
-
-async function sendEmail(email: string, jobs: DailyJob[]) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn('  [email] RESEND_API_KEY not set — skipping');
-    return;
-  }
-
-  const payload = buildDailyJobAlertsEmailPayload(email, jobs);
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) console.warn('  [email] send failed:', await res.text());
-  else console.log('  [email] sent to', email);
 }
 
 // ── Single-user pipeline ─────────────────────────────────────────────────────
@@ -180,10 +155,6 @@ async function processUser(
             .doc(date)
             .set({ userId: uid, date, generatedAt: fetchedAt, jobs, jobCount: jobs.length, sources });
         }
-      },
-
-      sendDailyEmail: async (email, jobs) => {
-        await sendEmail(email, jobs);
       },
     }
   );

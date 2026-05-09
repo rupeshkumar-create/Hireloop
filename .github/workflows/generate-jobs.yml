@@ -40,7 +40,6 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           FIRESTORE_DATABASE_ID:        ${{ secrets.FIRESTORE_DATABASE_ID }}
           APIFY_API_TOKEN:              ${{ secrets.APIFY_API_TOKEN }}
-          RESEND_API_KEY:               ${{ secrets.RESEND_API_KEY }}
           OPENROUTER_API_KEY:           ${{ secrets.OPENROUTER_API_KEY }}
           # USER_ID is set for single-user mode (user-triggered or manual dispatch)
           USER_ID: >-

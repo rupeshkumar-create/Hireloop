@@ -66,7 +66,6 @@ export interface DailyMatchRecord {
   dedupedCount: number;
   deliveryTimezone: string;
   deliveryLocalDate: string;
-  emailSent: boolean;
   qualityLimited: boolean;
   skipReason?: string;
   warnings?: string[];

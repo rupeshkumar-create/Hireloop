@@ -49,7 +49,6 @@ export interface ProcessUserCronRunDeps {
       dedupedCount?: number;
     }
   ) => Promise<void>;
-  sendDailyEmail: (email: string, jobs: any[]) => Promise<void>;
 }
 
 export interface QueueCronRunInput {
@@ -223,15 +222,10 @@ export async function processUserCronRun(
     const result = await deps.generateJobs(effectiveProfile, limit);
     await deps.storeJobs(input.userId, input.runDate, effectiveProfile, result);
 
-    if (result.jobs.length > 0 && profile.email) {
-      await deps.sendDailyEmail(profile.email, result.jobs);
-    }
-
     await deps.markRun(runId, {
       status: 'completed',
       completedAt: new Date().toISOString(),
       jobsStored: result.jobs.length,
-      emailSent: result.jobs.length > 0,
     });
 
     return { runId, status: 'completed' as const };

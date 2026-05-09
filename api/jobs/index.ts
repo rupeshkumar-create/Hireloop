@@ -4,7 +4,6 @@ import { processUserCronRun } from '../../src/services/cronEngine.js';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile.js';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher.js';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
-import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService.js';
 import type { DailyJob } from '../../src/types/dailyJob.js';
 import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist.js';
 import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator.js';
@@ -162,9 +161,8 @@ type JobPipelineResult = {
   debug: Record<string, unknown>;
 };
 
-async function runPipeline(uid: string, runDate: string, req: VercelRequest): Promise<JobPipelineResult> {
+async function runPipeline(uid: string, runDate: string, _req: VercelRequest): Promise<JobPipelineResult> {
   const db = getAdminDb();
-  const baseUrl = getBaseUrl(req);
   let storedJobs: DailyJob[] = [];
   let debug: Record<string, unknown> = {};
 
@@ -320,7 +318,6 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
               dedupedCount,
               deliveryTimezone,
               deliveryLocalDate: date,
-              emailSent: false,
               qualityLimited,
               warnings,
             },
@@ -351,22 +348,9 @@ async function runPipeline(uid: string, runDate: string, req: VercelRequest): Pr
             dedupedCount,
             deliveryTimezone,
             deliveryLocalDate: date,
-            emailSent: false,
               qualityLimited,
               warnings,
             }));
-      },
-      sendDailyEmail: async (email, jobs) => {
-        try {
-          const response = await fetch(`${baseUrl}/api/resend`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildDailyJobAlertsEmailPayload(email, jobs)),
-          });
-          if (!response.ok) console.warn('[jobs/index] Email send failed:', await response.text());
-        } catch (err) {
-          console.warn('[jobs/index] Email send threw:', err);
-        }
       },
     }
   );

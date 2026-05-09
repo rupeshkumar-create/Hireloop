@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
-import { sendSignupEmail } from '../services/emailService';
 
 import { ResumeAnalysis } from '../services/aiService';
 import type { LearningSignals } from '../services/learningSignals';
@@ -163,13 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 lastJobFetchTime: '1970-01-01T00:00:00.000Z',
               };
               setDoc(doc(db, 'users', currentUser.uid), newProfile)
-                .then(() => {
-                  // Send signup email when profile is successfully created
-                  if (newProfile.email) {
-                    sendSignupEmail(newProfile.email, newProfile.displayName || '');
-                  }
-                })
-                .catch(e => 
+                .catch(e =>
                   handleFirestoreError(e, OperationType.CREATE, `users/${currentUser.uid}`)
                 );
               setRealProfile(newProfile);

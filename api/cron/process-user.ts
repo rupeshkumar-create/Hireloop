@@ -10,7 +10,6 @@
  *  5. Store match reasons, gaps, and summaries with each job
  *  6. Store complete job objects in Firestore (inline, no redirects)
  *  7. Update seenJobFingerprints (capped at MAX_SEEN)
- *  8. Send email digest via Resend
  *
  * Pro users  → 10 jobs/day
  * Free users →  1 job/day
@@ -22,21 +21,10 @@ import { processUserCronRun } from '../../src/services/cronEngine.js';
 import { computeNextJobDeliveryAt } from '../../src/services/jobDeliveryProfile.js';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher.js';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
-import { buildDailyJobAlertsEmailPayload } from '../../src/services/emailService.js';
 import type { DailyJob } from '../../src/types/dailyJob.js';
 import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
-
-function getBaseUrl(req: VercelRequest): string {
-  const proto =
-    Array.isArray(req.headers['x-forwarded-proto'])
-      ? req.headers['x-forwarded-proto'][0]
-      : req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers.host || process.env.VERCEL_URL;
-  if (!host) throw new Error('Cannot determine request host');
-  return `${proto}://${host}`;
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -49,7 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const db = getAdminDb();
-    const baseUrl = getBaseUrl(req);
 
     const result = await processUserCronRun(
       { userId, runDate },
@@ -171,7 +158,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dedupedCount,
                 deliveryTimezone,
                 deliveryLocalDate: date,
-                emailSent: false,
                 qualityLimited,
                 warnings,
               },
@@ -209,27 +195,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               dedupedCount,
               deliveryTimezone,
               deliveryLocalDate: date,
-              emailSent: false,
               qualityLimited,
               warnings,
             }));
-        },
-
-        // ── Send email ──────────────────────────────────────────────────────
-        sendDailyEmail: async (email, jobs) => {
-          const response = await fetch(`${baseUrl}/api/resend`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildDailyJobAlertsEmailPayload(email, jobs)),
-          });
-          if (!response.ok) throw new Error('Failed to send daily alert email');
-
-          await db.collection('users').doc(userId).set(
-            {
-              dailyJobsMeta: { emailSent: true },
-            },
-            { merge: true }
-          );
         },
       }
     );

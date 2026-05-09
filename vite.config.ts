@@ -29,7 +29,6 @@ function localApiVercelPlugin() {
       const routeMap: Record<string, string> = {
         '/api/jobs': '/api/jobs/index.ts',
         '/api/openai': '/api/openai.ts',
-        '/api/resend': '/api/resend.ts',
         '/api/cron/process-user': '/api/cron/process-user.ts',
       };
 
