@@ -187,7 +187,11 @@ async function main() {
   const { db } = initAdmin();
   const now = new Date();
   const specificUserId = process.env.USER_ID?.trim();
-  const forceRerun = process.env.FORCE_RERUN === 'true';
+  // Single-user runs are always user-triggered (dashboard button or manual
+  // workflow_dispatch), so they must bypass any prior 'completed' cronRun
+  // for today. Otherwise the script returns 'skipped' and stale jobs persist.
+  // Cron mode (no USER_ID) still honors FORCE_RERUN for ops overrides.
+  const forceRerun = Boolean(specificUserId) || process.env.FORCE_RERUN === 'true';
 
   if (specificUserId) {
     // ── Single-user mode (user-triggered or admin override) ──────────────────
