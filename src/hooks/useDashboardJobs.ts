@@ -228,12 +228,19 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     // Prevent redundant runs only when today's batch is already at the
     // plan cap. A Pro user who upgraded after a Free run (1 stored job)
     // must still be able to regenerate up to 10.
+    //
+    // VITE_ALLOW_UNLIMITED_REGEN=true (in .env or Vercel env) lifts this
+    // gate entirely — useful while iterating on the matching pipeline.
+    // Leave it unset (or "false") in production so users don't burn
+    // Apify/OpenRouter credits with rapid re-clicks.
+    const allowUnlimitedRegen =
+      String(import.meta.env.VITE_ALLOW_UNLIMITED_REGEN || '').toLowerCase() === 'true';
     const now = new Date();
     const today = resolveTodayLocalDateKey(now, profile);
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
     const planCap = getDailyMatchLimit(profile?.plan);
 
-    if (fetchDate === today && jobs.length >= planCap) {
+    if (!allowUnlimitedRegen && fetchDate === today && jobs.length >= planCap) {
       toast.info("Scout has already found your matches for today. Come back tomorrow for a fresh batch!");
       return;
     }
