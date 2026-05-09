@@ -225,12 +225,15 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const requestJobs = async () => {
     if (!user || generatingJobs) return;
 
-    // Prevent redundant runs if jobs were already generated for today
+    // Prevent redundant runs only when today's batch is already at the
+    // plan cap. A Pro user who upgraded after a Free run (1 stored job)
+    // must still be able to regenerate up to 10.
     const now = new Date();
     const today = resolveTodayLocalDateKey(now, profile);
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
-    
-    if (fetchDate === today && jobs.length > 0) {
+    const planCap = getDailyMatchLimit(profile?.plan);
+
+    if (fetchDate === today && jobs.length >= planCap) {
       toast.info("Scout has already found your matches for today. Come back tomorrow for a fresh batch!");
       return;
     }
