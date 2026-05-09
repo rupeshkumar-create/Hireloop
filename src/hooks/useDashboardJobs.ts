@@ -64,7 +64,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [filterCompany, setFilterCompany] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterSalary, setFilterSalary] = useState('');
-  const [filterWorkType, setFilterWorkType] = useState<'remote' | 'all'>('remote');
+  // Default to 'all' so matches from the broad Apify pull (workType
+  // 'unknown') aren't silently hidden. Users can narrow to remote-only
+  // via the filter chip if they want — and the matching engine already
+  // applies any explicit user preference (matchingPreferences.remoteOnly)
+  // at scoring time.
+  const [filterWorkType, setFilterWorkType] = useState<'remote' | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('matchScore');
 
   useEffect(() => {
