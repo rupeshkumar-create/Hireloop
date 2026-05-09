@@ -514,11 +514,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[api/jobs] User verified:', uid);
     if (!uid) return res.status(401).json({ error: 'Missing Authorization header' });
   } catch (error: any) {
-    console.error('[api/jobs] Auth failed:', error.code || error.message);
-    const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
+    const code = error?.code || '';
+    const message = error?.message || String(error);
+    console.error('[api/jobs] Auth failed:', code, message);
+
+    // Surface diagnostics so the client can show a useful error instead of
+    // a generic "expired token" string. The token is a short-lived Firebase
+    // ID token — if verification fails it is almost always one of:
+    //   - service-account project mismatch
+    //   - malformed FIREBASE_SERVICE_ACCOUNT_KEY (JSON parse / private key)
+    //   - clock skew on the verifier
     return res.status(401).json({
-      error: 'Invalid or expired auth token',
-      ...(isLocal ? { detail: error.code || error.message } : {}),
+      error: 'Authentication failed.',
+      code: code || undefined,
+      detail: message,
     });
   }
 
