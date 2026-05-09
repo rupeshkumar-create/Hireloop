@@ -7,6 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import type { App } from 'firebase-admin/app';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 type GlobalAdminCache = {
   app: App | null;
@@ -33,6 +34,7 @@ function resolveFirestoreDatabaseIdFromEnv(): string | undefined {
   const raw =
     process.env.FIRESTORE_DATABASE_ID ||
     process.env.FIREBASE_FIRESTORE_DATABASE_ID ||
+    firebaseConfig.firestoreDatabaseId ||
     '';
 
   const value = raw.trim();

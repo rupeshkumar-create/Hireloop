@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 
 type AtsProvider = 'greenhouse' | 'lever';
 
@@ -20,7 +21,11 @@ function initAdmin() {
   const apps = getApps();
   const app = apps.length ? apps[0] : initializeApp({ credential: cert(serviceAccount) });
 
-  const dbId = (process.env.FIRESTORE_DATABASE_ID || '').trim();
+  const dbId = (
+    process.env.FIRESTORE_DATABASE_ID ||
+    firebaseConfig.firestoreDatabaseId ||
+    ''
+  ).trim();
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 
   return { db };
@@ -118,4 +123,3 @@ upsertSources().catch((err) => {
   console.error('Seed failed:', err);
   process.exitCode = 1;
 });
-

@@ -41,14 +41,20 @@ describe('getAdminDb', () => {
     delete process.env.FIREBASE_FIRESTORE_DATABASE_ID;
   });
 
-  it('uses the default Firestore database when no database id env var is set', async () => {
+  it('uses the configured firebase-applet database when no server database id env var is set', async () => {
     const { getAdminDb } = await import('../firebaseAdmin');
 
     const db = await getAdminDb();
 
-    expect(db).toMatchObject({ __db: true, databaseId: null });
+    expect(db).toMatchObject({
+      __db: true,
+      databaseId: 'ai-studio-d612fcdb-7a91-4b68-99fc-cca70ab71581',
+    });
     expect(getFirestoreMock).toHaveBeenCalledTimes(1);
-    expect(getFirestoreMock.mock.calls[0]).toHaveLength(1);
+    expect(getFirestoreMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'ai-studio-d612fcdb-7a91-4b68-99fc-cca70ab71581'
+    );
   });
 
   it('uses a named Firestore database when FIRESTORE_DATABASE_ID is set', async () => {
@@ -79,6 +85,21 @@ describe('getAdminDb', () => {
 
     expect(db).toMatchObject({ __db: true, databaseId: 'secondary-db' });
     expect(getFirestoreMock).toHaveBeenCalledWith(expect.anything(), 'secondary-db');
+  });
+
+  it('falls back to firebase-applet-config.json when Firestore env vars are unset', async () => {
+    const { getAdminDb } = await import('../firebaseAdmin');
+
+    const db = await getAdminDb();
+
+    expect(db).toMatchObject({
+      __db: true,
+      databaseId: 'ai-studio-d612fcdb-7a91-4b68-99fc-cca70ab71581',
+    });
+    expect(getFirestoreMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'ai-studio-d612fcdb-7a91-4b68-99fc-cca70ab71581'
+    );
   });
 
   it('caches the Firestore client per resolved database id', async () => {

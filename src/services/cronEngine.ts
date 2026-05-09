@@ -226,6 +226,7 @@ export async function processUserCronRun(
       status: 'completed',
       completedAt: new Date().toISOString(),
       jobsStored: result.jobs.length,
+      failureReason: null,
     });
 
     return { runId, status: 'completed' as const };

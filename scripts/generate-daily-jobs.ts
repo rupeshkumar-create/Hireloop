@@ -18,6 +18,7 @@
 
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 
 // ── Pull in shared business-logic from src/ ──────────────────────────────────
 // These modules are pure TypeScript with no browser-specific imports.
@@ -30,6 +31,7 @@ import {
 } from '../src/services/cronEngine';
 import type { DailyJob } from '../src/types/dailyJob';
 import { formatLocalDate } from '../src/lib/localDate';
+import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const BATCH_SIZE = 100;
@@ -44,7 +46,11 @@ function initAdmin() {
   const apps = getApps();
   const app = apps.length ? apps[0] : initializeApp({ credential: cert(serviceAccount) });
 
-  const dbId = (process.env.FIRESTORE_DATABASE_ID || '').trim();
+  const dbId = (
+    process.env.FIRESTORE_DATABASE_ID ||
+    firebaseConfig.firestoreDatabaseId ||
+    ''
+  ).trim();
   const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 
   return { db };
@@ -140,7 +146,11 @@ async function processUser(
         ].slice(-MAX_SEEN_FINGERPRINTS);
 
         await db.collection('users').doc(uid).set(
-          { dailyJobs: jobs, lastJobFetchTime: fetchedAt, seenJobFingerprints: nextFingerprints },
+          stripUndefinedDeep({
+            dailyJobs: jobs,
+            lastJobFetchTime: fetchedAt,
+            seenJobFingerprints: nextFingerprints,
+          }),
           { merge: true }
         );
 
@@ -153,7 +163,16 @@ async function processUser(
             .doc(uid)
             .collection('daily_matches')
             .doc(date)
-            .set({ userId: uid, date, generatedAt: fetchedAt, jobs, jobCount: jobs.length, sources });
+            .set(
+              stripUndefinedDeep({
+                userId: uid,
+                date,
+                generatedAt: fetchedAt,
+                jobs,
+                jobCount: jobs.length,
+                sources,
+              })
+            );
         }
       },
     }
