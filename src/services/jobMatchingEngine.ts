@@ -217,13 +217,17 @@ export async function matchAndRankJobs(
   const seenSet = new Set(seenFingerprints);
   const normalizedPreferences = normalizeUserPreferences(matchingPreferences || {});
   let usedSeenFallback = false;
-  
-  // 1. Initial Filtering & Deterministic Scoring
-  // Only process jobs that have never been seen before. 
-  // We remove the fallback to ensure users never see duplicate jobs across different days.
-  const candidateJobs = discoveredJobs.filter((job) => !seenSet.has(job.fingerprint));
-  usedSeenFallback = false; 
 
+  // 1. Initial Filtering & Deterministic Scoring
+  // Prefer unseen jobs (variety across days), but if Apify keeps returning
+  // listings the user has already seen, fall back to including them so we
+  // never starve a forced re-run with 0 results. Unseen are sorted ahead
+  // of seen so they win every available slot before we dip into seen.
+  const unseenJobs = discoveredJobs.filter((job) => !seenSet.has(job.fingerprint));
+  const seenJobs = discoveredJobs.filter((job) => seenSet.has(job.fingerprint));
+  const candidateJobs =
+    unseenJobs.length >= limit ? unseenJobs : [...unseenJobs, ...seenJobs];
+  usedSeenFallback = unseenJobs.length < limit && seenJobs.length > 0;
 
   const initialCandidates = candidateJobs
     .map((job) => ({

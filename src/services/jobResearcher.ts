@@ -245,6 +245,11 @@ export async function researchJobs(
   const errors: string[] = [];
   let successfulAttempts = 0;
 
+  // Run attempts in order and merge results. Stop early only when we have
+  // comfortably more than `target` candidates — a small strict pull alone
+  // would otherwise be entirely filtered out by the user's seen set later
+  // in the matching engine, leaving them with 0 jobs.
+  const seenFingerprints = new Set<string>();
   for (const attempt of attempts) {
     try {
       console.log(
@@ -253,9 +258,18 @@ export async function researchJobs(
       const items = await runCareerSiteActor(attempt.input, token);
       successfulAttempts += 1;
       console.log(`[jobResearcher] Career Site Actor (${attempt.label}) returned ${items.length} items.`);
-      allJobs = normalizeApifyJobs(items);
-      console.log(`[jobResearcher] Career Site Actor (${attempt.label}) normalized ${allJobs.length} usable jobs.`);
-      if (allJobs.length > 0) break;
+      const normalized = normalizeApifyJobs(items);
+      let added = 0;
+      for (const job of normalized) {
+        if (seenFingerprints.has(job.fingerprint)) continue;
+        seenFingerprints.add(job.fingerprint);
+        allJobs.push(job);
+        added += 1;
+      }
+      console.log(
+        `[jobResearcher] Career Site Actor (${attempt.label}) added ${added} new jobs (total ${allJobs.length}).`
+      );
+      if (allJobs.length >= target * 2) break;
     } catch (err) {
       console.warn(`[jobResearcher] Apify Career Site ${attempt.label} search failed:`, err);
       errors.push(err instanceof Error ? err.message : String(err));
