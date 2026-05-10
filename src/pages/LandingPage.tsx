@@ -20,7 +20,11 @@ const LP_STYLE = `
     font-size: 16px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    /* Use overflow-x: clip (not hidden). overflow:hidden makes this a
+       scrolling container, which breaks position:sticky on descendants
+       like the Why Hireschema left panel. overflow:clip hides overflow
+       without creating a scroll container. */
+    overflow-x: clip;
   }
   /* reset inherited app vars */
   .lp-root * { box-sizing: border-box; }
@@ -33,27 +37,6 @@ const LP_STYLE = `
     z-index: 200; transition: width 80ms linear;
     pointer-events: none;
   }
-
-  /* custom cursor */
-  .lp-cursor {
-    position: fixed; width: 8px; height: 8px;
-    background: var(--lp-fg); border-radius: 50%;
-    pointer-events: none; z-index: 9999;
-    transform: translate(-50%,-50%);
-    transition: width 200ms ease, height 200ms ease, opacity 200ms ease;
-    mix-blend-mode: multiply;
-  }
-  .lp-cursor-ring {
-    position: fixed; width: 36px; height: 36px;
-    border: 1px solid var(--lp-fg); border-radius: 50%;
-    pointer-events: none; z-index: 9998;
-    transform: translate(-50%,-50%);
-    transition: width 300ms cubic-bezier(.22,1,.36,1), height 300ms cubic-bezier(.22,1,.36,1),
-                opacity 300ms ease, border-color 300ms ease;
-    opacity: .5;
-  }
-  .lp-cursor-link .lp-cursor { width:0;height:0;opacity:0; }
-  .lp-cursor-link .lp-cursor-ring { width:56px;height:56px;opacity:1;border-color:var(--lp-accent); }
 
   /* layout */
   .lp-container { max-width:1200px; margin:0 auto; padding:0 32px; }
@@ -533,10 +516,21 @@ const LP_STYLE = `
     .lp-hero { padding:32px 0 28px; }
     .lp-how,.lp-features,.lp-testi,.lp-pricing,.lp-cta { padding:64px 0; }
     .lp-footer-grid { grid-template-columns:1fr; gap:32px; }
+    .lp-feat-item { padding:32px 0 32px 16px; }
+    .lp-feat-list { gap:0; }
+  }
+  @media(max-width:420px){
+    .lp-container { padding:0 16px; }
+    .lp-nav-inner { padding:0 16px; }
+    .lp-hero { padding:24px 0 20px; }
+    .lp-display.lp-dh { font-size:clamp(32px,9vw,42px); }
+    .lp-display.lp-ds { font-size:clamp(26px,7.5vw,34px); }
+    .lp-pricing,.lp-plan { padding:32px 16px; }
+    .lp-feat-item-hdr { flex-direction:column; gap:6px; }
+    .lp-feat-tag { padding-top:0; }
   }
   @media(prefers-reduced-motion:reduce){
     .lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s { opacity:1 !important; transform:none !important; }
-    .lp-cursor,.lp-cursor-ring { display:none !important; }
   }
 `;
 
@@ -578,8 +572,6 @@ function ArrowIcon() {
 
 export function LandingPage() {
   const { user, loading } = useAuth();
-  const cursorRef = useRef<HTMLDivElement>(null);
-  const cursorRingRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -609,41 +601,6 @@ export function LandingPage() {
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // custom cursor
-  useEffect(() => {
-    const cur = cursorRef.current;
-    const ring = cursorRingRef.current;
-    const root = rootRef.current;
-    if (!cur || !ring || !root) return;
-
-    let mx = 0, my = 0, rx = 0, ry = 0;
-    let raf: number;
-
-    const onMove = (e: MouseEvent) => {
-      mx = e.clientX; my = e.clientY;
-      cur.style.left = mx + 'px'; cur.style.top = my + 'px';
-    };
-    const animRing = () => {
-      rx += (mx - rx) * 0.12;
-      ry += (my - ry) * 0.12;
-      ring.style.left = rx + 'px';
-      ring.style.top  = ry + 'px';
-      raf = requestAnimationFrame(animRing);
-    };
-    raf = requestAnimationFrame(animRing);
-    document.addEventListener('mousemove', onMove);
-
-    const links = root.querySelectorAll('a, button');
-    const onEnter = () => root.classList.add('lp-cursor-link');
-    const onLeave = () => root.classList.remove('lp-cursor-link');
-    links.forEach(el => { el.addEventListener('mouseenter', onEnter); el.addEventListener('mouseleave', onLeave); });
-
-    return () => {
-      document.removeEventListener('mousemove', onMove);
-      cancelAnimationFrame(raf);
-    };
   }, []);
 
   // scroll reveals + stat counters
@@ -717,8 +674,6 @@ export function LandingPage() {
   return (
     <div ref={rootRef} className="lp-root">
       <div ref={progressRef} className="lp-progress" />
-      <div ref={cursorRef} className="lp-cursor" />
-      <div ref={cursorRingRef} className="lp-cursor-ring" />
 
       {/* ── Nav ── */}
       <nav ref={navRef} className="lp-nav">
