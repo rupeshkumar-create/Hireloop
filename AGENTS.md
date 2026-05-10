@@ -29,8 +29,8 @@ Every AI task has an assigned model. Never change routing without updating `MODE
 
 | Task | Model (via OpenRouter) |
 |------|----------------------|
-| `query_generation`, `resume_analysis`, `career_path_suggestion`, `job_preference_extraction`, `recruiter_email_extraction` | `openai/gpt-4o-mini` |
-| `job_scoring`, `resume_summary` | `google/gemini-pro-1.5` |
+| `query_generation`, `resume_analysis`, `career_path_suggestion`, `job_preference_extraction`, `recruiter_email_extraction`, `job_scoring` | `openai/gpt-4o-mini` |
+| `resume_summary` | `google/gemini-pro-1.5` |
 | `email_generation`, `resume_tailoring`, `text_improvement` | `anthropic/claude-3.5-sonnet` |
 | `resume_extraction` | `openai/gpt-4o` |
 | `interview_questions`, `salary_insights` | `anthropic/claude-3.5-sonnet` |
@@ -43,7 +43,7 @@ All calls flow through `api/openai.ts` — an OpenRouter proxy using the `openai
 User Profile → Scout (query gen) → Harvester (Perplexity/Gemini search)
 → Deduplicate (fingerprint: title::company)
 → Validator (hard rules — remote/location/salary/freshness/URL)
-→ AI Scoring (Gemini batch score)
+→ AI Scoring (GPT-4o-mini batch score)
 → Top-15 Enrichment (Codex: matchReasons, skillGaps, aiSummary, hotSignals)
 → Final Score (composite: match×0.5 + freshness×0.2 + quality×0.2 + hotJob×0.1)
 → Selection (plan cap: Free=1, Pro=10)

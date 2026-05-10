@@ -9,7 +9,7 @@ Do not route tasks to unapproved models.
 ### Task Map
 
 - `query_generation` -> `openai/gpt-4o-mini`
-- `job_scoring` -> `google/gemini-pro-1.5`
+- `job_scoring` -> `openai/gpt-4o-mini`
 - `email_generation` -> `anthropic/claude-3.5-sonnet`
 - `resume_tailoring` -> `anthropic/claude-3.5-sonnet`
 - `resume_extraction` -> `openai/gpt-4o`
@@ -35,6 +35,7 @@ Use cases:
 - resume analysis
 - job preference extraction
 - recruiter email extraction
+- job scoring
 
 Rule:
 Use this model for lightweight structured generation and extraction tasks where speed matters more than deep writing quality.
@@ -48,7 +49,6 @@ Model:
 `google/gemini-pro-1.5`
 
 Use cases:
-- job scoring
 - resume summarization
 - high-context ranking inputs
 
