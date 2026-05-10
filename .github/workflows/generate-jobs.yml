@@ -1,9 +1,13 @@
 name: Generate Daily Jobs
 
 on:
-  # ── Scheduled: daily at 2:30 AM UTC (8:00 AM IST) ────────────────────────
+  # ── Scheduled: primary run at 2:30 AM UTC (8:00 AM IST) ──────────────────
+  # Plus a catch-up at 9:00 AM UTC that retries any user whose primary
+  # cronRun is missing or 'failed'. cronEngine skips any 'completed' or
+  # 'processing' run, so the catch-up is a no-op for healthy users.
   schedule:
     - cron: '30 2 * * *'
+    - cron: '0 9 * * *'
 
   # ── Manual: run from the GitHub Actions UI (optionally for one user) ──────
   workflow_dispatch:

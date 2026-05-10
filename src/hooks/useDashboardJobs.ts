@@ -50,6 +50,64 @@ type GeneratedTrackedJobAssets = {
   interviewQuestions?: string | string[];
 };
 
+// ── Auto-trigger helpers ─────────────────────────────────────────────────────
+// When a user opens the dashboard and we find no matches for today, we
+// opportunistically dispatch a fresh Scout run instead of leaving them
+// staring at an empty state. Self-heals when the scheduled GitHub Actions
+// cron is delayed, skipped, or fails silently for this user.
+const AUTO_TRIGGER_STORAGE_KEY = 'hireschema:auto-trigger-date';
+
+function getAutoTriggerDate(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(AUTO_TRIGGER_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setAutoTriggerDate(date: string): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(AUTO_TRIGGER_STORAGE_KEY, date);
+  } catch {
+    // localStorage can throw in private windows / quota — non-fatal
+  }
+}
+
+function localHourFor(profile: any, now: Date): number {
+  const tz = resolveDeliveryTimeZone(profile);
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      hour12: false,
+    });
+    const formatted = formatter.format(now);
+    const parsed = parseInt(formatted, 10);
+    return Number.isFinite(parsed) ? parsed : now.getUTCHours();
+  } catch {
+    return now.getUTCHours();
+  }
+}
+
+function shouldAutoTriggerScout(profile: any, today: string, now: Date): boolean {
+  if (!profile) return false;
+  // Honor the user's "pause daily matches" toggle
+  if (profile.receiveDailyAlerts === false) return false;
+  // Profile not ready for matching — never trigger, would just fail
+  if (profile.matchReadiness?.status === 'blocked') return false;
+  if (!profile.resumeText || profile.resumeText.trim().length < 50) return false;
+  // Already auto-triggered for today (in this browser) — don't spam
+  if (getAutoTriggerDate() === today) return false;
+  // Wait until the user's preferred delivery hour has passed before
+  // assuming the cron should have run.
+  const preferredHour = typeof profile.preferredDeliveryHour === 'number'
+    ? profile.preferredDeliveryHour
+    : 8;
+  return localHourFor(profile, now) >= preferredHour;
+}
+
 export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<DailyJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
@@ -177,7 +235,19 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         // stale cache from a previous day — fall through to empty state
       }
 
-      // 3. No jobs at all — show empty state (handled in the UI via jobs.length === 0)
+      // 3. No jobs found for today — opportunistically auto-trigger Scout if
+      //    we're past the user's preferred delivery hour. Self-heals when
+      //    the daily GitHub Actions cron was delayed, skipped, or silently
+      //    failed for this user. Guarded by localStorage so we never fire
+      //    more than once per day per browser.
+      if (!generatingJobs && shouldAutoTriggerScout(profile, today, now)) {
+        setAutoTriggerDate(today);
+        console.log('[useDashboardJobs] No matches for today — auto-triggering Scout.');
+        // Fire-and-forget. requestJobs manages its own spinner + toast,
+        // and the reactive useEffect below will display jobs the moment
+        // Firestore receives them.
+        void requestJobs();
+      }
     } catch (error) {
       console.error('[useDashboardJobs] loadJobs failed:', error);
     } finally {
