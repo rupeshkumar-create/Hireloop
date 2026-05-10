@@ -81,10 +81,12 @@ export function AiResultModal({ isOpen, onClose, type, jobTitle, company, locati
                   </button>
                 )}
                 <button
+                  type="button"
+                  aria-label="Close"
                   onClick={onClose}
-                  className="rounded-full p-1.5 text-[var(--hs-app-muted)] hover:bg-[var(--hs-app-border)] hover:text-[var(--hs-app-fg)] transition-colors"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] text-[var(--hs-app-fg)] transition-all hover:bg-[var(--hs-app-fg)] hover:text-[var(--hs-app-surface)] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--hs-app-fg)]/40"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" strokeWidth={2.25} />
                 </button>
               </div>
             </div>

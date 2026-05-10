@@ -328,10 +328,12 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
               <Download className="mr-1.5 h-4 w-4 text-blue-500" /> DOCX
             </Button>
             <button
+              type="button"
+              aria-label="Close preview"
               onClick={onClose}
-              className="rounded-full p-2 text-foreground-muted transition-colors hover:bg-border hover:text-foreground"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all hover:bg-foreground hover:text-surface hover:shadow-md focus:outline-none focus:ring-2 focus:ring-foreground/40"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" strokeWidth={2.25} />
             </button>
           </div>
         </div>

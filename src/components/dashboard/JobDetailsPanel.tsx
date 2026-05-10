@@ -43,6 +43,15 @@ export function JobDetailsPanel({
     }
   }, [aiAction]);
 
+  // ESC key closes the panel — standard modal accessibility
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const aiModalOpen =
     (aiAction === 'interview' || aiAction === 'salary') && !aiModalDismissed;
   const isFallbackUrl = isJobUrlFallback(selectedJob);
@@ -57,11 +66,13 @@ export function JobDetailsPanel({
           onClick={(e) => e.stopPropagation()}
           className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] font-sans shadow-2xl"
         >
-          <button 
+          <button
+            type="button"
+            aria-label="Close job details"
             onClick={onClose}
-            className="absolute right-4 top-4 z-10 rounded-full bg-[var(--hs-app-bg)] p-2 transition-colors hover:bg-[var(--hs-app-bg)]"
+            className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] text-[var(--hs-app-fg)] shadow-sm transition-all hover:bg-[var(--hs-app-fg)] hover:text-[var(--hs-app-surface)] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--hs-app-fg)]/40"
           >
-            <X className="h-5 w-5 text-[var(--hs-app-muted)]" />
+            <X className="h-5 w-5" strokeWidth={2.25} />
           </button>
 
           <div className="p-6 md:p-8 overflow-y-auto flex-1">

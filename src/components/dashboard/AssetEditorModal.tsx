@@ -63,9 +63,14 @@ export function AssetEditorModal({
                 <h2 className="text-xl font-medium text-foreground">{title}</h2>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-                  <X className="h-5 w-5 text-foreground-muted" />
-                </Button>
+                <button
+                  type="button"
+                  aria-label="Close editor"
+                  onClick={onClose}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all hover:bg-foreground hover:text-surface hover:shadow-md focus:outline-none focus:ring-2 focus:ring-foreground/40"
+                >
+                  <X className="h-5 w-5" strokeWidth={2.25} />
+                </button>
               </div>
             </div>
 
