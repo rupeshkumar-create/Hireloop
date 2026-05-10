@@ -8,6 +8,7 @@ import { useDashboardAI } from '../hooks/useDashboardAI';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
+import { getDailyMatchLimit } from '../lib/planLimits';
 
 function companyInitials(company: string) {
   return company
@@ -62,7 +63,10 @@ export function Dashboard() {
     }
   }, []);
 
-  const topJobs = filteredAndSortedJobs.slice(0, 4);
+  // Show the full daily batch up to the user's plan cap (1 for Free, 10
+  // for Pro). Earlier this was hardcoded to 4 and silently hid 6 of a
+  // Pro user's matches even though the stat tile said "10 new matches".
+  const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
   const bestScore = topJobs.reduce((max, job) => Math.max(max, job.matchScore || job.finalScore || 0), 0);
   const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const nextRun = nextJobDeliveryAt ? new Date(nextJobDeliveryAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'tomorrow morning';
