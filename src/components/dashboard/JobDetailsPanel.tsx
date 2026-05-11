@@ -57,14 +57,17 @@ export function JobDetailsPanel({
   const isFallbackUrl = isJobUrlFallback(selectedJob);
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
-        <motion.div 
+      <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+        <motion.div
           initial={{ x: '100%' }}
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] font-sans shadow-2xl"
+          /* h-screen guarantees full viewport height even if a parent
+             collapses; min-h-0 lets the inner flex-1 child shrink and scroll
+             correctly so the AI Copilot footer stays pinned to the bottom. */
+          className="relative flex h-screen min-h-0 w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] font-sans shadow-2xl"
         >
           <button
             type="button"
@@ -75,7 +78,7 @@ export function JobDetailsPanel({
             <X className="h-5 w-5" strokeWidth={2.25} />
           </button>
 
-          <div className="p-6 md:p-8 overflow-y-auto flex-1">
+          <div className="p-6 md:p-8 overflow-y-auto flex-1 min-h-0">
             <div className="flex justify-between items-start mb-2 pr-10">
               <h2 className="hs-section-title text-[var(--hs-app-fg)]">{selectedJob.title}</h2>
               {selectedJob.matchScore !== undefined && (
@@ -144,7 +147,7 @@ export function JobDetailsPanel({
             </div>
           </div>
 
-          <div className="border-t border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-6 md:p-8">
+          <div className="mt-auto shrink-0 border-t border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-6 md:p-8">
             <h4 className="mb-4 text-[15px] font-semibold text-[var(--hs-app-fg)]">AI Copilot</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button type="button" className="hs-btn" onClick={() => handleAiAction('email', selectedJob)}>
