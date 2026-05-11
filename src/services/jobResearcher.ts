@@ -212,6 +212,10 @@ export async function researchJobs(
   }
 
   let allJobs: DiscoveredJob[] = [];
+  // Remote-only is enforced for every attempt. Apify's aiWorkArrangementFilter
+  // ('Remote OK' + 'Remote Solely') keeps the discovery pool clean of onsite /
+  // hybrid roles, and remoteOnly:true gives Apify a second hard filter so we
+  // don't have to rescue with downstream filtering.
   const baseInput = {
     limit: Math.max(10, Math.min(100, target)),
     includeAi: true,
@@ -222,7 +226,8 @@ export async function researchJobs(
     populateAiRemoteLocation: false,
     populateAiRemoteLocationDerived: false,
     removeAgency: false,
-    remoteOnly: false,
+    remoteOnly: true,
+    aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'] as ('Remote OK' | 'Remote Solely')[],
   };
   const attempts: Array<{ label: string; input: ApifyCareerSiteInput }> = [
     {
@@ -231,7 +236,6 @@ export async function researchJobs(
         ...baseInput,
         timeRange: '7d' as const,
         titleSearch: apifyTitleSearch(opts.careerPaths || []),
-        aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'],
       },
     },
     {
@@ -280,7 +284,19 @@ export async function researchJobs(
     throw new Error(`Apify job discovery failed: ${errors.join(' | ') || 'No actor attempts completed.'}`);
   }
 
-  const { jobs, deduplicated } = deduplicateJobs(allJobs);
+  // Belt-and-suspenders remote filter — defends against any onsite / hybrid
+  // listings Apify's filters fail to catch (some career sites mislabel work
+  // arrangement). A job qualifies as remote if its workType is 'remote' OR
+  // its location text contains 'remote', 'anywhere', or 'work from home'.
+  const REMOTE_LOC_RE = /remote|anywhere|work\s*from\s*home|wfh/i;
+  const remoteOnly = allJobs.filter((j) => {
+    if (j.workType === 'remote') return true;
+    if (REMOTE_LOC_RE.test(j.location || '')) return true;
+    return false;
+  });
+  console.log(`[jobResearcher] Remote-only filter: ${allJobs.length} -> ${remoteOnly.length} jobs.`);
+
+  const { jobs, deduplicated } = deduplicateJobs(remoteOnly);
   const selected = jobs.sort((a, b) => a.daysOld - b.daysOld).slice(0, target);
 
   const sourceCounts: Record<string, number> = {};

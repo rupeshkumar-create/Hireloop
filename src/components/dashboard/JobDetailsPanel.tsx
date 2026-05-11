@@ -120,7 +120,6 @@ export function JobDetailsPanel({
             <div className="hs-tags mb-6">
               <span className="hs-tag flex items-center gap-1"><MapPin className="h-3 w-3" /> {selectedJob.location || 'Remote'}</span>
               <span className="hs-tag flex items-center gap-1"><DollarSign className="h-3 w-3" /> {selectedJob.salary || 'Salary not listed'}</span>
-              {selectedJob.workType && <span className="hs-tag">{selectedJob.workType}</span>}
             </div>
 
             <div className="space-y-8">

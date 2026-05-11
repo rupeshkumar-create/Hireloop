@@ -6,7 +6,6 @@ import { doc, setDoc, addDoc, collection, getDocs, getDoc, updateDoc, query, ord
 import { db } from '../firebase';
 import { cn } from '../lib/utils';
 import { runAdminGhostMode } from '../services/adminGhostMode';
-import { researchJobs } from '../services/jobResearcher';
 import type { CallAIFn } from '../services/jobResearcher';
 import { matchAndRankJobs } from '../services/jobMatchingEngine';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
@@ -551,16 +550,40 @@ export function AdminDashboard() {
               return (data as any).choices?.[0]?.message?.content?.trim() || '';
             };
 
-            const { jobs: discovered, sources: sourceBreakdown, totalFound } = await researchJobs(
-              {
+            // Discovery runs server-side so APIFY_API_TOKEN never ships in
+            // the browser bundle. The admin client just gets the resulting
+            // job list and matches/scores it locally with the AI proxy.
+            const idToken = await adminUser.getIdToken(true);
+            const discoverResp = await fetch('/api/admin/ghost-discover', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({
                 careerPaths: input.careerPaths,
                 resumeText: input.resumeText,
                 jobType: input.jobType,
                 location: input.location,
                 targetCount: 30,
-              },
-              clientCallAI
-            );
+              }),
+            });
+            if (!discoverResp.ok) {
+              const errBody = await discoverResp.json().catch(() => ({}));
+              throw new Error(
+                (errBody as any).error ||
+                  `Ghost discovery failed (HTTP ${discoverResp.status})`
+              );
+            }
+            const {
+              jobs: discovered,
+              sources: sourceBreakdown,
+              totalFound,
+            } = (await discoverResp.json()) as {
+              jobs: any[];
+              sources: Record<string, number>;
+              totalFound: number;
+            };
 
             const matchResult = await matchAndRankJobs(
               discovered,

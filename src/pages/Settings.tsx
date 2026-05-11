@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { Save, Upload, X, Plus, Loader2, CreditCard, CheckCircle2, Sparkles } from 'lucide-react';
+import { Save, Upload, X, Plus, Loader2, CreditCard, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageShell } from '../components/ui/page-shell';
 import { useResumeParser } from '../hooks/useResumeParser';
@@ -319,44 +319,6 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-border flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-foreground-muted block">Daily Job Matches</label>
-                <p className="text-xs text-foreground-muted mt-0.5">Generate fresh AI-curated job matches automatically each day. Turn off to pause the daily run.</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  name="receiveDailyAlerts"
-                  className="sr-only peer" 
-                  checked={formData.receiveDailyAlerts}
-                  onChange={handleChange}
-                />
-                <div className="peer h-6 w-11 rounded-full bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[rgba(56,152,236,0.28)] peer-checked:bg-foreground peer-checked:after:translate-x-full peer-checked:after:border-border after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border-strong after:bg-surface after:transition-all after:content-['']"></div>
-              </label>
-            </div>
-
-            <div className="pt-4 border-t border-border flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-foreground-muted block flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-foreground" />
-                  AI Humanizer (Anti-Slop Filter)
-                </label>
-                <p className="text-xs text-foreground-muted mt-0.5 max-w-[80%]">
-                  Prevents the AI from using robotic buzzwords like "delve", "robust", or "tapestry" in your emails and tailored resumes. Keeps your writing concise and professional.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  name="antiSlopEnabled"
-                  className="sr-only peer" 
-                  checked={formData.antiSlopEnabled}
-                  onChange={handleChange}
-                />
-                <div className="peer h-6 w-11 rounded-full bg-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[rgba(56,152,236,0.28)] peer-checked:bg-foreground peer-checked:after:translate-x-full peer-checked:after:border-border after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border-strong after:bg-surface after:transition-all after:content-['']"></div>
-              </label>
-            </div>
           </CardContent>
         </Card>
 

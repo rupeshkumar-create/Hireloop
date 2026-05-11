@@ -4,10 +4,8 @@ import {
   Bookmark,
   ClipboardCheck,
   FileText,
-  HelpCircle,
   LayoutDashboard,
   LogOut,
-  Mail,
   MessageSquareText,
   Moon,
   Settings,
@@ -32,13 +30,6 @@ function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: bo
       items: [
         { name: 'Saved Jobs', path: '/saved', icon: Bookmark, count: savedCount },
         { name: 'Resume', path: '/resume', icon: FileText },
-      ],
-    },
-    {
-      label: 'AI Tools',
-      items: [
-        { name: 'Cover Letters', path: '/cover-letters', icon: Mail },
-        { name: 'Interview Prep', path: '/interview-prep', icon: HelpCircle },
       ],
     },
     {

@@ -246,15 +246,27 @@ function JobCard({
   onSave: () => void;
   onDismiss: () => void;
 }) {
-  const postedLabel = job.daysOld === 0
-    ? 'Today'
-    : job.daysOld === 1
-    ? 'Yesterday'
-    : job.daysOld != null
-    ? `${job.daysOld}d ago`
-    : job.postedAt
-    ? new Date(job.postedAt).toLocaleDateString()
-    : '';
+  // Combine relative freshness ("Today" / "Yesterday" / "3d ago") with the
+  // actual calendar date so users see both at a glance.
+  const postedLabel = (() => {
+    let postedDate: Date | null = null;
+    let days: number | null = null;
+    if (job.postedAt) {
+      const d = new Date(job.postedAt);
+      if (!Number.isNaN(d.getTime())) {
+        postedDate = d;
+        days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
+      }
+    }
+    if (days === null && typeof job.daysOld === 'number') {
+      days = Math.max(0, job.daysOld);
+      postedDate = new Date(Date.now() - days * 86_400_000);
+    }
+    if (days === null || !postedDate) return '';
+    const dateLabel = postedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const relative = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`;
+    return `${relative} · ${dateLabel}`;
+  })();
 
   return (
     <Card

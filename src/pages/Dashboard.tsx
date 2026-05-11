@@ -19,13 +19,31 @@ function companyInitials(company: string) {
     .join('') || 'JB';
 }
 
+// "Today · May 10"  /  "Yesterday · May 9"  /  "3d ago · May 7"
+// Combines a relative freshness label with the actual posted date so users
+// see both how stale the listing is AND the calendar date.
 function formatPosted(job: Job) {
-  if (typeof job.daysOld === 'number') {
-    if (job.daysOld <= 0) return 'today';
-    if (job.daysOld === 1) return '1d ago';
-    return `${job.daysOld}d ago`;
+  let postedDate: Date | null = null;
+  let days: number | null = null;
+
+  if (job.postedAt) {
+    const d = new Date(job.postedAt);
+    if (!Number.isNaN(d.getTime())) {
+      postedDate = d;
+      days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
+    }
   }
-  return job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'fresh';
+  if (days === null && typeof job.daysOld === 'number') {
+    days = Math.max(0, job.daysOld);
+    postedDate = new Date(Date.now() - days * 86_400_000);
+  }
+
+  if (days === null || !postedDate) return 'Fresh';
+
+  const dateLabel = postedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const relative =
+    days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`;
+  return `${relative} · ${dateLabel}`;
 }
 
 export function Dashboard() {
@@ -159,10 +177,8 @@ export function Dashboard() {
                     </div>
                     <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
                     <div className="hs-tags mb-3">
-                      <span className="hs-tag">{job.workType || 'remote'}</span>
                       {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
                       {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
-                      {job.source ? <span className="hs-tag">{job.source}</span> : null}
                     </div>
                     <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
                       {job.aiSummary || job.aiInsight || job.description}
