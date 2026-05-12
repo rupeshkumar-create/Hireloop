@@ -1,15 +1,22 @@
 /**
  * One-time script: grants superAdmin custom claim to a Firebase user.
- * Run with: node scripts/bootstrap-admin.mjs
+ * Run with: node scripts/bootstrap-admin.mjs <email>
  *
- * Reads FIREBASE_SERVICE_ACCOUNT_KEY from .env.local (handles raw newlines in private_key).
+ * Reads FIREBASE_SERVICE_ACCOUNT_KEY from .env.local first, falling back to
+ * .env (handles raw newlines in private_key).
  */
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-// ── Parse .env.local manually ─────────────────────────────────────────────────
+// ── Parse env file manually ───────────────────────────────────────────────────
 function loadEnvLocal() {
-  const envPath = resolve(process.cwd(), '.env.local');
+  const candidates = ['.env.local', '.env'];
+  const envPath = candidates
+    .map((file) => resolve(process.cwd(), file))
+    .find((p) => existsSync(p));
+  if (!envPath) {
+    throw new Error('No .env.local or .env file found in current directory.');
+  }
   const content = readFileSync(envPath, 'utf8');
   const env = {};
   // Split on lines that start a new KEY= assignment

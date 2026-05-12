@@ -1,3 +1,10 @@
+import {
+  detectRemoteRegion,
+  inferUserCountry,
+  isRegionEligibleForCountry,
+  type UserCountry,
+} from './remoteEligibility.js';
+
 export interface ValidationResult {
   passed: boolean;
   reason?: string;
@@ -11,6 +18,8 @@ export interface GuardrailUserContext {
     salaryFloor?: number | null;
     locations?: string[];
   };
+  deliveryTimezone?: string;
+  country?: UserCountry;
 }
 
 export interface GuardrailJobInput {
@@ -158,8 +167,9 @@ export function syncLegacyPreferenceFields(
 }
 
 export function jobMatchesUserPreferences(
-  job: { isRemote: boolean; salary?: string; location: string },
-  preferences: NormalizedUserPreferences
+  job: { isRemote: boolean; salary?: string; location: string; description?: string },
+  preferences: NormalizedUserPreferences,
+  userCountry: UserCountry = 'UNKNOWN'
 ): ValidationResult {
   if (preferences.remoteOnly && !job.isRemote) {
     return {
@@ -176,6 +186,24 @@ export function jobMatchesUserPreferences(
         passed: false,
         code: 'SALARY_FLOOR_MISMATCH',
         reason: 'Job salary is below the required salary floor.',
+      };
+    }
+  }
+
+  // For remote jobs, restrict by detected eligibility region (e.g. a
+  // "Remote – United States" listing is not eligible for an India-based user).
+  // Conservative: only reject when both region and country are known.
+  if (job.isRemote) {
+    const region = detectRemoteRegion({
+      location: job.location,
+      description: job.description,
+    });
+    if (!isRegionEligibleForCountry(region, userCountry)) {
+      return {
+        passed: false,
+        code: 'REMOTE_REGION_MISMATCH',
+        reason: `Remote job is restricted to ${region.toUpperCase()} and is not eligible for ${userCountry}.`,
+        details: { region, userCountry },
       };
     }
   }
@@ -233,13 +261,22 @@ export function validateJob(
     };
   }
 
+  const userCountry =
+    user.country ||
+    inferUserCountry({
+      deliveryTimezone: user.deliveryTimezone,
+      locations: normalizedPreferences.locations,
+    });
+
   const preferenceValidation = jobMatchesUserPreferences(
     {
       isRemote: job.isRemote,
       salary: job.salary,
       location: job.location,
+      description: job.description,
     },
-    normalizedPreferences
+    normalizedPreferences,
+    userCountry
   );
   if (!preferenceValidation.passed) {
     return preferenceValidation;

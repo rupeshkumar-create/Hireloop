@@ -271,6 +271,7 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
             seenFingerprints,
             limit,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
+            deliveryTimezone: profile.deliveryTimezone,
           }
         );
         debug = {

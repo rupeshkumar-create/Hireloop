@@ -1,6 +1,7 @@
 import type { DiscoveredJob, CallAIFn } from './jobResearcher.js';
 import type { DailyJob } from '../types/dailyJob.js';
 import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator.js';
+import { inferUserCountry, type UserCountry } from './remoteEligibility.js';
 
 const STOP_WORDS = new Set([
   'and', 'the', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are',
@@ -224,6 +225,8 @@ export interface MatchOptions {
     salaryFloor?: number | null;
     locations?: string[];
   };
+  deliveryTimezone?: string;
+  userCountry?: UserCountry;
 }
 
 export interface MatchResult {
@@ -247,10 +250,18 @@ export async function matchAndRankJobs(
     limit = 10,
     minMatchScore = 0, // Temporarily disabled for testing
     matchingPreferences,
+    deliveryTimezone,
+    userCountry: explicitCountry,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
   const normalizedPreferences = normalizeUserPreferences(matchingPreferences || {});
+  const userCountry =
+    explicitCountry ||
+    inferUserCountry({
+      deliveryTimezone,
+      locations: normalizedPreferences.locations,
+    });
   let usedSeenFallback = false;
 
   // 1. Initial Filtering & Deterministic Scoring
@@ -264,14 +275,32 @@ export async function matchAndRankJobs(
     unseenJobs.length >= limit ? unseenJobs : [...unseenJobs, ...seenJobs];
   usedSeenFallback = unseenJobs.length < limit && seenJobs.length > 0;
 
+  let preferenceFilteredCount = 0;
   const initialCandidates = candidateJobs
     .map((job) => ({
       job,
       detScore: deterministicMatchScore(job, careerPaths, resumeText),
     }))
-    .filter(({ job, detScore }) => {
-      // Temporarily allowing all jobs for testing connectivity
-      return true;
+    .filter(({ job }) => {
+      const result = jobMatchesUserPreferences(
+        {
+          isRemote: job.workType === 'remote',
+          salary: job.salary,
+          location: job.location,
+          description: job.description,
+        },
+        normalizedPreferences,
+        userCountry
+      );
+      if (!result.passed) {
+        preferenceFilteredCount++;
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(
+            `[jobMatchingEngine] Filtered "${job.title}" @ ${job.company} (${job.location}) — ${result.code}`
+          );
+        }
+      }
+      return result.passed;
     })
     .sort((a, b) => b.detScore - a.detScore);
 

@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import html2pdf from 'html2pdf.js';
 import { toast } from 'sonner';
+import { sanitizeUnsupportedColors } from '../../lib/pdfSanitize';
 
 interface Props {
   isOpen: boolean;
@@ -35,7 +36,14 @@ export function AiResultModal({ isOpen, onClose, type, jobTitle, company, locati
           margin: [0.5, 0.6, 0.5, 0.6],
           filename,
           image: { type: 'jpeg', quality: 0.97 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            onclone: (_doc: Document, clonedEl: HTMLElement) => {
+              sanitizeUnsupportedColors(clonedEl);
+            },
+          },
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
         })
         .from(contentRef.current)

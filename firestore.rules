@@ -8,12 +8,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Super Admin: custom claim OR known admin emails
+    // Super Admin: custom claim OR known admin emails (case-insensitive).
+    // Emails compared with .lower() so a registration like "Kv3244@gmail.com"
+    // still resolves to the canonical lowercase admin entry.
     function isSuperAdmin() {
       return isAuthenticated() && (
         request.auth.token.superAdmin == true ||
-        request.auth.token.email == 'rupesh7126@gmail.com' ||
-        request.auth.token.email == 'kv3244@gmail.com'
+        request.auth.token.email.lower() == 'rupesh7126@gmail.com' ||
+        request.auth.token.email.lower() == 'kv3244@gmail.com'
       );
     }
 

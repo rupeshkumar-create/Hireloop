@@ -8,6 +8,7 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Bord
 import { saveAs } from 'file-saver';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
+import { sanitizeUnsupportedColors } from '../../lib/pdfSanitize';
 
 interface Props {
   isOpen: boolean;
@@ -197,12 +198,15 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
       margin:      [0, 0, 0, 0] as [number, number, number, number],
       filename:    `Resume_${companyName.replace(/\s+/g, '_')}.pdf`,
       image:       { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
-        letterRendering: true, 
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
         backgroundColor: '#ffffff',
-        logging: false
+        logging: false,
+        onclone: (_doc: Document, clonedEl: HTMLElement) => {
+          sanitizeUnsupportedColors(clonedEl);
+        },
       },
       jsPDF:       { unit: 'in', format: 'letter', orientation: 'portrait' as const },
     };

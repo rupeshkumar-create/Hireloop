@@ -68,6 +68,57 @@ describe('validateJob', () => {
     const result = validateJob(baseJob, remoteUser);
     expect(result.passed).toBe(true);
   });
+
+  it('rejects a US-only remote job for an India-based user', () => {
+    const indiaUser: GuardrailUserContext = {
+      preferences: { remoteOnly: true },
+      deliveryTimezone: 'Asia/Kolkata',
+    };
+    const result = validateJob(
+      { ...baseJob, location: 'Remote - United States' },
+      indiaUser
+    );
+    expect(result.passed).toBe(false);
+    expect(result.code).toBe('REMOTE_REGION_MISMATCH');
+  });
+
+  it('rejects a remote job whose description restricts to US, for an India user', () => {
+    const indiaUser: GuardrailUserContext = {
+      preferences: { remoteOnly: true },
+      deliveryTimezone: 'Asia/Kolkata',
+    };
+    const result = validateJob(
+      {
+        ...baseJob,
+        location: 'Remote',
+        description: 'You must be authorized to work in the US.',
+      },
+      indiaUser
+    );
+    expect(result.passed).toBe(false);
+    expect(result.code).toBe('REMOTE_REGION_MISMATCH');
+  });
+
+  it('accepts a worldwide remote job for an India-based user', () => {
+    const indiaUser: GuardrailUserContext = {
+      preferences: { remoteOnly: true },
+      deliveryTimezone: 'Asia/Kolkata',
+    };
+    const result = validateJob(
+      { ...baseJob, location: 'Remote / Worldwide' },
+      indiaUser
+    );
+    expect(result.passed).toBe(true);
+  });
+
+  it('accepts a bare "Remote" job for an India-based user (conservative)', () => {
+    const indiaUser: GuardrailUserContext = {
+      preferences: { remoteOnly: true },
+      deliveryTimezone: 'Asia/Kolkata',
+    };
+    const result = validateJob({ ...baseJob, location: 'Remote' }, indiaUser);
+    expect(result.passed).toBe(true);
+  });
 });
 
 describe('validateJobsBeforeAI', () => {
