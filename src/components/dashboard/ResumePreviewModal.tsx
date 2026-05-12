@@ -68,6 +68,8 @@ const S = {
     paddingBottom: '4px',
     marginTop: '28px',
     marginBottom: '12px',
+    pageBreakAfter: 'avoid' as const,
+    breakAfter: 'avoid' as const,
   },
   h3: {
     fontSize: '14px',
@@ -76,6 +78,8 @@ const S = {
     margin: '12px 0 3px 0',
     display: 'flex',
     justifyContent: 'space-between',
+    pageBreakAfter: 'avoid' as const,
+    breakAfter: 'avoid' as const,
   },
   italicLine: {
     fontSize: '11.5px',
@@ -83,23 +87,31 @@ const S = {
     fontStyle: 'italic' as const,
     margin: '0 0 6px 0',
     display: 'block' as const,
+    pageBreakAfter: 'avoid' as const,
+    breakAfter: 'avoid' as const,
   },
   para: {
     fontSize: '12.5px',
     color: '#333',
     lineHeight: '1.6',
     margin: '6px 0',
+    pageBreakInside: 'avoid' as const,
+    breakInside: 'avoid' as const,
   },
   ul: {
     margin: '6px 0 12px 0',
     paddingLeft: '20px',
     listStyleType: 'disc' as const,
+    pageBreakInside: 'avoid' as const,
+    breakInside: 'avoid' as const,
   },
   li: {
     fontSize: '12.5px',
     color: '#333',
     lineHeight: '1.6',
     marginBottom: '5px',
+    pageBreakInside: 'avoid' as const,
+    breakInside: 'avoid' as const,
   },
   strong: {
     fontWeight: '700',
@@ -195,7 +207,9 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
     if (!resumeRef.current) return;
     
     const opt = {
-      margin:      [0, 0, 0, 0] as [number, number, number, number],
+      // [top, left, bottom, right] inches — applied to EVERY page so multi-page
+      // PDFs get consistent header/footer whitespace.
+      margin:      [0.5, 0.6, 0.5, 0.6] as [number, number, number, number],
       filename:    `Resume_${companyName.replace(/\s+/g, '_')}.pdf`,
       image:       { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: {
@@ -206,9 +220,19 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
         logging: false,
         onclone: (_doc: Document, clonedEl: HTMLElement) => {
           sanitizeUnsupportedColors(clonedEl);
+          // The on-screen preview adds 60px vertical padding so the resume
+          // looks like a sheet of paper. For PDF rendering we drop it —
+          // html2pdf.margin above now supplies per-page top/bottom whitespace,
+          // and keeping the inline padding would double-up on page 1.
+          clonedEl.style.padding = '0 70px';
+          clonedEl.style.minHeight = '0';
         },
       },
       jsPDF:       { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+      // Respect CSS page-break-* hints set on h3/ul/li/p above so html2pdf
+      // doesn't slice through the middle of a text row when content overflows
+      // a single page.
+      pagebreak:   { mode: ['css', 'legacy'] },
     };
 
     try {
