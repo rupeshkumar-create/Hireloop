@@ -32,6 +32,7 @@ export function SavedJobs() {
   const {
     aiAction,
     aiResult,
+    setAiResult,
     actionLoading,
     handleAiAction,
     downloadResume,
@@ -189,6 +190,7 @@ export function SavedJobs() {
           handleAiAction={handleAiAction}
           aiAction={aiAction}
           aiResult={aiResult}
+          setAiResult={setAiResult}
           actionLoading={actionLoading}
           downloadResume={downloadResume}
           onClose={() => navigate('/saved')}

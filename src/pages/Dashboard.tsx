@@ -68,6 +68,7 @@ export function Dashboard() {
   const {
     aiAction,
     aiResult,
+    setAiResult,
     actionLoading,
     handleAiAction,
     downloadResume,
@@ -253,6 +254,7 @@ export function Dashboard() {
           handleAiAction={handleAiAction}
           aiAction={aiAction}
           aiResult={aiResult}
+          setAiResult={setAiResult}
           actionLoading={actionLoading}
           downloadResume={downloadResume}
           onClose={() => setSelectedJob(null)}
