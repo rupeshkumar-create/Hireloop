@@ -18,7 +18,6 @@ import { AiActionType } from '../../hooks/useDashboardAI';
 import { useAuth } from '../../contexts/AuthContext';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
-import { ResumePreviewModal } from './ResumePreviewModal';
 import { AiResultModal } from './AiResultModal';
 import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
@@ -53,7 +52,6 @@ export function JobDetailsPanel({
   isSaving,
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
-  const [showResumePreview, setShowResumePreview] = useState(false);
   const [aiModalDismissed, setAiModalDismissed] = useState(false);
   const applyUrl = resolveJobApplicationUrlWithFallback(selectedJob);
   const isFallbackUrl = isJobUrlFallback(selectedJob);
@@ -305,17 +303,6 @@ export function JobDetailsPanel({
         isLoading={actionLoading}
         onContentChange={setAiResult}
         onOpenGmail={handleOpenGmail}
-        onPreviewResume={() => setShowResumePreview(true)}
-        onDownloadMarkdown={() => downloadResume(selectedJob)}
-      />
-
-      {/* Resume full-screen preview (opened from the AI result modal) */}
-      <ResumePreviewModal
-        isOpen={showResumePreview}
-        onClose={() => setShowResumePreview(false)}
-        resumeText={typeof aiResult === 'string' ? aiResult : ''}
-        companyName={selectedJob.company}
-        jobTitle={selectedJob.title}
       />
     </AnimatePresence>
   );

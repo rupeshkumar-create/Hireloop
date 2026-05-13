@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Download,
@@ -9,7 +10,6 @@ import {
   FileText,
   Pencil,
   Check,
-  Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -33,10 +33,8 @@ interface Props {
   // Persist edits back to the upstream state (e.g. useDashboardAI.setAiResult).
   // Optional — when omitted, edits stay local and reset on the next generation.
   onContentChange?: (next: string | string[]) => void;
-  // Type-specific actions wired by the parent (Gmail compose, resume preview, etc).
+  // Type-specific action: cold email composes a Gmail draft.
   onOpenGmail?: (content: string) => void;
-  onPreviewResume?: (content: string) => void;
-  onDownloadMarkdown?: (content: string) => void;
 }
 
 const LABELS: Record<AiResultType, { title: string; icon: typeof Mail; accent: string }> = {
@@ -62,8 +60,6 @@ export function AiResultModal({
   isLoading,
   onContentChange,
   onOpenGmail,
-  onPreviewResume,
-  onDownloadMarkdown,
 }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { title, icon: Icon, accent } = LABELS[type];
@@ -103,36 +99,53 @@ export function AiResultModal({
   };
 
   const downloadPdf = async () => {
-    if (!contentRef.current) return;
+    if (!contentRef.current) {
+      toast.error('Nothing to download yet — please wait for generation to finish.');
+      return;
+    }
     const filename = `${title.replace(/\s/g, '_')}_${company.replace(/\s+/g, '_')}.pdf`;
+    // Untyped because Html2PdfOptions in @types/html2pdf.js predates the
+    // `pagebreak` option that html2pdf.js 0.10+ supports at runtime.
+    const opt = {
+      margin: [0.5, 0.6, 0.5, 0.6],
+      filename,
+      image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (_doc: Document, clonedEl: HTMLElement) => {
+          sanitizeUnsupportedColors(clonedEl);
+        },
+      },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+      // Honour CSS page-break hints (set on resume section headers, list
+      // items, etc.) so multi-page output doesn't slice through text rows.
+      pagebreak: { mode: ['css', 'legacy'] },
+    };
     try {
-      await html2pdf()
-        .set({
-          margin: [0.5, 0.6, 0.5, 0.6],
-          filename,
-          image: { type: 'jpeg', quality: 0.97 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            onclone: (_doc: Document, clonedEl: HTMLElement) => {
-              sanitizeUnsupportedColors(clonedEl);
-            },
-          },
-          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-        })
-        .from(contentRef.current)
-        .save();
-      toast.success(`${title} downloaded as PDF`);
-    } catch {
-      toast.error('Failed to generate PDF. Please try again.');
+      toast.loading('Generating PDF…', { id: 'pdf-gen' });
+      await html2pdf().set(opt as any).from(contentRef.current).save();
+      toast.success(`${title} downloaded as PDF`, { id: 'pdf-gen' });
+    } catch (err: any) {
+      console.error('PDF generation error:', err);
+      toast.error(`Failed to generate PDF: ${err?.message || 'Unknown error'}`, { id: 'pdf-gen' });
     }
   };
 
   const flatContent = toEditableString(content);
   const showActions = !isLoading && !!flatContent;
 
-  return (
+  // Portal target: document.body. Required because the modal is rendered as
+  // a descendant of JobDetailsPanel's framer-motion container, which has a
+  // `transform` for its slide-in animation. Any transformed ancestor becomes
+  // the containing block for fixed-position children, so without a portal the
+  // modal would center inside the slid-over panel instead of the viewport.
+  const modalRoot = typeof document !== 'undefined' ? document.body : null;
+
+  const modalNode = (
     <AnimatePresence>
       {isOpen && (
         <div
@@ -191,36 +204,14 @@ export function AiResultModal({
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit
                         </button>
-                        {(type === 'interview' || type === 'salary') && (
+                        {(type === 'interview' || type === 'salary' || type === 'resume') && (
                           <button
                             type="button"
                             onClick={downloadPdf}
                             className="hs-btn hs-btn-primary gap-1.5 text-[12px] py-1.5 px-3"
                           >
-                            <Download className="h-3.5 w-3.5" /> Download PDF
+                            <Download className="h-3.5 w-3.5" /> Download
                           </button>
-                        )}
-                        {type === 'resume' && (
-                          <>
-                            {onPreviewResume && (
-                              <button
-                                type="button"
-                                onClick={() => onPreviewResume(flatContent)}
-                                className="hs-btn hs-btn-primary gap-1.5 text-[12px] py-1.5 px-3"
-                              >
-                                <Eye className="h-3.5 w-3.5" /> Preview & Download
-                              </button>
-                            )}
-                            {onDownloadMarkdown && (
-                              <button
-                                type="button"
-                                onClick={() => onDownloadMarkdown(flatContent)}
-                                className="hs-btn gap-1.5 text-[12px] py-1.5 px-3"
-                              >
-                                <Download className="h-3.5 w-3.5" /> .md
-                              </button>
-                            )}
-                          </>
                         )}
                         {type === 'email' && onOpenGmail && (
                           <button
@@ -275,17 +266,20 @@ export function AiResultModal({
                   className="px-6 py-6 bg-white"
                   style={{ fontFamily: 'Georgia, serif' }}
                 >
-                  {/* Document header */}
-                  <div style={{ borderBottom: '1.5px solid #e5e7eb', paddingBottom: 16, marginBottom: 24 }}>
-                    <p style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 6 }}>
-                      {title}
-                    </p>
-                    <p style={{ fontSize: 18, fontWeight: 700, color: '#111', margin: 0 }}>{jobTitle}</p>
-                    <p style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-                      {company}
-                      {location ? ` · ${location}` : ''}
-                    </p>
-                  </div>
+                  {/* Document header — omitted for resume so the downloaded
+                      PDF is just the résumé, no duplicated job-meta line. */}
+                  {type !== 'resume' && (
+                    <div style={{ borderBottom: '1.5px solid #e5e7eb', paddingBottom: 16, marginBottom: 24 }}>
+                      <p style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 6 }}>
+                        {title}
+                      </p>
+                      <p style={{ fontSize: 18, fontWeight: 700, color: '#111', margin: 0 }}>{jobTitle}</p>
+                      <p style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
+                        {company}
+                        {location ? ` · ${location}` : ''}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Content */}
                   {type === 'interview' && Array.isArray(content) ? (
@@ -316,12 +310,14 @@ export function AiResultModal({
                     </div>
                   )}
 
-                  {/* Document footer */}
-                  <div style={{ borderTop: '1px solid #e5e7eb', marginTop: 32, paddingTop: 12 }}>
-                    <p style={{ fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', textAlign: 'right' }}>
-                      Generated by Hireschema · hireschema.com
-                    </p>
-                  </div>
+                  {/* Document footer — resume PDF stays clean. */}
+                  {type !== 'resume' && (
+                    <div style={{ borderTop: '1px solid #e5e7eb', marginTop: 32, paddingTop: 12 }}>
+                      <p style={{ fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', textAlign: 'right' }}>
+                        Generated by Hireschema · hireschema.com
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -330,4 +326,6 @@ export function AiResultModal({
       )}
     </AnimatePresence>
   );
+
+  return modalRoot ? createPortal(modalNode, modalRoot) : modalNode;
 }

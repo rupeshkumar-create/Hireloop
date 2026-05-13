@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, FileText, Eye, FileJson } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -325,8 +326,11 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
 
   if (!isOpen) return null;
 
+  // Portal to document.body — escapes any transformed ancestor (e.g. the
+  // sliding JobDetailsPanel) so fixed positioning centers in the viewport.
+  const modalRoot = typeof document !== 'undefined' ? document.body : null;
 
-  return (
+  const modalNode = (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 md:p-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -381,4 +385,6 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
       </motion.div>
     </div>
   );
+
+  return modalRoot ? createPortal(modalNode, modalRoot) : modalNode;
 }
