@@ -11,12 +11,47 @@ export interface LearningProfile {
   writingStyle?: string;
 }
 
+export interface ContactDetails {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
+}
+
+export interface ExperienceEntry {
+  id: string;
+  title: string;
+  company: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  highlights?: string[];
+}
+
+export interface EducationEntry {
+  id: string;
+  school: string;
+  degree?: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface StructuredProfile {
   skills: string[];
   techStack: string[];
   seniority: string;
   roles: string[];
   industries: string[];
+  contact?: ContactDetails;
+  experience?: ExperienceEntry[];
+  education?: EducationEntry[];
+  certifications?: string[];
+  languages?: string[];
 }
 
 export interface UserPreferences {
@@ -55,6 +90,11 @@ export interface UserProfile {
   lastSuccessfulJobRunLocalDate?: string;
   matchReadiness?: MatchReadinessSnapshot;
   resumeAnalysis?: ResumeAnalysis;
+  careerPathSuggestions?: Array<{ id: string; title: string; rationale?: string; queryHints?: string[] }>;
+  selectedCareerPathId?: string;
+  onboardingCompletedAt?: string;
+  tourCompletedAt?: string;
+  activatedAt?: string;
   plan?: 'free' | 'pro';
   receiveDailyAlerts?: boolean;
   antiSlopEnabled?: boolean;

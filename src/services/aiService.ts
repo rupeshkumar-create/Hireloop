@@ -273,6 +273,36 @@ Respond ONLY with the JSON object.`;
 // Agent 4: Structured Profile Extraction
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ExtractedContact {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
+}
+
+export interface ExtractedExperience {
+  id: string;
+  title: string;
+  company: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  highlights?: string[];
+}
+
+export interface ExtractedEducation {
+  id: string;
+  school: string;
+  degree?: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface ExtractedResumeProfile {
   fullName: string;
   skills: string[];
@@ -280,29 +310,73 @@ export interface ExtractedResumeProfile {
   seniority: string;
   roles: string[];
   industries: string[];
+  contact?: ExtractedContact;
+  experience?: ExtractedExperience[];
+  education?: ExtractedEducation[];
+  certifications?: string[];
+  languages?: string[];
+}
+
+function shortId(seed: string): string {
+  // Stable, sufficient-for-UI id from the seed string.
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36).slice(0, 8);
 }
 
 export async function extractResume(resumeText: string): Promise<ExtractedResumeProfile | null> {
-  const prompt = `Extract a structured candidate profile from this resume.
+  const prompt = `Extract a complete structured candidate profile from this resume.
+Return a JSON object with these fields. Only include information present in the resume — never invent.
 
-Return a JSON object:
 {
   "fullName": "",
+  "contact": {
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": "",
+    "github": "",
+    "website": ""
+  },
   "skills": [],
   "techStack": [],
   "seniority": "",
   "roles": [],
-  "industries": []
+  "industries": [],
+  "experience": [
+    {
+      "title": "",
+      "company": "",
+      "location": "",
+      "startDate": "",
+      "endDate": "",
+      "current": false,
+      "highlights": []
+    }
+  ],
+  "education": [
+    {
+      "school": "",
+      "degree": "",
+      "field": "",
+      "startDate": "",
+      "endDate": ""
+    }
+  ],
+  "certifications": [],
+  "languages": []
 }
 
 Rules:
 - Use only information present in the resume.
-- Do not invent experience.
-- Deduplicate repeated concepts.
-- Keep arrays concise.
+- For dates use "YYYY-MM" or "YYYY" if month is unknown; leave empty if not in the resume.
+- Set "current": true if a role appears to be ongoing (present, current, "to date").
+- "highlights" should be 2–5 concise bullet points per role, paraphrased from the resume.
+- Deduplicate repeated concepts in skills/techStack.
+- If a field is missing, omit it or leave the string empty.
 
 Resume:
-${resumeText.substring(0, 6000)}`;
+${resumeText.substring(0, 8000)}`;
 
   try {
     const response = await callOpenAI(
@@ -317,13 +391,60 @@ ${resumeText.substring(0, 6000)}`;
     const validation = validateStructuredProfile(parsed);
     if (!validation.passed) throw new Error(validation.reason || 'Invalid structured profile');
 
+    const fullName = typeof parsed.fullName === 'string' ? parsed.fullName : '';
+    const contactRaw = parsed.contact && typeof parsed.contact === 'object' ? parsed.contact : {};
+    const contact: ExtractedContact = {
+      fullName: fullName || undefined,
+      email: typeof contactRaw.email === 'string' ? contactRaw.email : undefined,
+      phone: typeof contactRaw.phone === 'string' ? contactRaw.phone : undefined,
+      location: typeof contactRaw.location === 'string' ? contactRaw.location : undefined,
+      linkedin: typeof contactRaw.linkedin === 'string' ? contactRaw.linkedin : undefined,
+      github: typeof contactRaw.github === 'string' ? contactRaw.github : undefined,
+      website: typeof contactRaw.website === 'string' ? contactRaw.website : undefined,
+    };
+
+    const experience: ExtractedExperience[] = Array.isArray(parsed.experience)
+      ? parsed.experience
+          .filter((e: any) => e && (e.title || e.company))
+          .map((e: any, i: number) => ({
+            id: shortId(`${e.company || ''}::${e.title || ''}::${i}`),
+            title: String(e.title || '').trim(),
+            company: String(e.company || '').trim(),
+            location: e.location ? String(e.location).trim() : undefined,
+            startDate: e.startDate ? String(e.startDate).trim() : undefined,
+            endDate: e.endDate ? String(e.endDate).trim() : undefined,
+            current: Boolean(e.current),
+            highlights: Array.isArray(e.highlights)
+              ? e.highlights.map((h: any) => String(h).trim()).filter(Boolean)
+              : undefined,
+          }))
+      : [];
+
+    const education: ExtractedEducation[] = Array.isArray(parsed.education)
+      ? parsed.education
+          .filter((e: any) => e && e.school)
+          .map((e: any, i: number) => ({
+            id: shortId(`${e.school || ''}::${e.degree || ''}::${i}`),
+            school: String(e.school || '').trim(),
+            degree: e.degree ? String(e.degree).trim() : undefined,
+            field: e.field ? String(e.field).trim() : undefined,
+            startDate: e.startDate ? String(e.startDate).trim() : undefined,
+            endDate: e.endDate ? String(e.endDate).trim() : undefined,
+          }))
+      : [];
+
     return {
-      fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
+      fullName,
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       techStack: Array.isArray(parsed.techStack) ? parsed.techStack : [],
       seniority: typeof parsed.seniority === 'string' ? parsed.seniority : '',
       roles: Array.isArray(parsed.roles) ? parsed.roles : [],
       industries: Array.isArray(parsed.industries) ? parsed.industries : [],
+      contact,
+      experience,
+      education,
+      certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
+      languages: Array.isArray(parsed.languages) ? parsed.languages : [],
     };
   } catch (error) {
     if (error instanceof Error && error.message === 'AI_QUOTA_EXCEEDED') throw error;

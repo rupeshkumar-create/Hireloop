@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Job } from '../types/dashboard';
+import { useAuth } from '../contexts/AuthContext';
 
 export type AiActionType = 'email' | 'resume' | 'interview' | 'salary' | null;
 
@@ -8,6 +9,16 @@ export function useDashboardAI(profile: any) {
   const [aiAction, setAiAction] = useState<AiActionType>(null);
   const [aiResult, setAiResult] = useState<string | string[]>('');
   const [actionLoading, setActionLoading] = useState(false);
+  const { profile: ctxProfile, updateProfile } = useAuth();
+
+  const markActivatedIfNeeded = async () => {
+    if (ctxProfile?.activatedAt) return;
+    try {
+      await updateProfile({ activatedAt: new Date().toISOString() });
+    } catch {
+      // Non-blocking — activation is best-effort telemetry.
+    }
+  };
 
   const handleAiAction = async (action: AiActionType, job: Job) => {
     setAiAction(action);
@@ -21,9 +32,11 @@ export function useDashboardAI(profile: any) {
       if (action === 'email') {
         const email = await aiService.generateColdEmail(job.title, job.company, profile?.resumeText || '', profile?.antiSlopEnabled !== false);
         setAiResult(email);
+        void markActivatedIfNeeded();
       } else if (action === 'resume') {
         const resume = await aiService.tailorResume(job.title, job.description, profile?.resumeText || '', profile?.antiSlopEnabled !== false);
         setAiResult(resume);
+        void markActivatedIfNeeded();
       } else if (action === 'interview') {
         const questions = await aiService.generateInterviewQuestions(job.title, job.company, profile?.antiSlopEnabled !== false);
         const hasQuestions =
@@ -35,9 +48,11 @@ export function useDashboardAI(profile: any) {
         }
 
         setAiResult(questions);
+        void markActivatedIfNeeded();
       } else if (action === 'salary') {
         const insights = await aiService.generateSalaryInsights(job.title, job.location, profile?.antiSlopEnabled !== false);
         setAiResult(insights);
+        void markActivatedIfNeeded();
       }
     } catch (error: any) {
       if (error.message === 'AI_QUOTA_EXCEEDED') {

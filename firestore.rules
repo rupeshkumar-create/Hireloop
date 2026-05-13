@@ -63,6 +63,9 @@ service cloud.firestore {
              (!hasField(data, 'deliveryTimezone') || data.deliveryTimezone is string) &&
              (!hasField(data, 'preferredDeliveryHour') || data.preferredDeliveryHour is number) &&
              (!hasField(data, 'nextJobDeliveryAt') || data.nextJobDeliveryAt is string) &&
+             (!hasField(data, 'onboardingCompletedAt') || data.onboardingCompletedAt is string) &&
+             (!hasField(data, 'tourCompletedAt') || data.tourCompletedAt is string) &&
+             (!hasField(data, 'activatedAt') || data.activatedAt is string) &&
              (!hasField(data, 'lastSuccessfulJobRunLocalDate') || data.lastSuccessfulJobRunLocalDate is string) &&
              (!hasField(data, 'matchReadiness') || data.matchReadiness is map) &&
              (!hasField(data, 'receiveDailyAlerts') || data.receiveDailyAlerts is bool) &&

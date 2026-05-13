@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobs } from '../hooks/useDashboardJobs';
 import { useDashboardAI } from '../hooks/useDashboardAI';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
+import { GettingStartedCard } from '../components/dashboard/GettingStartedCard';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit } from '../lib/planLimits';
@@ -126,6 +127,12 @@ export function Dashboard() {
 
   return (
     <div className="hs-view space-y-7">
+      <GettingStartedCard
+        hasMatches={filteredAndSortedJobs.length > 0}
+        savedCount={savedJobFingerprints.length}
+        onRunScout={() => requestJobs()}
+        isRunningScout={generatingJobs}
+      />
       <div className="hs-stats">
         <div className="hs-stat">
           <div className="hs-stat-num">{filteredAndSortedJobs.length}</div>
