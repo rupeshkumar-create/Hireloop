@@ -14,9 +14,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import html2pdf from 'html2pdf.js';
 import { toast } from 'sonner';
-import { sanitizeUnsupportedColors } from '../../lib/pdfSanitize';
+import { exportResumeAsPdf, exportResumeAsDocx } from '../../lib/resumeExport';
 import { ResumeMarkdown } from './ResumePreviewModal';
 
 export type AiResultType = 'email' | 'resume' | 'interview' | 'salary';
@@ -98,40 +97,36 @@ export function AiResultModal({
     setIsEditing(false);
   };
 
+  const baseFilename = `${title.replace(/\s/g, '_')}_${company.replace(/\s+/g, '_')}`;
+
   const downloadPdf = async () => {
     if (!contentRef.current) {
       toast.error('Nothing to download yet — please wait for generation to finish.');
       return;
     }
-    const filename = `${title.replace(/\s/g, '_')}_${company.replace(/\s+/g, '_')}.pdf`;
-    // Untyped because Html2PdfOptions in @types/html2pdf.js predates the
-    // `pagebreak` option that html2pdf.js 0.10+ supports at runtime.
-    const opt = {
-      margin: [0.5, 0.6, 0.5, 0.6],
-      filename,
-      image: { type: 'jpeg', quality: 0.97 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        onclone: (_doc: Document, clonedEl: HTMLElement) => {
-          sanitizeUnsupportedColors(clonedEl);
-        },
-      },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
-      // Honour CSS page-break hints (set on resume section headers, list
-      // items, etc.) so multi-page output doesn't slice through text rows.
-      pagebreak: { mode: ['css', 'legacy'] },
-    };
     try {
       toast.loading('Generating PDF…', { id: 'pdf-gen' });
-      await html2pdf().set(opt as any).from(contentRef.current).save();
+      await exportResumeAsPdf({ source: contentRef.current, baseFilename });
       toast.success(`${title} downloaded as PDF`, { id: 'pdf-gen' });
     } catch (err: any) {
       console.error('PDF generation error:', err);
       toast.error(`Failed to generate PDF: ${err?.message || 'Unknown error'}`, { id: 'pdf-gen' });
+    }
+  };
+
+  const downloadDocx = async () => {
+    const md = typeof content === 'string' ? content : Array.isArray(content) ? content.join('\n\n') : '';
+    if (!md.trim()) {
+      toast.error('Nothing to download yet — please wait for generation to finish.');
+      return;
+    }
+    try {
+      toast.loading('Generating DOCX…', { id: 'docx-gen' });
+      await exportResumeAsDocx({ markdown: md, baseFilename });
+      toast.success(`${title} downloaded as DOCX`, { id: 'docx-gen' });
+    } catch (err: any) {
+      console.error('DOCX generation error:', err);
+      toast.error(`Failed to generate DOCX: ${err?.message || 'Unknown error'}`, { id: 'docx-gen' });
     }
   };
 
@@ -204,14 +199,32 @@ export function AiResultModal({
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit
                         </button>
-                        {(type === 'interview' || type === 'salary' || type === 'resume') && (
+                        {(type === 'interview' || type === 'salary') && (
                           <button
                             type="button"
                             onClick={downloadPdf}
                             className="hs-btn hs-btn-primary gap-1.5 text-[12px] py-1.5 px-3"
                           >
-                            <Download className="h-3.5 w-3.5" /> Download
+                            <Download className="h-3.5 w-3.5" /> Download PDF
                           </button>
+                        )}
+                        {type === 'resume' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={downloadPdf}
+                              className="hs-btn hs-btn-primary gap-1.5 text-[12px] py-1.5 px-3"
+                            >
+                              <Download className="h-3.5 w-3.5" /> PDF
+                            </button>
+                            <button
+                              type="button"
+                              onClick={downloadDocx}
+                              className="hs-btn gap-1.5 text-[12px] py-1.5 px-3"
+                            >
+                              <Download className="h-3.5 w-3.5" /> DOCX
+                            </button>
+                          </>
                         )}
                         {type === 'email' && onOpenGmail && (
                           <button

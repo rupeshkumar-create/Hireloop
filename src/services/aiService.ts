@@ -324,60 +324,145 @@ function shortId(seed: string): string {
   return Math.abs(h).toString(36).slice(0, 8);
 }
 
-export async function extractResume(resumeText: string): Promise<ExtractedResumeProfile | null> {
-  const prompt = `Extract a complete structured candidate profile from this resume.
-Return a JSON object with these fields. Only include information present in the resume — never invent.
+/**
+ * Deterministic regex-based contact extractor. Used to backfill any contact
+ * fields the AI didn't return. Patterns work across resume layouts because
+ * email/phone/linkedin/github have very consistent shapes.
+ */
+export function extractContactFromText(text: string): ExtractedContact {
+  const out: ExtractedContact = {};
+  const cleaned = text.replace(/\s+/g, ' ');
 
-{
-  "fullName": "",
-  "contact": {
-    "email": "",
-    "phone": "",
-    "location": "",
-    "linkedin": "",
-    "github": "",
-    "website": ""
-  },
-  "skills": [],
-  "techStack": [],
-  "seniority": "",
-  "roles": [],
-  "industries": [],
-  "experience": [
-    {
-      "title": "",
-      "company": "",
-      "location": "",
-      "startDate": "",
-      "endDate": "",
-      "current": false,
-      "highlights": []
-    }
-  ],
-  "education": [
-    {
-      "school": "",
-      "degree": "",
-      "field": "",
-      "startDate": "",
-      "endDate": ""
-    }
-  ],
-  "certifications": [],
-  "languages": []
+  // Email — first plausible address wins.
+  const emailMatch = cleaned.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/);
+  if (emailMatch) out.email = emailMatch[0];
+
+  // Phone — international or 10+ digit run. Avoid matching years like "2024".
+  // Look for shapes like +91 9876543210, (415) 555-0123, 415-555-0123.
+  const phoneMatch =
+    cleaned.match(/\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,5}/) ||
+    cleaned.match(/\(\d{3}\)\s?\d{3}[\s.-]?\d{4}/) ||
+    cleaned.match(/(?:^|\s)\d{3}[\s.-]\d{3}[\s.-]\d{4}(?:\s|$)/) ||
+    cleaned.match(/(?:^|[^\d])\d{10}(?!\d)/);
+  if (phoneMatch) out.phone = phoneMatch[0].trim();
+
+  // LinkedIn — handle full URLs or "linkedin.com/in/handle" snippets.
+  const linkedinMatch = cleaned.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i);
+  if (linkedinMatch) out.linkedin = linkedinMatch[0].replace(/^https?:\/\//i, '');
+
+  // GitHub — github.com/handle.
+  const githubMatch = cleaned.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+\/?/i);
+  if (githubMatch) out.github = githubMatch[0].replace(/^https?:\/\//i, '');
+
+  // Personal website — any URL that isn't linkedin/github/the user's email
+  // domain. Strip the email substring first so its domain doesn't pollute
+  // the URL search.
+  const emailDomain = out.email?.split('@')[1]?.toLowerCase();
+  const withoutEmail = out.email ? cleaned.split(out.email).join(' ') : cleaned;
+  const urlMatches = withoutEmail.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s,]*)?/gi) || [];
+  const personal = urlMatches.find((u) => {
+    const low = u.toLowerCase();
+    if (low.includes('linkedin.') || low.includes('github.')) return false;
+    if (emailDomain && low.includes(emailDomain)) return false;
+    return true;
+  });
+  if (personal) out.website = personal.replace(/^https?:\/\//i, '');
+
+  return out;
 }
 
-Rules:
-- Use only information present in the resume.
-- For dates use "YYYY-MM" or "YYYY" if month is unknown; leave empty if not in the resume.
-- Set "current": true if a role appears to be ongoing (present, current, "to date").
-- "highlights" should be 2–5 concise bullet points per role, paraphrased from the resume.
-- Deduplicate repeated concepts in skills/techStack.
-- If a field is missing, omit it or leave the string empty.
+function mergeContact(primary: ExtractedContact, fallback: ExtractedContact): ExtractedContact {
+  const out: ExtractedContact = { ...primary };
+  (Object.keys(fallback) as (keyof ExtractedContact)[]).forEach((k) => {
+    if (!out[k] && fallback[k]) out[k] = fallback[k];
+  });
+  return out;
+}
 
-Resume:
-${resumeText.substring(0, 8000)}`;
+const EXTRACT_RESUME_SCHEMA = `Required JSON schema (all fields must be present in your output; arrays may be empty only if the resume genuinely has no entries):
 
+{
+  "fullName": string,                                              // full legal name as it appears on the resume
+  "contact": {
+    "email": string,                                               // primary email
+    "phone": string,                                               // phone number with country code if present
+    "location": string,                                            // "City, State, Country" if present
+    "linkedin": string,                                            // linkedin URL or handle path
+    "github": string,                                              // github URL or handle path
+    "website": string                                              // personal site / portfolio URL
+  },
+  "skills": string[],                                              // soft + domain skills (e.g. "Strategic Planning")
+  "techStack": string[],                                           // tools, languages, platforms (e.g. "SQL", "Figma", "Tableau")
+  "seniority": string,                                             // e.g. "Senior", "Lead", "Manager"
+  "roles": string[],                                               // role categories the candidate could pursue
+  "industries": string[],                                          // industries the candidate has worked in
+  "experience": [                                                  // EVERY job/role on the resume — never omit any
+    {
+      "title": string,
+      "company": string,
+      "location": string,                                          // "" if not stated
+      "startDate": string,                                         // "YYYY-MM" or "YYYY" — "" if not stated
+      "endDate": string,                                           // "YYYY-MM"/"YYYY"/"Present" — "" if not stated
+      "current": boolean,                                          // true if endDate is "Present" or implied current
+      "highlights": string[]                                       // 2–5 short outcome-focused bullets, paraphrased
+    }
+  ],
+  "education": [                                                   // EVERY degree/diploma on the resume — never omit
+    {
+      "school": string,
+      "degree": string,                                            // e.g. "B.S.", "MBA", "Diploma"
+      "field": string,                                             // e.g. "Computer Science"
+      "startDate": string,
+      "endDate": string
+    }
+  ],
+  "certifications": string[],                                      // every cert mentioned
+  "languages": string[]                                            // every language mentioned (with proficiency if given)
+}`;
+
+async function runExtractResumeCall(resumeText: string): Promise<any> {
+  const prompt = `You are extracting structured data from a candidate's resume.
+
+CRITICAL RULES:
+1. Extract EVERY job in the resume into "experience" — do not skip any.
+2. Extract EVERY degree/diploma/certification — do not skip any.
+3. Use the candidate's actual text verbatim; do not invent or paraphrase facts.
+4. Empty arrays/strings are only acceptable when the resume genuinely lacks the information.
+5. Never return a placeholder object with empty fields if real data exists in the resume.
+
+${EXTRACT_RESUME_SCHEMA}
+
+Resume text follows. Read it carefully and output ONLY the JSON object.
+
+RESUME:
+${resumeText.substring(0, 12000)}`;
+
+  const response = await callOpenAI(
+    [{ role: 'user', content: prompt }],
+    { type: 'json_object' },
+    'openai/gpt-4o'
+  );
+  const content = response.choices?.[0]?.message?.content;
+  if (!content) return null;
+  return JSON.parse(content);
+}
+
+async function runExperienceEducationRetry(resumeText: string): Promise<{
+  experience?: any[];
+  education?: any[];
+}> {
+  const prompt = `Extract EVERY work experience entry and EVERY education entry from this resume.
+
+Output strictly this JSON shape (no preamble, no commentary):
+{
+  "experience": [ { "title": "", "company": "", "location": "", "startDate": "", "endDate": "", "current": false, "highlights": [] } ],
+  "education":  [ { "school": "", "degree": "", "field": "", "startDate": "", "endDate": "" } ]
+}
+
+Each array must contain ONE entry per role/degree in the resume — never combine, never skip. If a date is unknown, use "". For ongoing roles set "current": true and "endDate": "Present".
+
+RESUME:
+${resumeText.substring(0, 12000)}`;
   try {
     const response = await callOpenAI(
       [{ role: 'user', content: prompt }],
@@ -385,53 +470,96 @@ ${resumeText.substring(0, 8000)}`;
       'openai/gpt-4o'
     );
     const content = response.choices?.[0]?.message?.content;
-    if (!content) return null;
+    if (!content) return {};
+    return JSON.parse(content);
+  } catch {
+    return {};
+  }
+}
 
-    const parsed = JSON.parse(content);
+export async function extractResume(resumeText: string): Promise<ExtractedResumeProfile | null> {
+  try {
+    const parsed = await runExtractResumeCall(resumeText);
+    if (!parsed) return null;
     const validation = validateStructuredProfile(parsed);
     if (!validation.passed) throw new Error(validation.reason || 'Invalid structured profile');
 
     const fullName = typeof parsed.fullName === 'string' ? parsed.fullName : '';
     const contactRaw = parsed.contact && typeof parsed.contact === 'object' ? parsed.contact : {};
-    const contact: ExtractedContact = {
+    const aiContact: ExtractedContact = {
       fullName: fullName || undefined,
-      email: typeof contactRaw.email === 'string' ? contactRaw.email : undefined,
-      phone: typeof contactRaw.phone === 'string' ? contactRaw.phone : undefined,
-      location: typeof contactRaw.location === 'string' ? contactRaw.location : undefined,
-      linkedin: typeof contactRaw.linkedin === 'string' ? contactRaw.linkedin : undefined,
-      github: typeof contactRaw.github === 'string' ? contactRaw.github : undefined,
-      website: typeof contactRaw.website === 'string' ? contactRaw.website : undefined,
+      email: typeof contactRaw.email === 'string' && contactRaw.email ? contactRaw.email : undefined,
+      phone: typeof contactRaw.phone === 'string' && contactRaw.phone ? contactRaw.phone : undefined,
+      location: typeof contactRaw.location === 'string' && contactRaw.location ? contactRaw.location : undefined,
+      linkedin: typeof contactRaw.linkedin === 'string' && contactRaw.linkedin ? contactRaw.linkedin : undefined,
+      github: typeof contactRaw.github === 'string' && contactRaw.github ? contactRaw.github : undefined,
+      website: typeof contactRaw.website === 'string' && contactRaw.website ? contactRaw.website : undefined,
     };
+    // Regex backfill — every contact field the AI dropped gets retried against
+    // the raw resume text. Deterministic, free, never wrong about email shape.
+    const contact = mergeContact(aiContact, extractContactFromText(resumeText));
 
-    const experience: ExtractedExperience[] = Array.isArray(parsed.experience)
-      ? parsed.experience
-          .filter((e: any) => e && (e.title || e.company))
-          .map((e: any, i: number) => ({
-            id: shortId(`${e.company || ''}::${e.title || ''}::${i}`),
-            title: String(e.title || '').trim(),
-            company: String(e.company || '').trim(),
-            location: e.location ? String(e.location).trim() : undefined,
-            startDate: e.startDate ? String(e.startDate).trim() : undefined,
-            endDate: e.endDate ? String(e.endDate).trim() : undefined,
-            current: Boolean(e.current),
-            highlights: Array.isArray(e.highlights)
-              ? e.highlights.map((h: any) => String(h).trim()).filter(Boolean)
-              : undefined,
-          }))
+    const mapExperience = (arr: any[]): ExtractedExperience[] =>
+      arr
+        .filter((e: any) => e && (e.title || e.company))
+        .map((e: any, i: number) => ({
+          id: shortId(`${e.company || ''}::${e.title || ''}::${i}`),
+          title: String(e.title || '').trim(),
+          company: String(e.company || '').trim(),
+          location: e.location ? String(e.location).trim() : undefined,
+          startDate: e.startDate ? String(e.startDate).trim() : undefined,
+          endDate: e.endDate ? String(e.endDate).trim() : undefined,
+          current: Boolean(e.current),
+          highlights: Array.isArray(e.highlights)
+            ? e.highlights.map((h: any) => String(h).trim()).filter(Boolean)
+            : undefined,
+        }));
+
+    const mapEducation = (arr: any[]): ExtractedEducation[] =>
+      arr
+        .filter((e: any) => e && e.school)
+        .map((e: any, i: number) => ({
+          id: shortId(`${e.school || ''}::${e.degree || ''}::${i}`),
+          school: String(e.school || '').trim(),
+          degree: e.degree ? String(e.degree).trim() : undefined,
+          field: e.field ? String(e.field).trim() : undefined,
+          startDate: e.startDate ? String(e.startDate).trim() : undefined,
+          endDate: e.endDate ? String(e.endDate).trim() : undefined,
+        }));
+
+    let experience: ExtractedExperience[] = Array.isArray(parsed.experience)
+      ? mapExperience(parsed.experience)
+      : [];
+    let education: ExtractedEducation[] = Array.isArray(parsed.education)
+      ? mapEducation(parsed.education)
       : [];
 
-    const education: ExtractedEducation[] = Array.isArray(parsed.education)
-      ? parsed.education
-          .filter((e: any) => e && e.school)
-          .map((e: any, i: number) => ({
-            id: shortId(`${e.school || ''}::${e.degree || ''}::${i}`),
-            school: String(e.school || '').trim(),
-            degree: e.degree ? String(e.degree).trim() : undefined,
-            field: e.field ? String(e.field).trim() : undefined,
-            startDate: e.startDate ? String(e.startDate).trim() : undefined,
-            endDate: e.endDate ? String(e.endDate).trim() : undefined,
-          }))
-      : [];
+    // Heuristic: if the first pass missed experience/education but the resume
+    // clearly mentions them, fire a focused second call. Cheap insurance.
+    const resumeLower = resumeText.toLowerCase();
+    const hasExperienceKeywords =
+      /\b(experience|employment|work history|professional history)\b/.test(resumeLower);
+    const hasEducationKeywords =
+      /\b(education|degree|university|college|bachelor|master|diploma|polytechnic|institute|school)\b/.test(
+        resumeLower
+      );
+
+    if (
+      (experience.length === 0 && hasExperienceKeywords) ||
+      (education.length === 0 && hasEducationKeywords)
+    ) {
+      try {
+        const retry = await runExperienceEducationRetry(resumeText);
+        if (experience.length === 0 && Array.isArray(retry.experience)) {
+          experience = mapExperience(retry.experience);
+        }
+        if (education.length === 0 && Array.isArray(retry.education)) {
+          education = mapEducation(retry.education);
+        }
+      } catch {
+        // Retry is best-effort — first-pass results stand if the retry fails.
+      }
+    }
 
     return {
       fullName,

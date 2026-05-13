@@ -56,10 +56,23 @@ export function JobDetailsPanel({
   const applyUrl = resolveJobApplicationUrlWithFallback(selectedJob);
   const isFallbackUrl = isJobUrlFallback(selectedJob);
 
-  // Reset dismissed state whenever a new AI action starts.
+  // Reset dismissed state whenever the underlying action *changes*. This
+  // covers the "click PDF, then click Resume" case. It does NOT cover
+  // "click Resume → dismiss → click Resume again" because aiAction never
+  // changes — see `runAiAction` below.
   useEffect(() => {
     if (aiAction) setAiModalDismissed(false);
   }, [aiAction]);
+
+  // Always-reset wrapper for AI Copilot buttons. Without this, dismissing
+  // the modal and then re-clicking the same action would do nothing because
+  // `setAiAction(sameValue)` is a no-op state update and the effect above
+  // never fires. Resetting dismissed state directly here makes every click
+  // reliably reopen the modal regardless of which action was last used.
+  const runAiAction = (action: AiActionType, job: Job) => {
+    setAiModalDismissed(false);
+    handleAiAction(action, job);
+  };
 
   // ESC key closes the panel — standard modal accessibility.
   useEffect(() => {
@@ -218,28 +231,28 @@ export function JobDetailsPanel({
                 <button
                   type="button"
                   className="hs-btn justify-center"
-                  onClick={() => handleAiAction('email', selectedJob)}
+                  onClick={() => runAiAction('email', selectedJob)}
                 >
                   <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
                 </button>
                 <button
                   type="button"
                   className="hs-btn justify-center"
-                  onClick={() => handleAiAction('resume', selectedJob)}
+                  onClick={() => runAiAction('resume', selectedJob)}
                 >
                   <FileText className="h-3.5 w-3.5" /> Tailor Resume
                 </button>
                 <button
                   type="button"
                   className="hs-btn justify-center"
-                  onClick={() => handleAiAction('interview', selectedJob)}
+                  onClick={() => runAiAction('interview', selectedJob)}
                 >
                   <MessageSquare className="h-3.5 w-3.5" /> Interview Prep
                 </button>
                 <button
                   type="button"
                   className="hs-btn justify-center"
-                  onClick={() => handleAiAction('salary', selectedJob)}
+                  onClick={() => runAiAction('salary', selectedJob)}
                 >
                   <TrendingUp className="h-3.5 w-3.5" /> Salary Data
                 </button>
