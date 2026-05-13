@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Bookmark, Clock, CheckCircle2, MessageSquare, XCircle, Loader2 } from 'lucide-react';
+import { Bookmark, Clock, CheckCircle2, MessageSquare, XCircle, Loader2, Trash2 } from 'lucide-react';
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,7 @@ import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import type { Job } from '../types/dashboard';
+import { resolveJobScore } from '../lib/jobScore';
 
 function initials(company: string) {
   return company.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'JB';
@@ -128,10 +129,11 @@ export function SavedJobs() {
       {trackedJobs.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {trackedJobs.map((job) => {
-            const score = job.matchScore || job.finalScore || 100;
+            const score = resolveJobScore(job);
+            const scoreLabel = score === null ? '—' : String(score);
             return (
-              <article 
-                key={job.id} 
+              <article
+                key={job.id}
                 className="hs-page-card group cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--hs-app-border-strong)]"
                 onClick={() => navigate(`/saved/${job.id}`)}
               >
@@ -144,7 +146,13 @@ export function SavedJobs() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className="hs-score h-8 w-8 text-[9px]" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
+                    <span
+                      className="hs-score h-8 w-8 text-[9px]"
+                      title={score === null ? 'Score not available for this saved job' : `Match score ${score}`}
+                      style={{ '--score': `${score ?? 0}%` } as React.CSSProperties}
+                    >
+                      {scoreLabel}
+                    </span>
                     <Badge variant={job.status === 'saved' ? 'outline' : 'secondary'} className="gap-1.5 py-0.5 text-[9px] uppercase tracking-wider">
                       {getStatusIcon(job.status)}
                       {job.status}
@@ -152,9 +160,9 @@ export function SavedJobs() {
                   </div>
                 </div>
                 <p className="line-clamp-2 text-[13px] leading-relaxed text-[var(--hs-app-muted)] mb-4">{job.aiSummary || job.description}</p>
-                
-                <div className="flex items-center gap-2 pt-2 border-t border-[var(--hs-app-border)] opacity-0 group-hover:opacity-100 transition-opacity">
-                  <select 
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--hs-app-border)] opacity-0 group-hover:opacity-100 transition-opacity">
+                  <select
                     className="text-[11px] bg-transparent border-0 font-medium text-[var(--hs-app-muted)] focus:ring-0 cursor-pointer"
                     value={job.status}
                     onClick={(e) => e.stopPropagation()}
@@ -166,6 +174,20 @@ export function SavedJobs() {
                     <option value="offered">Offered</option>
                     <option value="rejected">Rejected</option>
                   </select>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${job.title} from saved`}
+                    title="Remove from saved"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--hs-app-muted)] transition-colors hover:bg-[var(--hs-app-danger-bg)] hover:text-[var(--hs-app-danger)] focus:outline-none focus:ring-2 focus:ring-[var(--hs-app-danger)]/30"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Remove "${job.title}" at ${job.company} from your saved jobs?`)) {
+                        removeJob(job.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" /> Remove
+                  </button>
                 </div>
               </article>
             );
