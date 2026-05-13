@@ -148,7 +148,7 @@ function WizardHeader({ currentStep }: { currentStep: Step }) {
               className={[
                 'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
                 state === 'done'
-                  ? 'border-green-400/30 bg-green-500/10 text-green-300'
+                  ? 'border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] text-[var(--hs-app-accent)]'
                   : state === 'active'
                   ? 'border-[var(--hs-app-accent)]/40 bg-[var(--hs-app-accent)]/10 text-[var(--hs-app-accent)]'
                   : 'border-border bg-surface text-foreground-muted',
@@ -203,7 +203,7 @@ function UploadStep({
       {hasResume && (
         <div className="mt-6 flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3 text-sm">
           <span className="text-foreground-muted">
-            <CheckCircle2 className="inline h-4 w-4 text-green-400 mr-2" />
+            <CheckCircle2 className="inline h-4 w-4 text-[var(--hs-app-accent)] mr-2" />
             Resume already uploaded.
           </span>
           <Button variant="outline" size="sm" onClick={onDone}>
@@ -481,7 +481,7 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
                 className={[
                   'flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors',
                   state === 'done'
-                    ? 'border-green-500/20 bg-green-500/5'
+                    ? 'border-[var(--hs-app-accent)]/25 bg-[var(--hs-app-accent-soft)]'
                     : state === 'active'
                     ? 'border-[var(--hs-app-accent)]/40 bg-[var(--hs-app-accent)]/5'
                     : 'border-border bg-background',
@@ -489,7 +489,7 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
               >
                 <div className="mt-0.5 shrink-0">
                   {state === 'done' ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-400" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--hs-app-accent)]" />
                   ) : state === 'active' ? (
                     <Loader2 className="h-5 w-5 text-[var(--hs-app-accent)] animate-spin" />
                   ) : (

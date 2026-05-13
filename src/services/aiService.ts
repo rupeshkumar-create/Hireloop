@@ -839,10 +839,92 @@ Return ONLY the tailored resume in the exact Markdown format above.`;
       );
       const content = response.choices?.[0]?.message?.content || '';
       if (!content.trim()) throw new Error('Empty tailored resume generated');
-      return content.trim();
+      return normalizeTailoredResume(content.trim());
     },
     { jobTitle, jobDescription, resumeText, antiSlopEnabled, writingStyleContext }
   );
+}
+
+/**
+ * Post-processes raw AI output so the ResumeMarkdown renderer always has
+ * structure to style. Most calls already return clean markdown; this is a
+ * safety net for runs where the model drops `#`, `##`, or `###` prefixes.
+ */
+function normalizeTailoredResume(raw: string): string {
+  const SECTION_NAMES = new Set([
+    'SUMMARY',
+    'OBJECTIVE',
+    'PROFILE',
+    'EXPERIENCE',
+    'WORK EXPERIENCE',
+    'PROFESSIONAL EXPERIENCE',
+    'EMPLOYMENT',
+    'EDUCATION',
+    'SKILLS',
+    'TECHNICAL SKILLS',
+    'PROJECTS',
+    'CERTIFICATIONS',
+    'AWARDS',
+    'PUBLICATIONS',
+    'LANGUAGES',
+    'INTERESTS',
+  ]);
+
+  const lines = raw.replace(/\r\n/g, '\n').split('\n');
+  const out: string[] = [];
+  let firstNonEmptySeen = false;
+  let nameWrittenAsH1 = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const original = lines[i];
+    const trimmed = original.trim();
+
+    if (!trimmed) {
+      out.push('');
+      continue;
+    }
+
+    // Already a markdown heading — keep as-is.
+    if (/^#{1,3}\s/.test(trimmed)) {
+      if (/^#\s/.test(trimmed)) nameWrittenAsH1 = true;
+      out.push(trimmed);
+      firstNonEmptySeen = true;
+      continue;
+    }
+
+    // First content line — if it looks like a personal name (1–4 capitalised
+    // words, no email/phone/punctuation typical of contact lines), promote to H1.
+    if (!firstNonEmptySeen) {
+      firstNonEmptySeen = true;
+      const looksLikeName =
+        !nameWrittenAsH1 &&
+        trimmed.length < 80 &&
+        !/[@|•]/.test(trimmed) &&
+        !/\d/.test(trimmed) &&
+        /^[A-Z][a-zA-Z'’\-]+(\s+[A-Z][a-zA-Z'’\-]+){0,4}$/.test(trimmed);
+      if (looksLikeName) {
+        out.push(`# ${trimmed}`);
+        nameWrittenAsH1 = true;
+        continue;
+      }
+    }
+
+    // All-caps section label on its own line → ## SECTION
+    const upper = trimmed.toUpperCase();
+    if (
+      trimmed === upper &&
+      trimmed.length <= 40 &&
+      /^[A-Z][A-Z\s&/-]+$/.test(trimmed) &&
+      SECTION_NAMES.has(upper.replace(/[^A-Z\s]/g, '').trim())
+    ) {
+      out.push(`## ${upper}`);
+      continue;
+    }
+
+    out.push(original);
+  }
+
+  return out.join('\n').trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

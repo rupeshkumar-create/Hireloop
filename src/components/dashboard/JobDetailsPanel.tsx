@@ -72,6 +72,24 @@ export function JobDetailsPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Lock background scroll while the panel is open — only the panel body
+  // should scroll, not the dashboard underneath. Preserves the user's prior
+  // scroll position by restoring it on close.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    // Compensate for the scrollbar disappearing so the layout doesn't shift.
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
+  }, []);
+
   const aiModalOpen = !!aiAction && !aiModalDismissed;
 
   // Email action: tailor a resume, download it, then open Gmail with the draft.

@@ -157,13 +157,13 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
             className={[
               'flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
               s.done
-                ? 'border-green-500/20 bg-green-500/5'
+                ? 'border-[var(--hs-app-accent)]/25 bg-[var(--hs-app-accent-soft)]'
                 : 'border-[var(--hs-app-border)] bg-[var(--hs-app-bg)]',
             ].join(' ')}
           >
             <div className="mt-0.5 shrink-0">
               {s.done ? (
-                <CheckCircle2 className="h-5 w-5 text-green-400" />
+                <CheckCircle2 className="h-5 w-5 text-[var(--hs-app-accent)]" />
               ) : (
                 <Circle className="h-5 w-5 text-[var(--hs-app-muted)]" />
               )}

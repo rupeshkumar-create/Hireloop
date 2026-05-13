@@ -139,7 +139,7 @@ function isContactLine(text: string): boolean {
 
 // ─── Custom markdown → resume renderer ───────────────────────────────────────
 
-function ResumeMarkdown({ text }: { text: string }) {
+export function ResumeMarkdown({ text }: { text: string }) {
   // Track first-paragraph position for contact-line detection
   let firstH1Seen = false;
   let firstParaAfterH1Seen = false;

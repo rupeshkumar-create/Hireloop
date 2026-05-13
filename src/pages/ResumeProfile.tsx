@@ -1031,10 +1031,25 @@ function AnalysisList({
   tone: 'success' | 'warn' | 'info';
   items: string[];
 }) {
+  // All tones live within the brand palette — warm accent for positive, soft
+  // muted neutrals for warn/info. Keeps the landing-page aesthetic consistent
+  // across the app.
   const colors = {
-    success: { bg: 'bg-green-500/5',  bd: 'border-green-500/20',  fg: 'text-green-400' },
-    warn:    { bg: 'bg-amber-500/5',  bd: 'border-amber-500/20',  fg: 'text-amber-400' },
-    info:    { bg: 'bg-sky-500/5',    bd: 'border-sky-500/20',    fg: 'text-sky-400' },
+    success: {
+      bg: 'bg-[var(--hs-app-accent-soft)]',
+      bd: 'border-[var(--hs-app-accent)]/25',
+      fg: 'text-[var(--hs-app-accent)]',
+    },
+    warn: {
+      bg: 'bg-[var(--hs-app-warn-bg)]',
+      bd: 'border-[var(--hs-app-warn)]/25',
+      fg: 'text-[var(--hs-app-warn)]',
+    },
+    info: {
+      bg: 'bg-[var(--hs-app-bg)]',
+      bd: 'border-[var(--hs-app-border-strong)]',
+      fg: 'text-[var(--hs-app-muted)]',
+    },
   }[tone];
   return (
     <div className={`rounded-lg border ${colors.bd} ${colors.bg} p-4`}>

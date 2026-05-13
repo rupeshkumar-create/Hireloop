@@ -17,6 +17,7 @@ import remarkGfm from 'remark-gfm';
 import html2pdf from 'html2pdf.js';
 import { toast } from 'sonner';
 import { sanitizeUnsupportedColors } from '../../lib/pdfSanitize';
+import { ResumeMarkdown } from './ResumePreviewModal';
 
 export type AiResultType = 'email' | 'resume' | 'interview' | 'salary';
 
@@ -298,6 +299,14 @@ export function AiResultModal({
                         </li>
                       ))}
                     </ol>
+                  ) : type === 'resume' ? (
+                    /* Resume uses the dedicated resume markdown renderer so
+                       sections (name, contact, EXPERIENCE headers, dated
+                       roles, bullets) are styled like an actual résumé sheet
+                       — not flat prose. */
+                    <div style={{ fontFamily: '"Garamond", "Georgia", "Times New Roman", serif', color: '#1a1a1a' }}>
+                      <ResumeMarkdown text={flatContent} />
+                    </div>
                   ) : (
                     <div
                       className="prose prose-sm max-w-none"
