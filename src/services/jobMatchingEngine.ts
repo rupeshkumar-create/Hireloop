@@ -3,32 +3,38 @@ import type { DailyJob } from '../types/dailyJob.js';
 import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator.js';
 import { inferUserCountry, type UserCountry } from './remoteEligibility.js';
 
+// Genuine noise — articles, auxiliary verbs, generic role-page chrome. We
+// deliberately KEEP role-defining nouns like "engineer", "manager", "senior",
+// "lead" because those are exactly the tokens we want career-path matching
+// to hit on (e.g. "Senior Frontend Engineer" → "Senior Frontend Engineer").
 const STOP_WORDS = new Set([
-  'and', 'the', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are',
-  'our', 'will', 'have', 'has', 'role', 'job', 'work', 'team', 'remote',
-  'senior', 'junior', 'lead', 'manager', 'engineer', 'developer',
+  'a', 'an', 'and', 'or', 'but', 'the', 'for', 'with', 'from', 'that', 'this',
+  'these', 'those', 'your', 'you', 'are', 'our', 'will', 'have', 'has', 'had',
+  'is', 'be', 'been', 'being', 'we', 'us', 'their', 'they', 'who', 'whom',
+  'role', 'job', 'work', 'team', 'company', 'looking', 'seeking', 'about',
+  'remote', 'hybrid', 'onsite', 'office', 'full', 'part', 'time',
 ]);
 
-const KNOWN_SKILLS = [
-  'python', 'javascript', 'typescript', 'react', 'next.js', 'node.js', 'java',
-  'golang', 'go', 'rust', 'sql', 'postgresql', 'mysql', 'mongodb', 'redis',
-  'aws', 'gcp', 'azure', 'docker', 'kubernetes', 'terraform', 'linux',
-  'machine learning', 'data science', 'llm', 'ai', 'nlp', 'graphql', 'rest',
-  'product', 'design', 'figma', 'analytics', 'seo', 'marketing', 'sales',
-];
+const SENIORITY_LEVELS: Record<string, number> = {
+  intern: 0, internship: 0,
+  junior: 1, entry: 1, associate: 1, grad: 1,
+  mid: 2, midlevel: 2,
+  senior: 3, sr: 3,
+  lead: 4, principal: 4, staff: 4,
+  manager: 4, head: 5, director: 5, vp: 6, cxo: 6, chief: 6, ceo: 6, cto: 6, cfo: 6,
+};
 
 function tokenize(value: string): string[] {
-  return (value.toLowerCase().match(/[a-z][a-z0-9.+#-]{2,}/g) || [])
-    .filter((token) => !STOP_WORDS.has(token));
+  return (value.toLowerCase().match(/[a-z][a-z0-9.+#-]{1,}/g) || [])
+    .filter((token) => !STOP_WORDS.has(token) && token.length >= 2);
 }
 
 function unique(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  return [...new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean))];
 }
 
-function extractResumeSkills(resumeText: string): string[] {
-  const lower = resumeText.toLowerCase();
-  return KNOWN_SKILLS.filter((skill) => lower.includes(skill));
+function normalizePhrase(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9+#.\s-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function freshnessScore(daysOld: number): number {
@@ -51,30 +57,133 @@ function inferMatchedCareerPath(job: DiscoveredJob, careerPaths: string[]): stri
   });
 }
 
+/** Detect seniority level from a title or path. Returns -1 if no signal. */
+function detectSeniorityLevel(text: string): number {
+  const lower = text.toLowerCase();
+  let level = -1;
+  for (const [key, value] of Object.entries(SENIORITY_LEVELS)) {
+    if (new RegExp(`\\b${key}\\b`).test(lower)) {
+      level = Math.max(level, value);
+    }
+  }
+  return level;
+}
+
+export interface DeterministicScoreInputs {
+  job: DiscoveredJob;
+  careerPaths: string[];
+  resumeText: string;
+  // Optional — when available, provides a much stronger signal than re-parsing
+  // the raw resume text. Comes from extractResume's structured output.
+  structuredProfile?: {
+    skills?: string[];
+    techStack?: string[];
+    seniority?: string;
+    roles?: string[];
+    industries?: string[];
+  };
+}
+
 /**
- * Fast, deterministic score to narrow down candidates.
+ * Deterministic relevance score. Weights, roughly:
+ *   - Title phrase match against a career path:  up to 35
+ *   - Title-token overlap with career paths:     up to 15
+ *   - Structured-skill / tech-stack overlap:     up to 25
+ *   - Seniority alignment (penalty when off):    ±10
+ *   - Hygiene (recent posting, apply URL):       up to 10
+ *   - Remote bonus:                              up to 8
+ *
+ * Base 0. Clamped to [0, 100].
  */
-function deterministicMatchScore(job: DiscoveredJob, careerPaths: string[], resumeText: string): number {
+export function deterministicMatchScore(input: DeterministicScoreInputs): number {
+  const { job, careerPaths, resumeText, structuredProfile } = input;
+
+  const titleNorm = normalizePhrase(job.title);
   const titleTokens = tokenize(job.title);
-  const haystack = `${job.title} ${job.description} ${job.requirements.join(' ')}`.toLowerCase();
+  const haystack = `${job.title} ${job.description} ${(job.requirements || []).join(' ')}`.toLowerCase();
+  const careerPathsNorm = careerPaths.map(normalizePhrase).filter(Boolean);
   const careerTokens = unique(careerPaths.flatMap(tokenize));
-  const resumeSkills = extractResumeSkills(resumeText);
-  const resumeTokens = unique([...resumeSkills, ...tokenize(resumeText).slice(0, 80)]);
 
-  let score = 25;
+  // ── Title phrase match — strongest signal ──────────────────────────────
+  // "Senior Frontend Engineer" career path → exact-match title earns the
+  // full 35; a substring match (e.g. "Senior Frontend Engineer II") earns
+  // partial credit.
+  let titlePhrase = 0;
+  for (const path of careerPathsNorm) {
+    if (!path) continue;
+    if (titleNorm === path) {
+      titlePhrase = Math.max(titlePhrase, 35);
+    } else if (titleNorm.includes(path) || path.includes(titleNorm)) {
+      titlePhrase = Math.max(titlePhrase, 28);
+    } else {
+      // Fall back to per-token overlap inside title.
+      const pathTokens = tokenize(path);
+      const overlap = pathTokens.filter((t) => titleTokens.includes(t)).length;
+      if (pathTokens.length > 0) {
+        const ratio = overlap / pathTokens.length;
+        titlePhrase = Math.max(titlePhrase, Math.round(ratio * 22));
+      }
+    }
+  }
 
-  const titleCareerHits = careerTokens.filter((token) => titleTokens.includes(token)).length;
-  const bodyCareerHits = careerTokens.filter((token) => haystack.includes(token)).length;
-  const skillHits = resumeTokens.filter((token) => haystack.includes(token)).length;
+  // ── Title-token overlap (broader catch-net) ────────────────────────────
+  const titleTokenOverlap = careerTokens.filter((t) => titleTokens.includes(t)).length;
+  const titleTokenScore = Math.min(15, titleTokenOverlap * 5);
 
-  score += Math.min(35, titleCareerHits * 15 + bodyCareerHits * 5);
-  score += Math.min(30, skillHits * 5);
-  score += remoteBonus(job.workType);
+  // ── Skill / tech-stack overlap ─────────────────────────────────────────
+  // Strongly prefer the structured profile (already AI-extracted, accurate).
+  // Fall back to coarse resume-text scanning when missing.
+  const profileSkills = unique([
+    ...(structuredProfile?.skills || []),
+    ...(structuredProfile?.techStack || []),
+  ]);
+  const skillPool: string[] = profileSkills.length > 0
+    ? profileSkills
+    : unique(tokenize(resumeText).slice(0, 200));
 
-  if (job.applyUrl) score += 5;
-  if (job.daysOld <= 7) score += 5;
+  let skillHits = 0;
+  for (const skill of skillPool) {
+    const needle = normalizePhrase(skill);
+    if (needle.length < 2) continue;
+    // Word-boundary contains: catches "react" inside "React, Redux".
+    if (new RegExp(`\\b${needle.replace(/[+#.]/g, '\\$&')}\\b`).test(haystack)) {
+      skillHits++;
+    }
+  }
+  const skillScore = Math.min(25, skillHits * 3);
 
-  return Math.max(0, Math.min(100, Math.round(score)));
+  // ── Seniority alignment ───────────────────────────────────────────────
+  // Compare job-title seniority against the user's seniority (from profile
+  // or any career path). One level apart is fine. Two-plus is a real
+  // mismatch — could be a senior staring at intern roles, or vice versa.
+  const userSeniority = Math.max(
+    detectSeniorityLevel(structuredProfile?.seniority || ''),
+    ...careerPaths.map((p) => detectSeniorityLevel(p)),
+  );
+  const jobSeniority = detectSeniorityLevel(job.title);
+  let seniorityScore = 0;
+  if (userSeniority >= 0 && jobSeniority >= 0) {
+    const gap = Math.abs(userSeniority - jobSeniority);
+    if (gap === 0) seniorityScore = 10;
+    else if (gap === 1) seniorityScore = 4;
+    else if (gap === 2) seniorityScore = -6;
+    else seniorityScore = -10;
+  }
+
+  // ── Hygiene + remote bonus ─────────────────────────────────────────────
+  const recencyBonus = job.daysOld <= 3 ? 5 : job.daysOld <= 7 ? 3 : 0;
+  const applyBonus = job.applyUrl ? 3 : 0;
+
+  const total =
+    titlePhrase +
+    titleTokenScore +
+    skillScore +
+    seniorityScore +
+    recencyBonus +
+    applyBonus +
+    remoteBonus(job.workType);
+
+  return Math.max(0, Math.min(100, Math.round(total)));
 }
 
 /**
@@ -85,39 +194,74 @@ async function scoreJobsWithAI(
   jobs: DiscoveredJob[],
   resumeText: string,
   careerPaths: string[],
-  callAI: CallAIFn
+  callAI: CallAIFn,
+  structuredProfile?: DeterministicScoreInputs['structuredProfile'],
 ): Promise<Record<string, { aiScore: number; aiReason: string; aiInsight: string }>> {
   if (jobs.length === 0) return {};
 
-  const prompt = `You are an elite technical recruiter and startup founder. 
-  Score each job listing (0-100) based on its fit for the candidate's resume and career paths.
-  
-  --- PERSONA FIT CRITERIA ---
-  1. Developers, Founders, PLG roles: Prioritize high-level technical or product-led growth positions.
-  2. Scoring: Assign a score based on role relevance and company quality.
-  3. Remote Verification: STRICTLY filter out jobs that are "Hybrid" in disguise.
-  
-  Candidate Career Paths: ${careerPaths.join(', ')}
-  
-  Candidate Resume (Summary):
-  ${resumeText.substring(0, 4000)}
-  
-  Jobs to Score:
-  ${jobs.map((job, i) => `[${i}] Title: ${job.title} | Company: ${job.company} | AI Enriched Summary: ${job.aiDescriptionEnriched || job.description.substring(0, 500)}`).join('\n\n')}
-  
-  Return a JSON array of objects:
-  [{
-    "index": number,
-    "score": number,
-    "reason": "Internal reason for score",
-    "insight": "One-sentence summary of why this job was selected for the user"
-  }, ...]
+  // Structured profile summary — gives the AI verified, dense signal instead
+  // of forcing it to re-parse the raw resume each time.
+  const profileBlock = structuredProfile
+    ? [
+        structuredProfile.seniority ? `Seniority: ${structuredProfile.seniority}` : '',
+        structuredProfile.roles?.length ? `Roles: ${structuredProfile.roles.join(', ')}` : '',
+        structuredProfile.industries?.length ? `Industries: ${structuredProfile.industries.join(', ')}` : '',
+        structuredProfile.skills?.length ? `Skills: ${structuredProfile.skills.slice(0, 25).join(', ')}` : '',
+        structuredProfile.techStack?.length ? `Tech stack: ${structuredProfile.techStack.slice(0, 25).join(', ')}` : '',
+      ].filter(Boolean).join('\n')
+    : '';
 
-  Respond ONLY with the raw JSON array. Do NOT wrap it in markdown code
-  fences (no \`\`\`json ... \`\`\`), do NOT add commentary before or after.`;
+  const prompt = `You are a senior technical recruiter. Score each job 0-100 against the
+specific candidate below. Use the FULL range — most jobs are not 70-90 fits.
+
+ANCHORED RUBRIC (use these as reference points):
+  95-100  Perfect fit. Exact title match, every required skill present, right seniority.
+  80-94   Strong fit. Title is in the candidate's career paths, most skills overlap, seniority aligns.
+  60-79   Reasonable fit. Adjacent role or some skill gaps, but candidate could land it with prep.
+  40-59   Stretch. Real gaps in seniority, industry, or skills — would need to upskill or pivot.
+  20-39   Wrong direction. Different function, wrong seniority, irrelevant industry.
+  0-19    Mismatch. Should not have been surfaced.
+
+EVALUATE EACH JOB ON FOUR AXES:
+  1. Role match — does the title align with the candidate's target career paths?
+  2. Skill fit — what fraction of the job's required skills does the candidate have?
+  3. Seniority alignment — is the candidate the right level, or over/under-qualified?
+  4. Quality signals — well-known company, clear job description, recent posting.
+
+ANTI-PATTERNS TO PENALIZE HARD:
+  - Hybrid jobs disguised as "remote" → cap at 40 if explicitly hybrid.
+  - Role that requires a license/credential the candidate doesn't have (medical, legal, finance) → cap at 30.
+  - Seniority more than one level off from the candidate → cap at 60.
+
+CANDIDATE PROFILE
+-----------------
+Career paths: ${careerPaths.join(', ') || '(none specified)'}
+${profileBlock || `Resume summary:\n${resumeText.substring(0, 3500)}`}
+
+JOBS TO SCORE
+-------------
+${jobs.map((job, i) => `[${i}]
+  Title: ${job.title}
+  Company: ${job.company}
+  Location: ${job.location || 'Unspecified'}
+  Summary: ${job.aiDescriptionEnriched || job.description.substring(0, 700)}`).join('\n\n')}
+
+Return a JSON array of objects, one per job, in the same order:
+[{
+  "index": number,
+  "score": number,           // 0-100, using the rubric above
+  "verdict": "perfect" | "strong" | "reasonable" | "stretch" | "wrong",
+  "reason": "1-sentence internal note: WHY this score (cite the specific gap or strength)",
+  "insight": "1-sentence candidate-facing pitch: why this role might excite or fit them"
+}]
+
+Respond ONLY with the raw JSON array. No markdown fences, no commentary.`;
 
   try {
-    const response = await callAI([{ role: 'user', content: prompt }], 'openai/gpt-4o-mini');
+    // gpt-4o gives noticeably better judgment than gpt-4o-mini on this task
+    // (less compression toward 70-85, sharper rejections). The marginal cost
+    // is worth it — scoring runs at most a few times per user per day.
+    const response = await callAI([{ role: 'user', content: prompt }], 'openai/gpt-4o');
     const parsed = parseAiJsonArray(response);
     const results: Record<string, { aiScore: number; aiReason: string; aiInsight: string }> = {};
 
@@ -227,6 +371,10 @@ export interface MatchOptions {
   };
   deliveryTimezone?: string;
   userCountry?: UserCountry;
+  // Structured profile from extractResume — supplies skills, seniority,
+  // industries to BOTH the deterministic scorer and the AI scoring prompt.
+  // When omitted, scoring falls back to coarse resume-text parsing.
+  structuredProfile?: DeterministicScoreInputs['structuredProfile'];
 }
 
 export interface MatchResult {
@@ -252,6 +400,7 @@ export async function matchAndRankJobs(
     matchingPreferences,
     deliveryTimezone,
     userCountry: explicitCountry,
+    structuredProfile,
   } = opts;
 
   const seenSet = new Set(seenFingerprints);
@@ -279,7 +428,7 @@ export async function matchAndRankJobs(
   const initialCandidates = candidateJobs
     .map((job) => ({
       job,
-      detScore: deterministicMatchScore(job, careerPaths, resumeText),
+      detScore: deterministicMatchScore({ job, careerPaths, resumeText, structuredProfile }),
     }))
     .filter(({ job }) => {
       const result = jobMatchesUserPreferences(
@@ -314,7 +463,8 @@ export async function matchAndRankJobs(
       topCandidates.map(c => c.job),
       resumeText,
       careerPaths,
-      callAI
+      callAI,
+      structuredProfile,
     );
   }
 

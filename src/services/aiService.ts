@@ -885,6 +885,52 @@ Format in clean Markdown. Under 200 words. No fluff.`;
 // Agent 9: Resume Tailoring
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Pull the most ATS-significant terms out of a job description. We hand these
+ * to the tailoring prompt explicitly so the model doesn't have to guess what
+ * to weave into bullets — and so the user gets a deterministic, predictable
+ * set of keywords inserted on every run.
+ *
+ * Heuristic: pick alphanumeric tokens 3+ chars long, drop generic English
+ * stopwords + boilerplate, rank by frequency, keep the top 20.
+ */
+export function extractJobKeywords(jobDescription: string, max: number = 20): string[] {
+  if (!jobDescription) return [];
+  const NOISE = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'will', 'are', 'our',
+    'you', 'your', 'their', 'they', 'have', 'has', 'had', 'been', 'being',
+    'role', 'team', 'work', 'about', 'who', 'into', 'across', 'within',
+    'over', 'years', 'experience', 'looking', 'seeking', 'must', 'should',
+    'company', 'job', 'position', 'opportunity', 'candidate', 'qualified',
+    'strong', 'excellent', 'great', 'good', 'best', 'plus', 'preferred',
+    'required', 'requirements', 'qualifications', 'responsibilities',
+    'including', 'such', 'other', 'more', 'than', 'one', 'two', 'three',
+    'all', 'any', 'some', 'where', 'when', 'what', 'how', 'why', 'remote',
+    'hybrid', 'office', 'full', 'time', 'part', 'month', 'year', 'day',
+    'week', 'team', 'teams', 'us', 'we', 'or', 'a', 'an', 'is', 'be',
+    'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up', 'do', 'it', 'so',
+  ]);
+  const counts = new Map<string, number>();
+  const tokens = jobDescription.toLowerCase().match(/[a-z][a-z0-9+#.-]{2,}/g) || [];
+  for (const tok of tokens) {
+    if (NOISE.has(tok)) continue;
+    if (/^\d+$/.test(tok)) continue;
+    counts.set(tok, (counts.get(tok) || 0) + 1);
+  }
+  // Boost terms that look like proper nouns or tech (capitalised in original).
+  const properNouns = (jobDescription.match(/\b[A-Z][a-zA-Z0-9+#.-]{2,}\b/g) || [])
+    .map((t) => t.toLowerCase());
+  for (const pn of properNouns) {
+    if (NOISE.has(pn)) continue;
+    counts.set(pn, (counts.get(pn) || 0) + 2);
+  }
+  return Array.from(counts.entries())
+    .filter(([, n]) => n >= 1)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([k]) => k);
+}
+
 export async function tailorResume(
   jobTitle: string,
   jobDescription: string,
@@ -895,11 +941,17 @@ export async function tailorResume(
   return runWithGuardrails(
     'resume_tailoring',
     async () => {
+      // Pre-extract the keywords. The AI uses these instead of guessing.
+      const keywords = extractJobKeywords(jobDescription, 20);
+      const keywordBlock = keywords.length > 0
+        ? `\nKEYWORDS TO WEAVE NATURALLY INTO BULLETS + SUMMARY (use ≥8 of these, do not stuff):\n${keywords.join(', ')}\n`
+        : '';
+
       const prompt = `You are an expert resume writer and ATS specialist.
-Rewrite the provided resume, fully tailored for the "${jobTitle}" role described below.
+Rewrite the candidate's resume to be tailored for the "${jobTitle}" role described below.
 
 ${writingStyleContext ? `Writing style notes: ${writingStyleContext}\n` : ''}
-
+${keywordBlock}
 ════════════════════════════════════════
 MANDATORY OUTPUT FORMAT (strict Markdown)
 ════════════════════════════════════════
@@ -909,15 +961,15 @@ MANDATORY OUTPUT FORMAT (strict Markdown)
 Email | Phone | City, Country | linkedin.com/in/handle
 
 ## SUMMARY
-2–3 sentence professional summary targeting this specific role and company context. Lead with seniority and strongest relevant skill. No filler phrases.
+2–3 sentences targeting this specific role. Lead with seniority and the strongest relevant skill from the candidate's actual background. No filler phrases ("results-driven", "passionate", "team-player").
 
 ## EXPERIENCE
 
 ### Company Name — Job Title
 *Month Year – Month Year (or Present)*
 
-- Strong past-tense verb + what you did + measurable result (if original has numbers, keep them)
-- [2–5 bullets per role, each on its own line]
+- Strong past-tense verb + concrete deliverable + measurable result. Each bullet uses at least one keyword from the job description when it can be made truthful.
+- 3–5 bullets per recent role, 2–3 for older roles, all on their own line.
 
 ### Next Company — Previous Role
 *Month Year – Month Year*
@@ -936,25 +988,33 @@ Email | Phone | City, Country | linkedin.com/in/handle
 **Soft Skills:** skill1, skill2
 
 ════════════════════════════════════════
-RULES
+GROUNDEDNESS RULES (treat as non-negotiable)
 ════════════════════════════════════════
-1. NEVER invent experience, companies, degrees, or metrics absent from the original resume.
-2. Inject relevant keywords from the job description naturally into bullets and summary.
-3. Strengthen weak bullets: "worked on X" → "Rebuilt X, reducing load time by Y%".
-4. Remove irrelevant experience sections entirely if they add zero signal for this role.
-5. Dates must be in "Mon Year" format (e.g. "Jan 2022 – Mar 2024").
-6. Contact line must be a single line using "|" as separator.
-7. Do NOT include any preamble, explanation, or commentary — output the resume only.
+1. NEVER invent experience, companies, degrees, certifications, or metrics that are not in the original resume.
+2. Company names, job titles, and dates from the original resume must be preserved EXACTLY. If a date isn't in the original, leave it blank — do not guess.
+3. The candidate's name in the H1 must match the original resume verbatim.
+4. Numbers and percentages may only be included if they appear in the original. If the original says "improved X", do NOT invent a "+30%" — keep it qualitative.
+5. Keyword injection is allowed only when the underlying claim is true. "Worked with Python" stays. "Built distributed systems in Rust" is invented and forbidden.
+
+════════════════════════════════════════
+QUALITY RULES
+════════════════════════════════════════
+6. Strengthen weak bullets: "worked on X" → "Rebuilt X using <true tech>, owning <true scope>".
+7. Drop entire experience entries that add zero signal for this role (e.g. unrelated internships from 8 years ago when targeting a senior role).
+8. Reorder bullets within each role so the most-relevant-to-this-job line appears first.
+9. Dates must be "Mon Year" format (e.g. "Jan 2022 – Mar 2024" or "Mar 2024 – Present").
+10. Contact line is a single line using "|" as separator. Skills section uses comma-separated lists, NOT bullets.
+11. Output the resume ONLY. No preamble, no commentary, no "Here is the resume:".
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
 ────────────────────────────────────────
 JOB DESCRIPTION
 ────────────────────────────────────────
-${jobDescription.slice(0, 3000)}
+${jobDescription.slice(0, 3500)}
 
 ────────────────────────────────────────
-ORIGINAL RESUME
+ORIGINAL RESUME (the only source of truth for the candidate's facts)
 ────────────────────────────────────────
 ${resumeText}
 

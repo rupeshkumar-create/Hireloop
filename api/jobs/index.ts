@@ -272,6 +272,10 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
             limit,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
+            // Structured profile feeds both the deterministic scorer and the
+            // AI scoring prompt — gives both a verified skill / seniority /
+            // industry signal instead of forcing them to re-parse raw text.
+            structuredProfile: profile.structuredProfile,
           }
         );
         debug = {
