@@ -70,6 +70,11 @@ export function JobTracker() {
   // Search query + follow-up generation state used by the new pipeline header.
   const [searchQuery, setSearchQuery] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState<string | null>(null);
+  // Native HTML5 drag-and-drop state for the kanban board. `draggingJobId`
+  // tracks the card the user picked up; `dragOverStatus` is the column the
+  // pointer is currently over, so we can give it a visual cue.
+  const [draggingJobId, setDraggingJobId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   
   const [editorModal, setEditorModal] = useState<{
     isOpen: boolean;
@@ -589,24 +594,69 @@ export function JobTracker() {
         <Tooltip.Provider delayDuration={200}>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
             {STATUSES.map(status => (
-              <div key={status} className="flex h-[calc(100vh-220px)] flex-col rounded-xl border border-border bg-surface p-4">
+              <div
+                key={status}
+                className={[
+                  'flex h-[calc(100vh-220px)] flex-col rounded-xl border bg-surface p-4 transition-colors',
+                  dragOverStatus === status
+                    ? 'border-[var(--hs-app-accent)] bg-[var(--hs-app-accent-soft)] ring-2 ring-[var(--hs-app-accent)]/30'
+                    : 'border-border',
+                ].join(' ')}
+                onDragOver={(e) => {
+                  if (!draggingJobId) return;
+                  e.preventDefault();
+                  // Required so the drop event fires; "move" cue updates the
+                  // cursor and visually distinguishes column hover state.
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverStatus !== status) setDragOverStatus(status);
+                }}
+                onDragLeave={() => {
+                  if (dragOverStatus === status) setDragOverStatus(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const jobId = e.dataTransfer.getData('text/plain') || draggingJobId;
+                  setDragOverStatus(null);
+                  setDraggingJobId(null);
+                  if (jobId) void updateStatus(jobId, status);
+                }}
+              >
                 <h3 className="font-medium text-foreground capitalize mb-4 flex items-center justify-between">
                   {status}
                   <Badge variant="secondary" className="font-normal normal-case tracking-normal">{visibleJobs.filter(j => j.status === status).length}</Badge>
                 </h3>
-                
+
                 <div className="space-y-3 overflow-y-auto flex-1 pr-1">
                   <AnimatePresence>
                     {visibleJobs.filter(j => j.status === status).map((job, idx) => (
-                      <motion.div
+                      // Native HTML5 drag wrapper. We keep this as a plain
+                      // <div> rather than putting `draggable` directly on the
+                      // motion.div because framer-motion types its own
+                      // onDragStart (PointerEvent), which conflicts with the
+                      // native DragEvent we need. Wrapping leaves motion.div's
+                      // layout / mount-exit animations intact.
+                      <div
                         key={job.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', job.id);
+                          setDraggingJobId(job.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggingJobId(null);
+                          setDragOverStatus(null);
+                        }}
+                        style={{ opacity: draggingJobId === job.id ? 0.4 : 1, cursor: draggingJobId === job.id ? 'grabbing' : 'grab' }}
+                      >
+                      <motion.div
                         layout
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Card className="cursor-pointer transition-colors hover:border-border-strong">
+                        <Card className="cursor-grab transition-colors hover:border-border-strong">
                           <CardContent className="p-4">
                             <h4 className="font-medium text-sm text-foreground leading-tight mb-1">{job.title}</h4>
                             <p className="text-xs text-foreground-muted mb-3">{job.company}</p>
@@ -707,6 +757,7 @@ export function JobTracker() {
                           </CardContent>
                         </Card>
                       </motion.div>
+                      </div>
                     ))}
                   </AnimatePresence>
                 </div>
@@ -783,9 +834,9 @@ export function JobTracker() {
                           </Button>
                         </div>
                       )}
-                      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                         {/* Cold Email Section */}
-                        <div className="space-y-3 relative">
+                        <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
@@ -807,13 +858,13 @@ export function JobTracker() {
                           </div>
                           
                           {hasValidText(job.coldEmail) ? (
-                            <div className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto whitespace-pre-wrap">
+                            <div className="flex-1 bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-56 min-h-[14rem] overflow-y-auto whitespace-pre-wrap">
                               {job.coldEmail}
                             </div>
                           ) : (
-                            <div className="text-xs text-foreground-muted italic">No cold email generated yet.</div>
+                            <div className="flex-1 flex items-center justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md text-xs text-foreground-muted italic">No cold email generated yet.</div>
                           )}
-                          <div className="flex gap-2 items-center">
+                          <div className="mt-auto flex gap-2 items-center">
                             <div className="flex-1 flex relative">
                               <input 
                                 type="email" 
@@ -858,7 +909,7 @@ export function JobTracker() {
                         </div>
 
                         {/* Tailored Resume Section */}
-                        <div className="space-y-3 relative">
+                        <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
@@ -880,14 +931,14 @@ export function JobTracker() {
                           </div>
                           
                           {hasValidText(job.tailoredResume) ? (
-                            <div id={`resume-${job.id}`} className="bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-48 overflow-y-auto markdown-body prose prose-sm max-w-none">
+                            <div id={`resume-${job.id}`} className="flex-1 bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-56 min-h-[14rem] overflow-y-auto markdown-body prose prose-sm max-w-none">
                               <ReactMarkdown>{job.tailoredResume}</ReactMarkdown>
                             </div>
                           ) : (
-                            <div className="text-xs text-foreground-muted italic">No tailored resume generated yet.</div>
+                            <div className="flex-1 flex items-center justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md text-xs text-foreground-muted italic">No tailored resume generated yet.</div>
                           )}
                           {hasValidText(job.tailoredResume) && (
-                            <div className="flex gap-2">
+                            <div className="mt-auto flex gap-2">
                               <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => setPreviewResumeData({text: job.tailoredResume!, company: job.company})}>
                                 <FileText className="mr-2 h-3 w-3" /> Preview & Download
                               </Button>
@@ -896,7 +947,7 @@ export function JobTracker() {
                         </div>
 
                         {/* Interview Prep Section */}
-                        <div className="space-y-3 relative">
+                        <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
                               <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
@@ -917,7 +968,7 @@ export function JobTracker() {
                             </div>
                           </div>
                           {hasValidInterview(job.interviewQuestions) ? (
-                            <div className="bg-surface border border-border rounded-md p-4 text-xs text-foreground-muted max-h-64 overflow-y-auto markdown-body prose prose-sm max-w-none">
+                            <div className="flex-1 bg-surface border border-border rounded-md p-4 text-xs text-foreground-muted max-h-56 min-h-[14rem] overflow-y-auto markdown-body prose prose-sm max-w-none">
                               {Array.isArray(job.interviewQuestions) ? (
                                 <ul className="list-decimal pl-5 space-y-3">
                                   {job.interviewQuestions.map((q, i) => (
@@ -929,10 +980,10 @@ export function JobTracker() {
                               )}
                             </div>
                           ) : (
-                            <div className="text-xs text-foreground-muted italic">No interview questions generated yet.</div>
+                            <div className="flex-1 flex items-center justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md text-xs text-foreground-muted italic">No interview questions generated yet.</div>
                           )}
                           {hasValidInterview(job.interviewQuestions) && (
-                            <div className="flex gap-2">
+                            <div className="mt-auto flex gap-2">
                               <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => {
                                 const text = Array.isArray(job.interviewQuestions) ? job.interviewQuestions.join('\n\n') : job.interviewQuestions;
                                 const blob = new Blob([text!], { type: 'text/markdown' });

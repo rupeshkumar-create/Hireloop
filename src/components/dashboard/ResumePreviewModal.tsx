@@ -1,15 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, FileText, Eye, FileJson } from 'lucide-react';
+import { X, Download, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import html2pdf from 'html2pdf.js';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
-import { saveAs } from 'file-saver';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
-import { sanitizeUnsupportedColors } from '../../lib/pdfSanitize';
+import { exportResumeAsPdf, exportResumeAsDocx } from '../../lib/resumeExport';
 
 interface Props {
   isOpen: boolean;
@@ -204,42 +201,31 @@ export function ResumeMarkdown({ text }: { text: string }) {
 export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, jobTitle }: Props) {
   const resumeRef = useRef<HTMLDivElement>(null);
 
+  // Esc closes — standard modal accessibility. Without this users hunt for
+  // the X button. Also fixed an issue where the X icon was reported as
+  // unresponsive: the handler was wired correctly, but with no backdrop
+  // click + no Esc the modal felt "stuck" if anything ever swallowed the
+  // X click.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  // Both downloaders now delegate to the shared exporter in lib/resumeExport.
+  // That helper uses html2canvas-pro (native oklch support) + jsPDF directly
+  // — bypassing html2pdf.js's bundled html2canvas v1 which crashed on the
+  // modern colour functions Tailwind v4 emits everywhere.
+  const baseFilename = `Resume_${companyName.replace(/\s+/g, '_')}`;
+
   const downloadPdf = async () => {
     if (!resumeRef.current) return;
-    
-    const opt = {
-      // [top, left, bottom, right] inches — applied to EVERY page so multi-page
-      // PDFs get consistent header/footer whitespace.
-      margin:      [0.5, 0.6, 0.5, 0.6] as [number, number, number, number],
-      filename:    `Resume_${companyName.replace(/\s+/g, '_')}.pdf`,
-      image:       { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        onclone: (_doc: Document, clonedEl: HTMLElement) => {
-          sanitizeUnsupportedColors(clonedEl);
-          // The on-screen preview adds 60px vertical padding so the resume
-          // looks like a sheet of paper. For PDF rendering we drop it —
-          // html2pdf.margin above now supplies per-page top/bottom whitespace,
-          // and keeping the inline padding would double-up on page 1.
-          clonedEl.style.padding = '0 70px';
-          clonedEl.style.minHeight = '0';
-        },
-      },
-      jsPDF:       { unit: 'in', format: 'letter', orientation: 'portrait' as const },
-      // Respect CSS page-break-* hints set on h3/ul/li/p above so html2pdf
-      // doesn't slice through the middle of a text row when content overflows
-      // a single page.
-      pagebreak:   { mode: ['css', 'legacy'] },
-    };
-
     try {
       toast.loading('Generating PDF...', { id: 'pdf-gen' });
-      // Use the worker-based approach for more reliability
-      await html2pdf().set(opt).from(resumeRef.current).save();
+      await exportResumeAsPdf({ source: resumeRef.current, baseFilename });
       toast.success('Resume downloaded as PDF', { id: 'pdf-gen' });
     } catch (err: any) {
       console.error('PDF generation error:', err);
@@ -250,72 +236,7 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
   const downloadDocx = async () => {
     try {
       toast.loading('Generating DOCX...', { id: 'docx-gen' });
-      const lines = resumeText.split('\n');
-      const children: any[] = [];
-
-      lines.forEach((line) => {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          children.push(new Paragraph({ text: '' }));
-          return;
-        }
-
-        if (trimmed.startsWith('# ')) {
-          children.push(new Paragraph({
-            text: trimmed.replace('# ', '').toUpperCase(),
-            heading: HeadingLevel.HEADING_1,
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 240, after: 120 },
-          }));
-        } else if (trimmed.startsWith('## ')) {
-          children.push(new Paragraph({
-            text: trimmed.replace('## ', '').toUpperCase(),
-            heading: HeadingLevel.HEADING_2,
-            border: {
-              bottom: {
-                color: "000000",
-                space: 1,
-                style: BorderStyle.SINGLE,
-                size: 6,
-              },
-            },
-            spacing: { before: 480, after: 240 },
-          }));
-        } else if (trimmed.startsWith('### ')) {
-          children.push(new Paragraph({
-            text: trimmed.replace('### ', ''),
-            heading: HeadingLevel.HEADING_3,
-            spacing: { before: 240, after: 120 },
-          }));
-        } else if (trimmed.startsWith('- ')) {
-          children.push(new Paragraph({
-            text: trimmed.replace('- ', ''),
-            bullet: { level: 0 },
-            spacing: { before: 80, after: 80 },
-          }));
-        } else if (isContactLine(trimmed)) {
-          children.push(new Paragraph({
-            text: trimmed,
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 80, after: 240 },
-          }));
-        } else {
-          children.push(new Paragraph({
-            text: trimmed,
-            spacing: { before: 80, after: 80 },
-          }));
-        }
-      });
-
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: children,
-        }],
-      });
-
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Resume_${companyName.replace(/\s+/g, '_')}.docx`);
+      await exportResumeAsDocx({ markdown: resumeText, baseFilename });
       toast.success('Resume downloaded as DOCX', { id: 'docx-gen' });
     } catch (err: any) {
       console.error('DOCX generation error:', err);
@@ -331,13 +252,17 @@ export function ResumePreviewModal({ isOpen, onClose, resumeText, companyName, j
   const modalRoot = typeof document !== 'undefined' ? document.body : null;
 
   const modalNode = (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 md:p-8">
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] backdrop-blur-sm p-4 md:p-8"
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
         className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface"
         style={{ maxHeight: '92vh' }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-surface/80 px-6 py-4 backdrop-blur-sm">
