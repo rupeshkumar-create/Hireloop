@@ -76,6 +76,7 @@ export function Dashboard() {
     requestJobs,
     stats,
     saveJob,
+    markJobApplied,
     dismissJob,
     trackJobClick,
     dailyJobsMeta,
@@ -314,8 +315,8 @@ export function Dashboard() {
                 <strong>{pipelineCount} jobs are in your pipeline</strong>
                 <div className="mt-1 font-mono text-[10px] text-[var(--hs-app-muted)]">Saved, applied, or interviewing</div>
               </div>
-              <Link to="/saved" className="flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-[var(--hs-app-bg)]">
-                Open saved library
+              <Link to="/jobs" className="flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-[var(--hs-app-bg)]">
+                Open pipeline
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -329,6 +330,7 @@ export function Dashboard() {
           saveJob={handleSaveJob}
           dismissJob={dismissJob}
           trackJobClick={trackJobClick}
+          markJobApplied={markJobApplied}
           handleAiAction={handleAiAction}
           aiAction={aiAction}
           aiResult={aiResult}

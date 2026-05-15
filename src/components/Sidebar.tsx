@@ -28,7 +28,7 @@ function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: bo
     {
       label: 'Library',
       items: [
-        { name: 'Saved Jobs', path: '/saved', icon: Bookmark, count: savedCount },
+        { name: 'Pipeline', path: '/jobs', icon: Bookmark, count: savedCount },
         { name: 'Resume', path: '/resume', icon: FileText },
       ],
     },

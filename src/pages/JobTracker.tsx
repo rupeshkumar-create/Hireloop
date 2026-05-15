@@ -18,6 +18,18 @@ import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTex
 import { applyLearningEvent } from '../services/learningSignals';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 import { PageShell } from '../components/ui/page-shell';
+import {
+  assetCompleteness,
+  followUpHint,
+  pipelineMetrics,
+  searchTrackedJobs,
+  statusTransitionPatch,
+  timeAwareLabel,
+  trackedJobsToCsv,
+  trackedJobsToIcs,
+} from '../lib/trackedJob';
+import { generateFollowUpEmail } from '../services/aiService';
+import { Search as SearchIcon } from 'lucide-react';
 
 interface TrackedJob {
   id: string;
@@ -55,6 +67,9 @@ export function JobTracker() {
     return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'board';
   });
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  // Search query + follow-up generation state used by the new pipeline header.
+  const [searchQuery, setSearchQuery] = useState('');
+  const [followUpLoading, setFollowUpLoading] = useState<string | null>(null);
   
   const [editorModal, setEditorModal] = useState<{
     isOpen: boolean;
@@ -129,12 +144,96 @@ export function JobTracker() {
     return () => unsubscribe();
   }, [user]);
 
+  // Apply the search query to the full jobs list. All downstream rendering
+  // (board columns, list view) reads from this filtered set.
+  const visibleJobs = React.useMemo(
+    () => searchTrackedJobs(jobs as any, searchQuery),
+    [jobs, searchQuery],
+  ) as TrackedJob[];
+  const metrics = React.useMemo(() => pipelineMetrics(jobs as any), [jobs]);
+
+  const downloadFile = (filename: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    if (jobs.length === 0) {
+      toast.info('No tracked jobs to export.');
+      return;
+    }
+    downloadFile(
+      `hireschema-pipeline-${new Date().toISOString().slice(0, 10)}.csv`,
+      trackedJobsToCsv(jobs as any),
+      'text/csv;charset=utf-8',
+    );
+    toast.success(`Exported ${jobs.length} job${jobs.length === 1 ? '' : 's'} to CSV.`);
+  };
+
+  const handleExportIcs = () => {
+    const withInterview = jobs.filter((j: any) => j.interviewAt);
+    if (withInterview.length === 0) {
+      toast.info('No scheduled interviews to export. Set an interview date on a card first.');
+      return;
+    }
+    downloadFile(
+      `hireschema-interviews-${new Date().toISOString().slice(0, 10)}.ics`,
+      trackedJobsToIcs(jobs as any),
+      'text/calendar;charset=utf-8',
+    );
+    toast.success(`Exported ${withInterview.length} interview${withInterview.length === 1 ? '' : 's'} to calendar.`);
+  };
+
+  const generateFollowUp = async (job: TrackedJob) => {
+    if (followUpLoading) return;
+    const daysSince = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date((job as any).appliedAt || job.createdAt).getTime()) / 86_400_000,
+      ),
+    );
+    setFollowUpLoading(job.id);
+    try {
+      toast.loading('Drafting follow-up email…', { id: 'follow-up' });
+      const body = await generateFollowUpEmail(
+        job.title,
+        job.company,
+        daysSince,
+        profile?.resumeSummary || profile?.resumeText || '',
+        job.coldEmail || '',
+        profile?.antiSlopEnabled !== false,
+        profile?.learningProfile?.writingStyle || '',
+      );
+      await updateDoc(doc(db, 'trackedJobs', job.id), {
+        followUpEmail: body,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      toast.success('Follow-up email ready in this job\'s editor.', { id: 'follow-up' });
+    } catch (e: any) {
+      toast.error(`Couldn't draft follow-up: ${e?.message || 'Unknown error'}`, { id: 'follow-up' });
+    } finally {
+      setFollowUpLoading(null);
+    }
+  };
+
   const updateStatus = async (jobId: string, newStatus: string) => {
     const job = jobs.find((item) => item.id === jobId);
     if (!job) return;
 
+    // Use the shared transition helper so stage timestamps stamp consistently:
+    // appliedAt fires only the first time the job hits "applied", statusChangedAt
+    // fires on every transition. Idempotent — same status → empty patch (no write).
+    const patch = statusTransitionPatch(job as any, newStatus as any);
+    if (Object.keys(patch).length === 0) return;
     try {
-      await updateDoc(doc(db, 'trackedJobs', jobId), { status: newStatus, updatedAt: new Date().toISOString() });
+      await updateDoc(doc(db, 'trackedJobs', jobId), patch as any);
 
       if (newStatus === 'applied' && job.status !== 'applied' && profile && updateProfile) {
         try {
@@ -434,6 +533,58 @@ export function JobTracker() {
     >
       <div className="flex h-full flex-col space-y-6">
 
+      {/* Funnel metrics + search bar + exports — new pipeline header */}
+      {jobs.length > 0 && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">Save → Apply</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                {(metrics.saveToApplyRate * 100).toFixed(0)}<span className="text-sm text-foreground-muted">%</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">Apply → Interview</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                {(metrics.applyToInterviewRate * 100).toFixed(0)}<span className="text-sm text-foreground-muted">%</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">Interview → Offer</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                {(metrics.interviewToOfferRate * 100).toFixed(0)}<span className="text-sm text-foreground-muted">%</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">Median time to apply</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                {metrics.medianTimeToApplyDays != null
+                  ? <>{metrics.medianTimeToApplyDays}<span className="text-sm text-foreground-muted"> d</span></>
+                  : <span className="text-sm text-foreground-muted">—</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-foreground-muted" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search title, company, location, notes…"
+                className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-2 focus:ring-[var(--hs-app-accent)]/30"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>
+              <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportIcs}>
+              <Download className="mr-1.5 h-3.5 w-3.5" /> .ics
+            </Button>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'board' ? (
         <Tooltip.Provider delayDuration={200}>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
@@ -441,12 +592,12 @@ export function JobTracker() {
               <div key={status} className="flex h-[calc(100vh-220px)] flex-col rounded-xl border border-border bg-surface p-4">
                 <h3 className="font-medium text-foreground capitalize mb-4 flex items-center justify-between">
                   {status}
-                  <Badge variant="secondary" className="font-normal normal-case tracking-normal">{jobs.filter(j => j.status === status).length}</Badge>
+                  <Badge variant="secondary" className="font-normal normal-case tracking-normal">{visibleJobs.filter(j => j.status === status).length}</Badge>
                 </h3>
                 
                 <div className="space-y-3 overflow-y-auto flex-1 pr-1">
                   <AnimatePresence>
-                    {jobs.filter(j => j.status === status).map((job, idx) => (
+                    {visibleJobs.filter(j => j.status === status).map((job, idx) => (
                       <motion.div
                         key={job.id}
                         layout
@@ -463,6 +614,64 @@ export function JobTracker() {
                             <div className="flex flex-wrap gap-1 mb-3">
                               {job.location && <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal"><MapPin className="mr-1 h-2 w-2" />{job.location}</Badge>}
                             </div>
+
+                            {/* Time-aware label — Tier 1.2 */}
+                            {(() => {
+                              const lbl = timeAwareLabel(job as any);
+                              const toneClass = lbl.tone === 'red'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : lbl.tone === 'amber'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : lbl.tone === 'green'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-background text-foreground-muted border-border';
+                              return (
+                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneClass} mb-2`}>
+                                  {lbl.label}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Asset completeness row — Tier 1.3 */}
+                            {(() => {
+                              const a = assetCompleteness(job as any);
+                              const cell = (done: boolean, label: string) => (
+                                <span
+                                  key={label}
+                                  className={`inline-flex items-center gap-1 text-[10px] ${done ? 'text-emerald-700' : 'text-foreground-muted'}`}
+                                  title={`${label}: ${done ? 'generated' : 'not yet generated'}`}
+                                >
+                                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${done ? 'bg-emerald-500' : 'bg-border'}`} />
+                                  {label}
+                                </span>
+                              );
+                              return (
+                                <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
+                                  {cell(a.resume, 'Resume')}
+                                  {cell(a.email, 'Email')}
+                                  {cell(a.interview, 'Prep')}
+                                  {cell(a.followUp, 'Follow-up')}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Follow-up nudge — Tier 1.4 */}
+                            {(() => {
+                              const hint = followUpHint(job as any);
+                              if (!hint.shouldPrompt) return null;
+                              return (
+                                <button
+                                  type="button"
+                                  className="mb-3 w-full rounded-md border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-2 py-1.5 text-left text-[11px] text-[var(--hs-app-fg)] hover:bg-[var(--hs-app-accent)]/10 disabled:opacity-50"
+                                  onClick={(e) => { e.stopPropagation(); generateFollowUp(job); }}
+                                  disabled={followUpLoading === job.id}
+                                >
+                                  {followUpLoading === job.id
+                                    ? <><Loader2 className="inline h-3 w-3 mr-1 animate-spin" /> Drafting follow-up…</>
+                                    : <><Mail className="inline h-3 w-3 mr-1 text-[var(--hs-app-accent)]" /> {hint.reason}</>}
+                                </button>
+                              );
+                            })()}
 
                             <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
                               <Tooltip.Root>
@@ -507,10 +716,12 @@ export function JobTracker() {
         </Tooltip.Provider>
       ) : (
         <div className="flex-1 space-y-4 overflow-y-auto pb-8 pr-2">
-          {jobs.length === 0 ? (
-            <div className="text-center py-12 text-foreground-muted">No jobs tracked yet.</div>
+          {visibleJobs.length === 0 ? (
+            <div className="text-center py-12 text-foreground-muted">
+              {jobs.length === 0 ? 'No jobs tracked yet.' : 'No matches for that search.'}
+            </div>
           ) : (
-            jobs.map(job => (
+            visibleJobs.map(job => (
               <Card key={job.id} className="overflow-hidden border-border">
                 <div 
                   className="p-5 flex items-center justify-between cursor-pointer hover:bg-background transition-colors"

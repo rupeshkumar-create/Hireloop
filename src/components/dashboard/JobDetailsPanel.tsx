@@ -27,6 +27,9 @@ interface JobDetailsPanelProps {
   saveJob: (j: Job) => Promise<boolean>;
   dismissJob: (j: Job) => void;
   trackJobClick: (j: Job) => void;
+  // Optional — when wired, the Apply button surfaces a "Mark as applied?"
+  // prompt after opening the JD URL. Used on the dashboard for saved jobs.
+  markJobApplied?: (j: Job) => Promise<boolean>;
   handleAiAction: (a: AiActionType, j: Job) => void;
   aiAction: AiActionType;
   aiResult: string | string[];
@@ -42,6 +45,7 @@ export function JobDetailsPanel({
   selectedJob,
   saveJob,
   trackJobClick,
+  markJobApplied,
   handleAiAction,
   aiAction,
   aiResult,
@@ -237,6 +241,23 @@ export function JobDetailsPanel({
                     onClick={() => {
                       trackJobClick(selectedJob);
                       window.open(applyUrl, '_blank', 'noopener,noreferrer');
+                      // Apply auto-flip prompt — when the panel is the dashboard
+                      // variant for a saved-but-not-yet-applied job, surface a
+                      // toast offering to flip the pipeline status to Applied
+                      // (with appliedAt stamp) so the user doesn't have to
+                      // navigate back and update manually.
+                      if (markJobApplied) {
+                        toast('Mark this as applied?', {
+                          duration: 8000,
+                          action: {
+                            label: 'Yes, mark applied',
+                            onClick: async () => {
+                              const ok = await markJobApplied(selectedJob);
+                              if (ok) toast.success('Status updated to Applied. We’ll remind you to follow up in 7 days.');
+                            },
+                          },
+                        });
+                      }
                     }}
                   >
                     {isFallbackUrl ? 'Find & Apply' : 'Apply Now'} <ExternalLink className="h-4 w-4" />

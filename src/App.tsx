@@ -7,7 +7,6 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { JobTracker } from './pages/JobTracker';
 import { Settings } from './pages/Settings';
-import { SavedJobs } from './pages/SavedJobs';
 import { ResumeProfile } from './pages/ResumeProfile';
 import { CoverLetters } from './pages/CoverLetters';
 import { InterviewPrep } from './pages/InterviewPrep';
@@ -60,7 +59,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const meta: Record<string, { eyebrow: string; title: string }> = {
     '/dashboard': { eyebrow: "Today's matches", title: 'Fresh roles for you.' },
     '/settings': { eyebrow: 'Account', title: 'Settings.' },
-    '/saved': { eyebrow: 'Your Library', title: 'Saved roles.' },
+    '/jobs': { eyebrow: 'Pipeline', title: 'Track and ship your applications.' },
     '/resume': { eyebrow: 'Parsed profile', title: 'Your Resume Profile.' },
     '/cover-letters': { eyebrow: 'AI-generated', title: 'Cover Letters.' },
     '/interview-prep': { eyebrow: 'AI-generated', title: 'Interview Prep.' },
@@ -131,20 +130,17 @@ export default function App() {
               </AppLayout>
             </PrivateRoute>
           } />
-          <Route path="/saved" element={
+          {/* Pipeline (canonical) — the richer kanban + metrics + search +
+              exports view. /saved is kept as a redirect for older URLs. */}
+          <Route path="/jobs" element={
             <PrivateRoute>
               <AppLayout>
-                <SavedJobs />
+                <JobTracker />
               </AppLayout>
             </PrivateRoute>
           } />
-          <Route path="/saved/:jobId" element={
-            <PrivateRoute>
-              <AppLayout>
-                <SavedJobs />
-              </AppLayout>
-            </PrivateRoute>
-          } />
+          <Route path="/saved" element={<Navigate to="/jobs" replace />} />
+          <Route path="/saved/:jobId" element={<Navigate to="/jobs" replace />} />
           <Route path="/resume" element={
             <PrivateRoute>
               <AppLayout>

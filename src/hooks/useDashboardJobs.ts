@@ -23,6 +23,8 @@ import {
   getDoc,
   setDoc,
   onSnapshot,
+  getDocs,
+  updateDoc,
 } from 'firebase/firestore';
 import { toast } from 'sonner';
 import type { DailyJob } from '../types/dailyJob';
@@ -553,6 +555,38 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
+  /**
+   * Flip a previously-saved job's tracked status to "applied", stamping
+   * appliedAt + statusChangedAt. Used by the Apply-button auto-flip prompt
+   * on the Dashboard. No-op (and returns false) if the job isn't tracked.
+   */
+  const markJobApplied = async (job: Job): Promise<boolean> => {
+    if (!user) return false;
+    const fp = jobFingerprint(job.title, job.company);
+    // Find the tracked doc by fingerprint — we don't carry trackedJob IDs
+    // around in the dashboard's job objects.
+    const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
+    const snap = await getDocs(q);
+    const target = snap.docs.find((d) => {
+      const data = d.data() as any;
+      return jobFingerprint(data.title || '', data.company || '') === fp;
+    });
+    if (!target) return false;
+    const data = target.data() as any;
+    if (data.status === 'applied' || data.status === 'interviewing' ||
+        data.status === 'offered' || data.status === 'rejected') {
+      return false; // already past saved
+    }
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, 'trackedJobs', target.id), {
+      status: 'applied',
+      appliedAt: data.appliedAt || now,
+      statusChangedAt: now,
+      updatedAt: now,
+    } as any);
+    return true;
+  };
+
   const trackJobClick = async (job: Job) => {
     try {
       await recordLearningEvent('clicked', {
@@ -656,6 +690,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     nextJobDeliveryAt: profile?.nextJobDeliveryAt || null,
     matchReadiness: profile?.matchReadiness || null,
     saveJob,
+    markJobApplied,
     dismissJob,
     trackJobClick,
     filterCompany, setFilterCompany,
