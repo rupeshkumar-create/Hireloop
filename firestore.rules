@@ -102,6 +102,15 @@ service cloud.firestore {
               ((data.interviewQuestions is string && data.interviewQuestions.size() < 50000) ||
                (data.interviewQuestions is list && data.interviewQuestions.size() <= 20))) &&
              (!hasField(data, 'contactEmail') || (data.contactEmail is string && data.contactEmail.size() < 200)) &&
+             (!hasField(data, 'contact') || data.contact is map) &&
+             (!hasField(data, 'statusChangedAt') || data.statusChangedAt is string) &&
+             (!hasField(data, 'appliedAt') || data.appliedAt is string) &&
+             (!hasField(data, 'interviewAt') || data.interviewAt is string) &&
+             (!hasField(data, 'offerDeadline') || data.offerDeadline is string) &&
+             (!hasField(data, 'followUpEmail') || (data.followUpEmail is string && data.followUpEmail.size() < 50000)) &&
+             (!hasField(data, 'journal') || (data.journal is string && data.journal.size() < 100000)) &&
+             (!hasField(data, 'matchScore') || data.matchScore is number) &&
+             (!hasField(data, 'finalScore') || data.finalScore is number) &&
              data.createdAt is string &&
              (!hasField(data, 'updatedAt') || data.updatedAt is string);
     }

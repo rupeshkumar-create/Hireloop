@@ -778,6 +778,51 @@ Return ONLY the email body. No subject line.`;
   );
 }
 
+/**
+ * Polite follow-up email for an application that has gone quiet. Used by
+ * the pipeline view to nudge stalled-applied jobs (>7d, no response). Pulls
+ * tone from the user's writing style if available, references the original
+ * outreach so it doesn't read like a generic reminder, and stays well under
+ * inbox-anxiety length.
+ */
+export async function generateFollowUpEmail(
+  jobTitle: string,
+  company: string,
+  daysSinceApply: number,
+  resumeSummary: string,
+  originalEmail: string = '',
+  antiSlopEnabled: boolean = true,
+  writingStyleContext: string = '',
+) {
+  const prompt = `Write a polite, low-pressure follow-up email for a job application that's gone quiet.
+
+CONTEXT:
+- Role: ${jobTitle} at ${company}
+- ${daysSinceApply} days since the application
+${originalEmail ? `- Original outreach summary: ${originalEmail.slice(0, 600)}` : '- (No prior email on file — this is a follow-up on a portal application.)'}
+${writingStyleContext ? `- Writing style notes: ${writingStyleContext}` : ''}
+
+CANDIDATE STRENGTHS (from resume):
+${resumeSummary.slice(0, 1500)}
+
+RULES:
+- Under 120 words total. Three short paragraphs max.
+- Open by referencing the application or prior email — never "just checking in".
+- Re-state ONE concrete strength relevant to the role (don't restate the whole resume).
+- Close with a specific, low-friction CTA — e.g., "Happy to share work samples or jump on a 15-min call this week." NOT "Looking forward to hearing from you."
+- Subject-line tone: respectful, not pushy. The reader should not feel guilt-tripped.
+- Do NOT use phrases: "circling back", "just wanted to follow up", "any update", "still interested".
+
+${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
+
+Return ONLY the email body (no subject line).`;
+
+  const response = await callOpenAI([{ role: 'user', content: prompt }], undefined, 'openai/gpt-4o');
+  const content = response.choices?.[0]?.message?.content || '';
+  if (!content.trim()) throw new Error('Empty follow-up email generated');
+  return content.trim();
+}
+
 export async function extractRecruiterEmail(
   jobDescription: string,
   companyName: string
