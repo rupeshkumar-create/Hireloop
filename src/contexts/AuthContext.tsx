@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { stripUndefinedDeep } from '../lib/firestoreSanitizer';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 
 import { ResumeAnalysis } from '../services/aiService';
@@ -261,11 +262,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
     try {
-      // Remove any undefined values before saving to Firestore
-      const cleanData = Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== undefined)
+      // Firestore rejects any `undefined` value anywhere in the document
+      // tree (only `null` or omitted keys are valid). The previous filter
+      // only stripped top-level undefined — nested ones (e.g.
+      // `structuredProfile.contact.phone`) slipped through and threw at
+      // write time. Use the shared deep stripper so this can't regress.
+      const cleanData = stripUndefinedDeep(data);
+      await setDoc(
+        doc(db, 'users', user.uid),
+        { ...cleanData, updatedAt: new Date().toISOString() },
+        { merge: true },
       );
-      await setDoc(doc(db, 'users', user.uid), { ...cleanData, updatedAt: new Date().toISOString() }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }

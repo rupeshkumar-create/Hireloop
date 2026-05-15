@@ -379,6 +379,22 @@ function mergeContact(primary: ExtractedContact, fallback: ExtractedContact): Ex
   return out;
 }
 
+/**
+ * Omits keys whose value is undefined. Firestore rejects undefined anywhere
+ * in the document tree (it accepts `null` or omitted keys), so the
+ * extractor's output should never carry undefined-valued fields.
+ *
+ * Defence layered with stripUndefinedDeep at the AuthContext.updateProfile
+ * boundary — either one would prevent the regression, both is cheap.
+ */
+function omitUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) (out as any)[k] = v;
+  }
+  return out;
+}
+
 const EXTRACT_RESUME_SCHEMA = `Required JSON schema (all fields must be present in your output; arrays may be empty only if the resume genuinely has no entries):
 
 {
@@ -486,7 +502,10 @@ export async function extractResume(resumeText: string): Promise<ExtractedResume
 
     const fullName = typeof parsed.fullName === 'string' ? parsed.fullName : '';
     const contactRaw = parsed.contact && typeof parsed.contact === 'object' ? parsed.contact : {};
-    const aiContact: ExtractedContact = {
+    // Build the contact object with omitUndefined so the returned shape has
+    // no `phone: undefined`-style keys — Firestore rejects undefined anywhere
+    // in the tree, and prior versions of this function emitted them.
+    const aiContact: ExtractedContact = omitUndefined({
       fullName: fullName || undefined,
       email: typeof contactRaw.email === 'string' && contactRaw.email ? contactRaw.email : undefined,
       phone: typeof contactRaw.phone === 'string' && contactRaw.phone ? contactRaw.phone : undefined,
@@ -494,15 +513,15 @@ export async function extractResume(resumeText: string): Promise<ExtractedResume
       linkedin: typeof contactRaw.linkedin === 'string' && contactRaw.linkedin ? contactRaw.linkedin : undefined,
       github: typeof contactRaw.github === 'string' && contactRaw.github ? contactRaw.github : undefined,
       website: typeof contactRaw.website === 'string' && contactRaw.website ? contactRaw.website : undefined,
-    };
+    });
     // Regex backfill — every contact field the AI dropped gets retried against
     // the raw resume text. Deterministic, free, never wrong about email shape.
-    const contact = mergeContact(aiContact, extractContactFromText(resumeText));
+    const contact = omitUndefined(mergeContact(aiContact, extractContactFromText(resumeText)));
 
     const mapExperience = (arr: any[]): ExtractedExperience[] =>
       arr
         .filter((e: any) => e && (e.title || e.company))
-        .map((e: any, i: number) => ({
+        .map((e: any, i: number) => omitUndefined({
           id: shortId(`${e.company || ''}::${e.title || ''}::${i}`),
           title: String(e.title || '').trim(),
           company: String(e.company || '').trim(),
@@ -513,19 +532,19 @@ export async function extractResume(resumeText: string): Promise<ExtractedResume
           highlights: Array.isArray(e.highlights)
             ? e.highlights.map((h: any) => String(h).trim()).filter(Boolean)
             : undefined,
-        }));
+        }) as ExtractedExperience);
 
     const mapEducation = (arr: any[]): ExtractedEducation[] =>
       arr
         .filter((e: any) => e && e.school)
-        .map((e: any, i: number) => ({
+        .map((e: any, i: number) => omitUndefined({
           id: shortId(`${e.school || ''}::${e.degree || ''}::${i}`),
           school: String(e.school || '').trim(),
           degree: e.degree ? String(e.degree).trim() : undefined,
           field: e.field ? String(e.field).trim() : undefined,
           startDate: e.startDate ? String(e.startDate).trim() : undefined,
           endDate: e.endDate ? String(e.endDate).trim() : undefined,
-        }));
+        }) as ExtractedEducation);
 
     let experience: ExtractedExperience[] = Array.isArray(parsed.experience)
       ? mapExperience(parsed.experience)
