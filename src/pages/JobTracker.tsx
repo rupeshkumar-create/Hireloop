@@ -64,7 +64,12 @@ export function JobTracker() {
   const { user, profile, updateProfile } = useAuth();
   const [jobs, setJobs] = useState<TrackedJob[]>([]);
   const [viewMode, setViewMode] = useState<'board' | 'list'>(() => {
-    return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'board';
+    // Default to History List. New users see their tracked jobs as a vertical
+    // chronological log first — that's the mental model job seekers already
+    // have ("what did I apply to recently?"). Kanban remains one click away
+    // for users who prefer status-column thinking. Existing users with a
+    // saved preference are honoured.
+    return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'list';
   });
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   // Search query + follow-up generation state used by the new pipeline header.

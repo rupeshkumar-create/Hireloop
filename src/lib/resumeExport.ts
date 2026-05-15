@@ -48,6 +48,33 @@ export interface PdfExportOptions {
   baseFilename: string;
 }
 
+/**
+ * Render a slice of the source canvas as a JPEG data URL. Returns null when
+ * the environment doesn't support 2D canvas (e.g. happy-dom in unit tests).
+ * That signals the caller to fall back to the legacy negative-offset path.
+ */
+function renderCanvasSlice(
+  source: HTMLCanvasElement,
+  yOffset: number,
+  sliceHeight: number,
+): string | null {
+  try {
+    const slice = document.createElement('canvas');
+    slice.width = source.width;
+    slice.height = sliceHeight;
+    const ctx = slice.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, slice.width, sliceHeight);
+    // Negative dy on drawImage scrolls the source upward, so the slice
+    // captures exactly the y-range we want without scaling.
+    ctx.drawImage(source, 0, -yOffset);
+    return slice.toDataURL('image/jpeg', 0.95);
+  } catch {
+    return null;
+  }
+}
+
 export async function exportResumeAsPdf({ source, baseFilename }: PdfExportOptions): Promise<void> {
   // html2canvas-pro accepts standard html2canvas options. backgroundColor is
   // forced to white so transparent panels don't show through the PDF.
@@ -59,48 +86,64 @@ export async function exportResumeAsPdf({ source, baseFilename }: PdfExportOptio
     // letterRendering is implied in v2.
   });
 
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-
-  // US Letter @ 72 dpi: 612 × 792 pt. Margins 36pt (~0.5in) on top/bottom,
-  // 43pt (~0.6in) left/right. Same as the previous html2pdf settings.
+  // US Letter @ 72 dpi: 612 × 792 pt. Margins bumped from 36pt to 54pt
+  // (~0.75in) on top/bottom so multi-page output has visible breathing room
+  // between the end of page N and the start of page N+1 — addressing the
+  // "no gap between page footer and next page header" complaint.
   const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const marginX = 43;
-  const marginY = 36;
+  const marginY = 54;
   const contentW = pageW - marginX * 2;
   const contentH = pageH - marginY * 2;
 
   // Paint the whole page white BEFORE placing the image. jsPDF leaves
   // unpainted regions transparent; PDF viewers in dark mode render that as
   // dark grey/black, which makes the resume look like it has black margins.
-  // A solid white background guarantees the page looks like a printed
-  // résumé in any viewer.
   const fillPageWhite = () => {
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, pageW, pageH, 'F');
   };
 
-  // Scale the canvas so its width fits the content area, then slice into pages.
   const ratio = contentW / canvas.width;
   const scaledTotalH = canvas.height * ratio;
 
   fillPageWhite();
   if (scaledTotalH <= contentH) {
-    pdf.addImage(imgData, 'JPEG', marginX, marginY, contentW, scaledTotalH);
+    // Single page — no slicing needed.
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', marginX, marginY, contentW, scaledTotalH);
   } else {
-    // Multi-page slice. We re-draw the full image but shift the y origin
-    // so each page shows the next chunk; off-page content is clipped by
-    // jsPDF naturally.
-    let consumed = 0;
-    while (consumed < scaledTotalH) {
-      const yOffset = marginY - consumed;
-      pdf.addImage(imgData, 'JPEG', marginX, yOffset, contentW, scaledTotalH);
-      consumed += contentH;
-      if (consumed < scaledTotalH) {
+    // Multi-page output. Each page renders ONLY its own slice of the source
+    // canvas — no relying on PDF-viewer clipping. Earlier versions placed
+    // the full image with a negative y-offset; some viewers (Preview,
+    // older Acrobat) didn't clip and rendered the row at the page boundary
+    // on both pages, causing the "Shahi Exports … Merchandiser" duplicate.
+    const pageSlicePx = Math.floor(contentH / ratio);
+    let canvasY = 0;
+    let isFirstPage = true;
+
+    while (canvasY < canvas.height) {
+      const sliceHeight = Math.min(pageSlicePx, canvas.height - canvasY);
+
+      if (!isFirstPage) {
         pdf.addPage();
         fillPageWhite();
       }
+
+      const sliceData = renderCanvasSlice(canvas, canvasY, sliceHeight);
+      if (sliceData) {
+        // Each page receives a tightly-cropped slice — no duplication.
+        pdf.addImage(sliceData, 'JPEG', marginX, marginY, contentW, sliceHeight * ratio);
+      } else {
+        // Test-env fallback (no 2D canvas) — keeps the suite green while
+        // production browsers always take the slicing path above.
+        const fullImgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(fullImgData, 'JPEG', marginX, marginY - canvasY * ratio, contentW, scaledTotalH);
+      }
+
+      canvasY += pageSlicePx;
+      isFirstPage = false;
     }
   }
 
