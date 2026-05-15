@@ -24,12 +24,19 @@ vi.mock('html2canvas-pro', () => ({
 const addImageSpy = vi.fn();
 const addPageSpy = vi.fn();
 const saveSpy = vi.fn();
+const setFillColorSpy = vi.fn();
+const rectSpy = vi.fn();
 vi.mock('jspdf', () => {
   return {
     default: vi.fn(() => ({
       addImage: addImageSpy,
       addPage: addPageSpy,
       save: saveSpy,
+      // setFillColor + rect are used by the page-fill helper that paints the
+      // entire page white so dark-mode PDF viewers don't render the margins
+      // as black.
+      setFillColor: setFillColorSpy,
+      rect: rectSpy,
       internal: {
         pageSize: {
           getWidth: () => 612,
@@ -68,6 +75,16 @@ describe('exportResumeAsPdf', () => {
 
     expect(addImageSpy).toHaveBeenCalled();
     expect(saveSpy).toHaveBeenCalledWith('Tailored_Resume_Acme.pdf');
+  });
+
+  it('paints the page white before placing the image (dark-mode viewer fix)', async () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+
+    await exportResumeAsPdf({ source: el, baseFilename: 'White_Bg' });
+
+    expect(setFillColorSpy).toHaveBeenCalledWith(255, 255, 255);
+    expect(rectSpy).toHaveBeenCalledWith(0, 0, 612, 792, 'F');
   });
 
   it('paginates when content exceeds one page', async () => {

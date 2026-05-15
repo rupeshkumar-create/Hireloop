@@ -201,7 +201,12 @@ export function Dashboard() {
       )}
       <GettingStartedCard
         hasMatches={filteredAndSortedJobs.length > 0}
-        savedCount={savedJobFingerprints.length}
+        // Use the LIVE Firestore snapshot count, not the Dashboard-local
+        // savedJobFingerprints array. Otherwise saves made on /jobs (the
+        // Pipeline page) don't tick the "first save" step of the checklist,
+        // because that local state is only populated when the user saves
+        // from the dashboard.
+        savedCount={(stats as any)?.total ?? savedJobFingerprints.length}
         onRunScout={() => requestJobs()}
         isRunningScout={generatingJobs}
       />

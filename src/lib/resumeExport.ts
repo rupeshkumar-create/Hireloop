@@ -71,10 +71,21 @@ export async function exportResumeAsPdf({ source, baseFilename }: PdfExportOptio
   const contentW = pageW - marginX * 2;
   const contentH = pageH - marginY * 2;
 
+  // Paint the whole page white BEFORE placing the image. jsPDF leaves
+  // unpainted regions transparent; PDF viewers in dark mode render that as
+  // dark grey/black, which makes the resume look like it has black margins.
+  // A solid white background guarantees the page looks like a printed
+  // résumé in any viewer.
+  const fillPageWhite = () => {
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pageW, pageH, 'F');
+  };
+
   // Scale the canvas so its width fits the content area, then slice into pages.
   const ratio = contentW / canvas.width;
   const scaledTotalH = canvas.height * ratio;
 
+  fillPageWhite();
   if (scaledTotalH <= contentH) {
     pdf.addImage(imgData, 'JPEG', marginX, marginY, contentW, scaledTotalH);
   } else {
@@ -86,7 +97,10 @@ export async function exportResumeAsPdf({ source, baseFilename }: PdfExportOptio
       const yOffset = marginY - consumed;
       pdf.addImage(imgData, 'JPEG', marginX, yOffset, contentW, scaledTotalH);
       consumed += contentH;
-      if (consumed < scaledTotalH) pdf.addPage();
+      if (consumed < scaledTotalH) {
+        pdf.addPage();
+        fillPageWhite();
+      }
     }
   }
 

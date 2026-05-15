@@ -298,6 +298,18 @@ export function JobTracker() {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
+      // Activation event — same definition as the Dashboard AI Copilot path:
+      // first successful asset generation marks the user as activated.
+      // Without this, generating from /jobs leaves the "first asset" step
+      // of the Getting Started checklist unticked even though the work was
+      // done. Idempotent on the profile side (only writes once).
+      if (profile && !profile.activatedAt && updateProfile) {
+        try {
+          await updateProfile({ activatedAt: new Date().toISOString() });
+        } catch {
+          // Best-effort — activation is telemetry, not a blocker.
+        }
+      }
       toast.success(
         type === 'interview' ? 'Interview Q/A generated.' : type === 'resume' ? 'Tailored resume generated.' : 'Cold email generated.'
       );
@@ -355,6 +367,15 @@ export function JobTracker() {
           ...updateData,
           updatedAt: new Date().toISOString()
         });
+        // Activation event — first successful asset generation, same
+        // semantics as the Dashboard AI Copilot path.
+        if (profile && !profile.activatedAt && updateProfile) {
+          try {
+            await updateProfile({ activatedAt: new Date().toISOString() });
+          } catch {
+            /* best-effort */
+          }
+        }
       }
 
       if (!options?.silent) {
