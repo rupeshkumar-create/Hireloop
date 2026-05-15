@@ -11,6 +11,22 @@ import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit } from '../lib/planLimits';
 
+// ISO country code → display name for the eligibility banner. Falls back to
+// the code itself when an unmapped country comes through (rare; defensive).
+const COUNTRY_NAMES: Record<string, string> = {
+  US: 'the United States', CA: 'Canada', MX: 'Mexico', GB: 'the UK',
+  IE: 'Ireland', DE: 'Germany', FR: 'France', NL: 'the Netherlands',
+  ES: 'Spain', IT: 'Italy', PT: 'Portugal', PL: 'Poland',
+  SE: 'Sweden', NO: 'Norway', DK: 'Denmark', FI: 'Finland',
+  IN: 'India', SG: 'Singapore', AU: 'Australia', NZ: 'New Zealand',
+  JP: 'Japan', CN: 'China', PH: 'the Philippines', ID: 'Indonesia',
+  VN: 'Vietnam', TH: 'Thailand', BR: 'Brazil', AR: 'Argentina',
+  CL: 'Chile', CO: 'Colombia', PE: 'Peru',
+};
+function countryDisplayName(code: string): string {
+  return COUNTRY_NAMES[code] || code;
+}
+
 function companyInitials(company: string) {
   return company
     .split(/\s+/)
@@ -64,6 +80,8 @@ export function Dashboard() {
     trackJobClick,
     dailyJobsMeta,
     nextJobDeliveryAt,
+    userCountry,
+    regionFilteredCount,
   } = useDashboardJobs(user, profile, updateProfile);
 
   const {
@@ -133,6 +151,20 @@ export function Dashboard() {
         onRunScout={() => requestJobs()}
         isRunningScout={generatingJobs}
       />
+      {userCountry !== 'UNKNOWN' && regionFilteredCount > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-4 py-3 text-[12px] text-[var(--hs-app-muted)]">
+          <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent)]/15 text-[10px] font-semibold text-[var(--hs-app-accent)]">
+            {userCountry}
+          </span>
+          <div>
+            <span className="text-[var(--hs-app-fg)] font-medium">
+              Showing remote roles eligible for {countryDisplayName(userCountry)}.
+            </span>{' '}
+            Hidden {regionFilteredCount} role{regionFilteredCount === 1 ? '' : 's'} restricted to other regions
+            (e.g. US-only) — Scout learns your eligibility from your resume location.
+          </div>
+        </div>
+      )}
       <div className="hs-stats">
         <div className="hs-stat">
           <div className="hs-stat-num">{filteredAndSortedJobs.length}</div>

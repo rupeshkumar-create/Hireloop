@@ -53,6 +53,17 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       } = await import('../services/aiService');
 
       const extractedPreferences = await extractJobPreferences(resumeCleaned);
+      // Deterministic backfill — if the AI didn't pick out a location, scan
+      // the resume header ourselves. Without a location set, remote-region
+      // eligibility (e.g. "filter out US-only roles for an India user")
+      // can't run downstream, so this is a critical safety net.
+      const { extractLocationFromResume } = await import('../services/remoteEligibility');
+      const regexLocation = extractLocationFromResume(resumeCleaned);
+      const resolvedLocation =
+        (extractedPreferences?.location && extractedPreferences.location.trim()) ||
+        regexLocation.rawLabel ||
+        profile?.preferences?.locations?.[0] ||
+        '';
       const normalizedPreferences =
         options?.preferencesOverride ??
         normalizeUserPreferences({
@@ -63,9 +74,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
             extractedPreferences?.minSalary ??
             profile?.preferences?.salaryFloor ??
             null,
-          locations: extractedPreferences?.location
-            ? [extractedPreferences.location]
-            : profile?.preferences?.locations || [],
+          locations: resolvedLocation ? [resolvedLocation] : profile?.preferences?.locations || [],
         });
       const legacyPreferenceFields =
         syncLegacyPreferenceFields(normalizedPreferences);

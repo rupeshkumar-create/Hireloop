@@ -160,6 +160,44 @@ const LOCATION_TO_COUNTRY: Array<[RegExp, string]> = [
   [/\b(mexico|mexico\s+city)\b/i, 'MX'],
 ];
 
+/**
+ * Deterministic resume-text → "City, Country" extractor. Used to backfill
+ * the user's location when the AI-based preference extractor misses it.
+ * Scans the first 800 chars (resume header area) for a city/country pair
+ * we recognise and returns a normalised "<City>, <Country>" string.
+ */
+export function extractLocationFromResume(resumeText: string): {
+  rawLabel?: string;
+  country: UserCountry;
+} {
+  if (!resumeText) return { country: 'UNKNOWN' };
+  // Resume headers typically sit in the first ~800 chars. Looking further down
+  // increases the chance of grabbing a former-employer city instead of "home".
+  const head = resumeText.slice(0, 800).replace(/\s+/g, ' ');
+
+  for (const [rx, code] of LOCATION_TO_COUNTRY) {
+    const match = head.match(rx);
+    if (match) {
+      const phrase = match[0];
+      const countryNames: Record<string, string> = {
+        IN: 'India', US: 'United States', CA: 'Canada', GB: 'United Kingdom',
+        DE: 'Germany', FR: 'France', NL: 'Netherlands', ES: 'Spain',
+        SG: 'Singapore', AU: 'Australia', BR: 'Brazil', MX: 'Mexico',
+      };
+      // If the matched phrase is already a country name, return it as-is.
+      // Otherwise it's a city — pair it with the resolved country.
+      const isCountry = /^(india|united\s+states|u\.?s\.?a?|canada|united\s+kingdom|u\.?k\.?|germany|france|netherlands|spain|singapore|australia|brazil|mexico)$/i.test(
+        phrase.trim()
+      );
+      const rawLabel = isCountry
+        ? countryNames[code] || phrase
+        : `${phrase.replace(/\b\w/g, (c) => c.toUpperCase())}, ${countryNames[code] || code}`;
+      return { rawLabel, country: code };
+    }
+  }
+  return { country: 'UNKNOWN' };
+}
+
 export interface InferUserCountryInput {
   deliveryTimezone?: string;
   locations?: string[];

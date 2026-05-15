@@ -35,6 +35,11 @@ import {
 } from '../services/aiService';
 import { jobFingerprint } from '../services/jobResearcher';
 import {
+  detectRemoteRegion,
+  inferUserCountry,
+  isRegionEligibleForCountry,
+} from '../services/remoteEligibility';
+import {
   applyLearningEvent,
   type LearningEventJob,
   type LearningSignals,
@@ -563,6 +568,18 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   // ── Memoized filtered + sorted list ────────────────────────────────────────
 
+  // Resolve the user's country once per render — drives the read-time
+  // region-eligibility filter below. Defense-in-depth against stale
+  // dailyJobs written before the backend filter was wired up.
+  const userCountry = useMemo(
+    () =>
+      inferUserCountry({
+        deliveryTimezone: profile?.deliveryTimezone,
+        locations: profile?.preferences?.locations || (profile?.location ? [profile.location] : []),
+      }),
+    [profile?.deliveryTimezone, profile?.preferences?.locations, profile?.location]
+  );
+
   const filteredAndSortedJobs = useMemo(() => {
     return jobs
       .filter((job) => {
@@ -571,9 +588,27 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           filterWorkType === 'all' ||
           job.workType === 'remote' ||
           (job.location || '').toLowerCase().includes('remote');
+
+        // Region-eligibility gate. For remote jobs, detect the region the
+        // role is restricted to and reject if the user's country is outside
+        // it. Conservative — when either signal is unknown we let the job
+        // through (better to show a maybe than to hide unfairly).
+        const isRemote =
+          job.workType === 'remote' ||
+          (job.location || '').toLowerCase().includes('remote');
+        let passesRegion = true;
+        if (isRemote && userCountry !== 'UNKNOWN') {
+          const region = detectRemoteRegion({
+            location: job.location || '',
+            description: job.description || '',
+          });
+          passesRegion = isRegionEligibleForCountry(region, userCountry);
+        }
+
         return (
           !dismissedFingerprints.includes(fp) &&
           passesWorkType &&
+          passesRegion &&
           (job.company || '').toLowerCase().includes(filterCompany.toLowerCase()) &&
           (job.location || '').toLowerCase().includes(filterLocation.toLowerCase()) &&
           (job.salary || '').toLowerCase().includes(filterSalary.toLowerCase())
@@ -587,11 +622,29 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
         return 0;
       });
-  }, [jobs, dismissedFingerprints, filterWorkType, filterCompany, filterLocation, filterSalary, sortBy]);
+  }, [jobs, dismissedFingerprints, filterWorkType, filterCompany, filterLocation, filterSalary, sortBy, userCountry]);
+
+  // Count of jobs hidden specifically by the region-eligibility filter —
+  // surfaced on the dashboard banner so users understand "I expected more".
+  const regionFilteredCount = useMemo(() => {
+    if (userCountry === 'UNKNOWN') return 0;
+    return jobs.filter((job) => {
+      const isRemote =
+        job.workType === 'remote' || (job.location || '').toLowerCase().includes('remote');
+      if (!isRemote) return false;
+      const region = detectRemoteRegion({
+        location: job.location || '',
+        description: job.description || '',
+      });
+      return !isRegionEligibleForCountry(region, userCountry);
+    }).length;
+  }, [jobs, userCountry]);
 
   return {
     jobs,
     filteredAndSortedJobs,
+    userCountry,
+    regionFilteredCount,
     loadingJobs,
     generatingJobs,
     requestJobs,

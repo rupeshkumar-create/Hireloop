@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookmarkPlus,
@@ -83,21 +84,38 @@ export function JobDetailsPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Lock background scroll while the panel is open — only the panel body
-  // should scroll, not the dashboard underneath. Preserves the user's prior
-  // scroll position by restoring it on close.
+  // Lock background scroll while the panel is open. We use the robust
+  // position:fixed + top:-scrollY pattern instead of plain overflow:hidden
+  // because:
+  //   1. overflow:hidden alone can cause the page to "jump" on lock (some
+  //      browsers reset scrollTop, others leave it).
+  //   2. We need to preserve the user's scroll position on close — otherwise
+  //      they get bounced back to the top of the dashboard.
+  // Combined with the portal-to-body below, this guarantees the side panel
+  // always covers the full visible viewport regardless of how far down the
+  // user had scrolled.
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    const prevPaddingRight = document.body.style.paddingRight;
-    // Compensate for the scrollbar disappearing so the layout doesn't shift.
+    const scrollY = window.scrollY;
+    const prev = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      paddingRight: document.body.style.paddingRight,
+    };
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPaddingRight;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      document.body.style.paddingRight = prev.paddingRight;
+      // Restore the user's prior scroll position once the lock releases.
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -151,9 +169,17 @@ export function JobDetailsPanel({
     return 'email';
   };
 
-  return (
+  // Portal to document.body — guarantees that the panel's `fixed inset-0`
+  // anchors to the viewport regardless of where in the React tree this is
+  // rendered. Without this, clicking a job after scrolling halfway down the
+  // dashboard left the panel anchored to the wrong position, leaking the
+  // page content through at the bottom.
+  const modalRoot = typeof document !== 'undefined' ? document.body : null;
+
+  const panelNode = (
     <AnimatePresence>
       <div
+        key="hs-job-details-backdrop"
         className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-[2px]"
         onClick={onClose}
       >
@@ -303,8 +329,14 @@ export function JobDetailsPanel({
           </div>
         </motion.div>
       </div>
+    </AnimatePresence>
+  );
 
-      {/* Unified AI result popup (close + edit + type-specific actions) */}
+  // AiResultModal has its own portal + animation. Render it as a fragment
+  // sibling rather than inside this AnimatePresence to keep child keys clean.
+  const tree = (
+    <>
+      {panelNode}
       <AiResultModal
         isOpen={aiModalOpen}
         onClose={() => setAiModalDismissed(true)}
@@ -317,6 +349,8 @@ export function JobDetailsPanel({
         onContentChange={setAiResult}
         onOpenGmail={handleOpenGmail}
       />
-    </AnimatePresence>
+    </>
   );
+
+  return modalRoot ? createPortal(tree, modalRoot) : tree;
 }

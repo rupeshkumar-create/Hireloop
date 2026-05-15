@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   detectRemoteRegion,
+  extractLocationFromResume,
   inferUserCountry,
   isRegionEligibleForCountry,
 } from '../remoteEligibility';
@@ -123,5 +124,46 @@ describe('isRegionEligibleForCountry', () => {
 
   it('treats UK users as eligible for EU roles', () => {
     expect(isRegionEligibleForCountry('eu', 'GB')).toBe(true);
+  });
+});
+
+describe('extractLocationFromResume', () => {
+  it('picks Bengaluru → India from a typical Indian resume header', () => {
+    const text = `Vivek Kumar\nvivek@example.com | +91 98765 43210 | Bengaluru, Karnataka, India\nlinkedin.com/in/vivekk`;
+    const loc = extractLocationFromResume(text);
+    expect(loc.country).toBe('IN');
+    expect(loc.rawLabel).toMatch(/india/i);
+  });
+
+  it('picks San Francisco → US', () => {
+    const text = `Jane Doe\nSan Francisco, CA · jane@example.com`;
+    const loc = extractLocationFromResume(text);
+    expect(loc.country).toBe('US');
+  });
+
+  it('picks Toronto → CA', () => {
+    expect(extractLocationFromResume('Toronto, ON, Canada — full-stack engineer').country).toBe('CA');
+  });
+
+  it('picks London → GB', () => {
+    expect(extractLocationFromResume('Alex · London, United Kingdom').country).toBe('GB');
+  });
+
+  it('returns UNKNOWN when no recognised location is in the header', () => {
+    const text = `Anonymous Candidate\nSummary: 10 years of experience. Skills: TypeScript.`;
+    expect(extractLocationFromResume(text).country).toBe('UNKNOWN');
+  });
+
+  it('skips locations buried past the 800-char header window', () => {
+    const filler = 'x '.repeat(800);
+    const text = `Anonymous\n${filler}\nBengaluru, India`;
+    expect(extractLocationFromResume(text).country).toBe('UNKNOWN');
+  });
+
+  it('formats a country-only match without a leading comma', () => {
+    const text = `Profile\nLocation: India`;
+    const loc = extractLocationFromResume(text);
+    expect(loc.country).toBe('IN');
+    expect(loc.rawLabel).not.toMatch(/^,/);
   });
 });
