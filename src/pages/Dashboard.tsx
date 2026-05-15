@@ -101,6 +101,26 @@ export function Dashboard() {
     }
   }, []);
 
+  // First-dashboard-visit booster: if the user just completed onboarding
+  // (within the last 5 minutes), auto-open the top match's details panel.
+  // Saves them from deciding "which job do I click?" — the highest-scored
+  // role + AI Copilot toolbar are right in front of them. Per-browser flag
+  // so the second visit lands cleanly without auto-open.
+  const [autoOpenedFirstMatch, setAutoOpenedFirstMatch] = useState(false);
+  useEffect(() => {
+    if (autoOpenedFirstMatch) return;
+    if (selectedJob) return;
+    if (!profile?.onboardingCompletedAt || !filteredAndSortedJobs.length) return;
+    const completedAt = new Date(profile.onboardingCompletedAt).getTime();
+    const isFreshOnboarding = !Number.isNaN(completedAt) && Date.now() - completedAt < 5 * 60 * 1000;
+    const sessionKey = `hs:auto-opened-top-match:${profile.uid || 'anon'}`;
+    if (!isFreshOnboarding) return;
+    if (sessionStorage.getItem(sessionKey)) return;
+    setSelectedJob(filteredAndSortedJobs[0]);
+    sessionStorage.setItem(sessionKey, '1');
+    setAutoOpenedFirstMatch(true);
+  }, [autoOpenedFirstMatch, selectedJob, profile?.onboardingCompletedAt, profile?.uid, filteredAndSortedJobs]);
+
   // Show the full daily batch up to the user's plan cap (1 for Free, 10
   // for Pro). Earlier this was hardcoded to 4 and silently hid 6 of a
   // Pro user's matches even though the stat tile said "10 new matches".
@@ -133,6 +153,23 @@ export function Dashboard() {
       const didSave = await saveJob(job);
       if (!didSave) return false;
       setSavedJobFingerprints((current) => (current.includes(fp) ? current : [...current, fp]));
+
+      // First-asset chained CTA — collapse "save → discover Copilot → click"
+      // into a single follow-up tap. Only fires for users who haven't generated
+      // an asset yet (the activation half they're missing). Once activated,
+      // we don't pester them again.
+      if (!profile?.activatedAt) {
+        toast.success('Saved to your library', {
+          duration: 9000,
+          action: {
+            label: 'Tailor my resume',
+            onClick: () => {
+              setSelectedJob(job);
+              handleAiAction('resume', job);
+            },
+          },
+        });
+      }
       return true;
     } finally {
       setSavingJobFingerprints((current) => current.filter((value) => value !== fp));
@@ -145,12 +182,8 @@ export function Dashboard() {
 
   return (
     <div className="hs-view space-y-7">
-      <GettingStartedCard
-        hasMatches={filteredAndSortedJobs.length > 0}
-        savedCount={savedJobFingerprints.length}
-        onRunScout={() => requestJobs()}
-        isRunningScout={generatingJobs}
-      />
+      {/* Region banner moved above Getting Started — it answers "why don't
+          I see X jobs?" which is the first question a new user asks. */}
       {userCountry !== 'UNKNOWN' && regionFilteredCount > 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-4 py-3 text-[12px] text-[var(--hs-app-muted)]">
           <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent)]/15 text-[10px] font-semibold text-[var(--hs-app-accent)]">
@@ -165,6 +198,12 @@ export function Dashboard() {
           </div>
         </div>
       )}
+      <GettingStartedCard
+        hasMatches={filteredAndSortedJobs.length > 0}
+        savedCount={savedJobFingerprints.length}
+        onRunScout={() => requestJobs()}
+        isRunningScout={generatingJobs}
+      />
       <div className="hs-stats">
         <div className="hs-stat">
           <div className="hs-stat-num">{filteredAndSortedJobs.length}</div>

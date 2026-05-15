@@ -18,6 +18,19 @@ import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import type { DailyJob } from '../types/dailyJob';
 import { getDailyMatchLimit } from '../lib/planLimits';
+import { inferUserCountry } from '../services/remoteEligibility';
+import { scoreVerdict } from '../lib/jobScore';
+
+const COUNTRY_DISPLAY: Record<string, string> = {
+  US: 'the United States', CA: 'Canada', MX: 'Mexico', GB: 'the UK',
+  IE: 'Ireland', DE: 'Germany', FR: 'France', NL: 'the Netherlands',
+  ES: 'Spain', IT: 'Italy', PT: 'Portugal', PL: 'Poland',
+  SE: 'Sweden', NO: 'Norway', DK: 'Denmark', FI: 'Finland',
+  IN: 'India', SG: 'Singapore', AU: 'Australia', NZ: 'New Zealand',
+  JP: 'Japan', CN: 'China', PH: 'the Philippines', ID: 'Indonesia',
+  VN: 'Vietnam', TH: 'Thailand', BR: 'Brazil', AR: 'Argentina',
+  CL: 'Chile', CO: 'Colombia', PE: 'Peru',
+};
 
 type Step = 'upload' | 'paths' | 'scout' | 'matches';
 
@@ -267,6 +280,11 @@ function PathsStep({
     setSaving(true);
     try {
       await updateProfile({ careerPaths: paths });
+      // Kick Scout *now* (async, fire-and-forget) so the pipeline is already
+      // running while the user reads the step-3 progress UI. By the time
+      // they look up from the page, results are usually landing.
+      // Errors are swallowed here — step 3 retries on mount as a fallback.
+      void triggerScoutRun().catch(() => {});
       onDone();
     } catch (e: any) {
       toast.error(e?.message || 'Could not save career paths.');
@@ -274,6 +292,15 @@ function PathsStep({
       setSaving(false);
     }
   };
+
+  // Resolve the inferred country up-front so we can show the user what
+  // region Scout will filter for *before* they see the dashboard. This
+  // pre-empts the "why are you showing me US jobs?" confusion entirely.
+  const inferredCountry = inferUserCountry({
+    deliveryTimezone: profile?.deliveryTimezone,
+    locations: profile?.preferences?.locations || (profile?.location ? [profile.location] : []),
+  });
+  const countryLabel = inferredCountry !== 'UNKNOWN' ? COUNTRY_DISPLAY[inferredCountry] || inferredCountry : null;
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
@@ -283,6 +310,20 @@ function PathsStep({
         title="Confirm your 3 career paths"
         body="We auto-detected these from your resume. Keep the ones that fit, swap any that don't. Scout uses these to search."
       />
+
+      {countryLabel && (
+        <div className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-accent-soft)] px-4 py-3">
+          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent)] text-[10px] font-bold text-white">
+            {inferredCountry}
+          </span>
+          <div className="text-[13px] leading-relaxed text-foreground">
+            <span className="font-medium">Scout will focus on remote roles eligible for {countryLabel}.</span>{' '}
+            <span className="text-foreground-muted">
+              We detected this from your resume + timezone. You can change it later in Settings.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Selected pills */}
       <div className="mt-8">
@@ -392,6 +433,27 @@ function PathsStep({
   );
 }
 
+// Fires a one-shot Scout request via /api/jobs. Defined outside any step so
+// it can be triggered from step 2's "Continue" handler — that way the engine
+// is already running by the time the user lands on step 3. Idempotent on the
+// API side (the user-triggered dispatcher dedupes); harmless if called twice.
+async function triggerScoutRun(): Promise<void> {
+  const { getAuth } = await import('firebase/auth');
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated.');
+  const idToken = await user.getIdToken(true);
+  const res = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ mode: 'request' }),
+  });
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Scout request failed (${res.status}). ${text}`);
+  }
+}
+
 // ─── Step 3 — Scout runs ──────────────────────────────────────────────────────
 
 const SCOUT_STAGES = [
@@ -407,33 +469,16 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
   const [triggered, setTriggered] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Kick off Scout once on mount.
+  // Step 2 already fired Scout — this effect is a safety-net retry in case
+  // the user reloaded mid-flow and arrived on step 3 with no run pending.
   useEffect(() => {
     let cancelled = false;
     if (triggered) return;
     setTriggered(true);
 
-    (async () => {
-      try {
-        const { getAuth } = await import('firebase/auth');
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) throw new Error('Not authenticated.');
-        const idToken = await user.getIdToken(true);
-
-        const res = await fetch('/api/jobs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-          body: JSON.stringify({ mode: 'request' }),
-        });
-        if (!res.ok && res.status !== 202) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Scout request failed (${res.status}). ${text}`);
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Could not start Scout. You can try again from the dashboard.');
-      }
-    })();
+    triggerScoutRun().catch((e: any) => {
+      if (!cancelled) setError(e?.message || 'Could not start Scout. You can try again from the dashboard.');
+    });
 
     return () => {
       cancelled = true;
@@ -542,26 +587,49 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
         </div>
       ) : (
         <ul className="mt-8 space-y-3">
-          {jobs.map((j: any, i: number) => (
-            <li
-              key={j.fingerprint || `${j.title}-${j.company}-${i}`}
-              className="flex items-start gap-4 rounded-xl border border-border bg-background px-4 py-3"
-            >
-              <div className="hs-score shrink-0" style={{ '--score': `${j.matchScore || 0}%` } as React.CSSProperties}>
-                {j.matchScore || '–'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-foreground truncate">{j.title}</div>
-                <div className="text-xs text-foreground-muted truncate">
-                  {j.company}
-                  {j.location ? ` · ${j.location}` : ''}
+          {jobs.map((j: any, i: number) => {
+            const score = j.matchScore || j.finalScore || 0;
+            const verdict = scoreVerdict(score);
+            const insight = j.aiInsight || j.aiSummary;
+            return (
+              <li
+                key={j.fingerprint || `${j.title}-${j.company}-${i}`}
+                className="flex items-start gap-4 rounded-xl border border-border bg-background px-4 py-3"
+              >
+                <div className="hs-score shrink-0" style={{ '--score': `${score}%` } as React.CSSProperties}>
+                  {score || '–'}
                 </div>
-                {j.aiSummary && (
-                  <p className="mt-1.5 text-xs text-foreground-muted line-clamp-2">{j.aiSummary}</p>
-                )}
-              </div>
-            </li>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="font-medium text-foreground truncate">{j.title}</div>
+                    {score > 0 && (
+                      <span
+                        className={[
+                          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                          verdict.tone === 'accent'
+                            ? 'bg-[var(--hs-app-accent-soft)] text-[var(--hs-app-accent)]'
+                            : verdict.tone === 'good'
+                            ? 'bg-[var(--hs-app-bg)] text-[var(--hs-app-fg)] border border-[var(--hs-app-border)]'
+                            : 'bg-[var(--hs-app-bg)] text-[var(--hs-app-muted)] border border-[var(--hs-app-border)]',
+                        ].join(' ')}
+                      >
+                        {verdict.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-foreground-muted truncate">
+                    {j.company}
+                    {j.location ? ` · ${j.location}` : ''}
+                  </div>
+                  {insight && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-foreground-muted line-clamp-2">
+                      {insight}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

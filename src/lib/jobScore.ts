@@ -1,4 +1,28 @@
 /**
+ * Maps a 0-100 match score to a short qualitative verdict.
+ *
+ * Mirrors the rubric we send to the AI scorer (95+ perfect, 80+ strong,
+ * 60+ reasonable, 40+ stretch, <40 off-target) so the user gets a richer
+ * mental model than just a bare number. `tone` lets the renderer pick the
+ * right colour palette without baking colour into this module.
+ */
+export type ScoreVerdictTone = 'accent' | 'good' | 'soft';
+
+export interface ScoreVerdict {
+  label: string;
+  tone: ScoreVerdictTone;
+}
+
+export function scoreVerdict(score: number): ScoreVerdict {
+  if (!Number.isFinite(score) || score <= 0) return { label: 'Unscored', tone: 'soft' };
+  if (score >= 90) return { label: 'Perfect fit', tone: 'accent' };
+  if (score >= 75) return { label: 'Strong fit', tone: 'accent' };
+  if (score >= 60) return { label: 'Reasonable fit', tone: 'good' };
+  if (score >= 40) return { label: 'Stretch', tone: 'soft' };
+  return { label: 'Off target', tone: 'soft' };
+}
+
+/**
  * Resolves the display value for a saved job's match score.
  *
  * Older saved jobs in Firestore were written before the matching engine
