@@ -248,42 +248,65 @@ export function JobDetailsPanel({
               )}
             </div>
 
-            {/* AI Copilot — top toolbar */}
-            <div className="rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
-              <h4 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--hs-app-muted)]">
-                AI Copilot
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                <button
-                  type="button"
-                  className="hs-btn justify-center"
-                  onClick={() => runAiAction('email', selectedJob)}
-                >
-                  <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
-                </button>
-                <button
-                  type="button"
-                  className="hs-btn justify-center"
-                  onClick={() => runAiAction('resume', selectedJob)}
-                >
-                  <FileText className="h-3.5 w-3.5" /> Tailor Resume
-                </button>
-                <button
-                  type="button"
-                  className="hs-btn justify-center"
-                  onClick={() => runAiAction('interview', selectedJob)}
-                >
-                  <MessageSquare className="h-3.5 w-3.5" /> Interview Prep
-                </button>
-                <button
-                  type="button"
-                  className="hs-btn justify-center"
-                  onClick={() => runAiAction('salary', selectedJob)}
-                >
-                  <TrendingUp className="h-3.5 w-3.5" /> Salary Data
-                </button>
+            {/* AI Copilot — gated behind save. We don't want the panel to
+                feel like a generic feed-detail view; the value proposition
+                is "save the role, then the AI does the application work for
+                you." Surfacing the four assistants here for unsaved jobs
+                spreads attention and weakens the save action. */}
+            {isSaved ? (
+              <div className="rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
+                <h4 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--hs-app-muted)]">
+                  AI Copilot
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <button
+                    type="button"
+                    className="hs-btn justify-center"
+                    onClick={() => runAiAction('email', selectedJob)}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
+                  </button>
+                  <button
+                    type="button"
+                    className="hs-btn justify-center"
+                    onClick={() => runAiAction('resume', selectedJob)}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Tailor Resume
+                  </button>
+                  <button
+                    type="button"
+                    className="hs-btn justify-center"
+                    onClick={() => runAiAction('interview', selectedJob)}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Interview Prep
+                  </button>
+                  <button
+                    type="button"
+                    className="hs-btn justify-center"
+                    onClick={() => runAiAction('salary', selectedJob)}
+                  >
+                    <TrendingUp className="h-3.5 w-3.5" /> Salary Data
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent-soft)] text-[10px] font-bold text-[var(--hs-app-accent)]">
+                    AI
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
+                      Save this job to unlock the AI Copilot
+                    </h4>
+                    <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
+                      Tailored resume, cold email, interview prep, and salary insights —
+                      one click each, persisted to this role.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Scrollable body (only this region scrolls) ─────────────── */}
