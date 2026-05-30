@@ -431,6 +431,45 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     }
   };
 
+  // ── Manual resume of auto-paused daily alerts ──────────────────────────────
+  // Cleared when the user clicks the "Resume daily alerts" button (shown
+  // only while `profile.dailyAlertsAutoPaused === true`). Flipping the flag
+  // alone is enough to re-enable tomorrow morning's 8 AM cron run; we also
+  // fire a one-off requestJobs() so the user gets jobs today without
+  // waiting another full cycle.
+  const [resumingAlerts, setResumingAlerts] = useState(false);
+
+  const resumeDailyAlerts = async () => {
+    if (!user || resumingAlerts) return;
+    setResumingAlerts(true);
+    try {
+      const now = new Date().toISOString();
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          dailyAlertsAutoPaused: false,
+          dailyAlertsPausedReason: null,
+          dailyAlertsResumedAt: now,
+          lastActiveAt: now,
+          // Force the next daily-alerts query to consider this user — the
+          // dispatcher orders by `nextJobDeliveryAt`, so reset it to "due
+          // immediately" rather than leaving a stale pause-era timestamp.
+          nextJobDeliveryAt: now,
+        },
+        { merge: true }
+      );
+      toast.success('Daily alerts resumed. Pulling a fresh batch for you now…');
+      // Reuse the existing on-demand path — handles dispatch + spinner +
+      // success / failure toasts without duplicating any logic here.
+      await requestJobs();
+    } catch (err) {
+      console.error('[useDashboardJobs] resumeDailyAlerts failed:', err);
+      toast.error('Could not resume daily alerts. Please try again.');
+    } finally {
+      setResumingAlerts(false);
+    }
+  };
+
   // ── Learning signal persistence ─────────────────────────────────────────────
 
   const persistLearningSignals = async (signals: LearningSignals) => {
@@ -689,6 +728,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     dailyJobsMeta,
     nextJobDeliveryAt: profile?.nextJobDeliveryAt || null,
     matchReadiness: profile?.matchReadiness || null,
+    dailyAlertsAutoPaused: profile?.dailyAlertsAutoPaused === true,
+    dailyAlertsPausedAt: profile?.dailyAlertsPausedAt || null,
+    resumingAlerts,
+    resumeDailyAlerts,
     saveJob,
     markJobApplied,
     dismissJob,
