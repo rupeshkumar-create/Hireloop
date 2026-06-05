@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
@@ -9,6 +10,7 @@ import { runAdminGhostMode } from '../services/adminGhostMode';
 import type { CallAIFn } from '../services/jobResearcher';
 import { matchAndRankJobs } from '../services/jobMatchingEngine';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
+import { ContentGrowthPanel } from '../components/admin/ContentGrowthPanel';
 import type {
   GhostModeInputMode,
   GhostModeOverrides,
@@ -383,6 +385,14 @@ export function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [ghostRunning, setGhostRunning] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'content' ? 'content' : 'users';
+  const [activeTab, setActiveTab] = useState<'users' | 'content'>(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') === 'content' ? 'content' : 'users';
+    setActiveTab(tab);
+  }, [searchParams]);
 
   // ── API helpers ────────────────────────────────────────────────────────────
 
@@ -535,11 +545,16 @@ export function AdminDashboard() {
         },
         {
           generateDebugResult: async (input) => {
+            const idToken = await adminUser.getIdToken(true);
+
             // Client-side proxy — routes through /api/openai → OpenRouter
             const clientCallAI: CallAIFn = async (messages, model) => {
               const resp = await fetch('/api/openai', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${idToken}`,
+                },
                 body: JSON.stringify({ messages, model }),
               });
               if (!resp.ok) {
@@ -553,7 +568,6 @@ export function AdminDashboard() {
             // Discovery runs server-side so APIFY_API_TOKEN never ships in
             // the browser bundle. The admin client just gets the resulting
             // job list and matches/scores it locally with the AI proxy.
-            const idToken = await adminUser.getIdToken(true);
             const discoverResp = await fetch('/api/admin/ghost-discover', {
               method: 'POST',
               headers: {
@@ -638,11 +652,42 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-medium">Super Admin</h1>
-        <Button variant="outline" size="sm" onClick={loadUsers} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </Button>
+        {activeTab === 'users' && (
+          <Button variant="outline" size="sm" onClick={loadUsers} disabled={loading}>
+            {loading ? 'Loading…' : 'Refresh'}
+          </Button>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-border">
+        {([
+          ['users', 'Users'],
+          ['content', 'Content Growth'],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              setActiveTab(id);
+              setSearchParams(id === 'content' ? { tab: 'content' } : {});
+            }}
+            className={cn(
+              'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+              activeTab === id
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-foreground-muted hover:text-foreground'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'content' ? (
+        <ContentGrowthPanel />
+      ) : (
+        <>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Stat label="Total Users" value={stats.total} />
@@ -761,6 +806,8 @@ export function AdminDashboard() {
         onRun={handleRunGhost}
         onClose={() => { setGhostUser(null); setGhostResult(null); }}
       />
+        </>
+      )}
     </div>
   );
 }

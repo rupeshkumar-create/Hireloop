@@ -4,14 +4,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Briefcase, Sparkles } from 'lucide-react';
 
 export function Login() {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, profile, loading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    if (loading || !user) return;
+    if (!profile?.onboardingCompletedAt && !profile?.resumeText?.trim()) {
+      navigate('/onboarding');
+      return;
     }
-  }, [user, navigate]);
+    navigate('/dashboard');
+  }, [user, profile, loading, navigate]);
 
   return (
     <div className="hs-landing min-h-screen flex flex-col">

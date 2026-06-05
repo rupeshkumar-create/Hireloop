@@ -6,27 +6,16 @@
  *  - Research current trends via Perplexity (web search)
  *  - Update strategy every weekend based on what's working
  *
- * Model routing (all via OpenRouter):
- *  - blog_research   → perplexity/sonar-pro   (live web search)
- *  - blog_content    → anthropic/claude-opus-4-6  (writing)
- *  - blog_seo        → openai/gpt-4o-mini     (keyword/meta)
- *  - strategy_update → anthropic/claude-opus-4-6  (strategic reasoning)
+ * Model routing (all via OpenRouter — see contentGrowth/ai.ts):
+ *  Daily publish = 2 calls: sonar-pro (research) + claude-opus-4-6 (write + SEO)
+ *  Cover images = deterministic SVG (zero AI calls)
  */
 
-import OpenAI from 'openai';
 import { getAdminDb } from './firebaseAdmin.js';
+import { chat, chatJSON, MODELS } from './contentGrowth/ai.js';
 
 const STRATEGY_DOC = 'marketing/strategy';
 const BLOG_COLLECTION = 'blog_posts';
-
-const openrouter = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'https://hireschema.com',
-    'X-Title': 'Hireschema',
-  },
-});
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,34 +55,39 @@ export interface BlogPost {
   status: 'published' | 'draft';
   strategyVersion: number;
   faq: { question: string; answer: string }[];
+  // Content Growth System fields (optional on legacy posts)
+  directAnswer?: string;
+  definitions?: { term: string; definition: string }[];
+  salaryBenchmarks?: { role: string; median: string; range: string; region: string; source?: string }[];
+  hiringTrends?: { trend: string; impact: string; timeframe: string }[];
+  comparisonTableMarkdown?: string;
+  imageAltText?: string;
+  coverImageUrl?: string;
+  coverImageDataUri?: string;
+  clusterId?: string;
+  internalLinks?: { slug: string; title: string; anchorText: string; relevanceScore: number }[];
+  schema?: {
+    article: Record<string, unknown>;
+    faqPage?: Record<string, unknown>;
+    breadcrumb?: Record<string, unknown>;
+  };
+  seoValidation?: { passed: boolean; score: number; issues: string[]; warnings: string[] };
+  performanceScore?: number;
+  entityTags?: string[];
+  refreshedAt?: string;
+  createdAt?: string;
+  llmOptimization?: {
+    score: number;
+    grade: string;
+    checks: { name: string; passed: boolean }[];
+    slopPhrasesFound: string[];
+    recommendations: string[];
+  };
+  updatedAt?: string;
 }
 
-// ─── OpenRouter helpers ───────────────────────────────────────────────────────
-
-async function chat(model: string, system: string, user: string): Promise<string> {
-  const res = await openrouter.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-  });
-  return res.choices[0]?.message?.content?.trim() ?? '';
-}
-
-async function chatJSON<T>(model: string, system: string, user: string): Promise<T> {
-  const res = await openrouter.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: system + '\n\nRespond ONLY with valid JSON. No markdown fences, no explanation.' },
-      { role: 'user', content: user },
-    ],
-  });
-  const raw = res.choices[0]?.message?.content?.trim() ?? '{}';
-  // Strip markdown code fences if model ignored the instruction
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-  return JSON.parse(cleaned) as T;
-}
+// Re-export MODELS for callers that import from marketingEngine
+export { MODELS };
 
 // ─── Strategy ─────────────────────────────────────────────────────────────────
 
@@ -227,7 +221,7 @@ export async function initializeStrategy(): Promise<MarketingStrategy> {
 
 export async function researchTopic(topic: TopicIdea): Promise<string> {
   return chat(
-    'perplexity/sonar-pro',
+    MODELS.research,
     'You are a research assistant. Gather current, factual information from the web. Return a structured research brief with key facts, statistics, examples, and what the latest sources say. Focus on accuracy and recency.',
     `Research this blog topic for HireSchema (an AI-powered remote job matching platform):
 
@@ -272,7 +266,7 @@ export async function generateBlogPost(
   const today = new Date().toISOString().split('T')[0];
 
   const postContent = await chat(
-    'anthropic/claude-opus-4-6',
+    MODELS.writing,
     `You are an expert content writer for HireSchema — an AI-powered remote job matching platform that sends users personalized daily job alerts, then helps them tailor their resume, generate cold emails, and prepare for interviews.
 
 Writing rules:
@@ -315,7 +309,7 @@ Do not add any meta commentary or notes outside the post content itself.`
 
   // Generate SEO metadata
   const seoMeta = await chatJSON<{ seoTitle: string; seoDescription: string; tags: string[]; category: string }>(
-    'openai/gpt-4o-mini',
+    MODELS.writing,
     'You are an SEO specialist. Generate metadata for a blog post. Return a JSON object.',
     `Post title: "${extractedTitle}"
 Keywords: ${topic.targetKeywords.join(', ')}
@@ -396,7 +390,7 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
 export async function runWeeklyAnalysis(strategy: MarketingStrategy): Promise<MarketingStrategy> {
   // Step 1: Research current trends
   const trendResearch = await chat(
-    'perplexity/sonar-pro',
+    MODELS.research,
     'You are a digital marketing analyst. Research what content is currently ranking and trending for remote job seekers. Be specific with data.',
     `Research the current content landscape for these topics relevant to HireSchema (an AI remote job matching platform):
 
@@ -421,7 +415,7 @@ Return specific, current data with sources where possible.`
     llmOptimizationGuidance: string;
     analysisNotes: string;
   }>(
-    'anthropic/claude-opus-4-6',
+    MODELS.strategy,
     `You are a senior content strategist for HireSchema (an AI-powered remote job matching platform). Your job is to update the content marketing strategy based on fresh research. Return a JSON object with the exact structure requested.`,
     `Current strategy (version ${strategy.version}):
 - Content pillars: ${strategy.contentPillars.join(', ')}

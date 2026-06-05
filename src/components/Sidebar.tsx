@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
+import { isAdminEmail } from '../lib/adminEmails';
 
 function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: boolean) {
   const groups = [
@@ -45,6 +46,7 @@ function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: bo
       label: 'Admin',
       items: [
         { name: 'SuperAdmin', path: '/superadmin', icon: ShieldCheck },
+        { name: 'Content Growth', path: '/superadmin?tab=content', icon: FileText },
       ],
     });
   }
@@ -74,8 +76,7 @@ export function Sidebar() {
   const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
   
-  const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
-  const isAdmin = ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '');
+  const isAdmin = isAdminEmail(user?.email);
   
   const navGroups = getNavGroups(dashboardCount, savedCount, isAdmin);
 

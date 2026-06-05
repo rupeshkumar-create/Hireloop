@@ -7,17 +7,22 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { generateAndPublishPost } from '../../src/server/marketingEngine.js';
+import { runDailyContentPipeline } from '../../src/server/contentGrowth/orchestrator.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;
 
   try {
-    const result = await generateAndPublishPost();
+    const result = await runDailyContentPipeline({ dryRun: false });
     return res.status(200).json({
       success: true,
       slug: result.slug,
       title: result.title,
+      seoScore: result.seoScore,
+      llmScore: result.llmScore,
+      llmGrade: result.llmGrade,
+      clusterId: result.clusterId,
+      durationMs: result.pipeline.totalDurationMs,
       publishedAt: new Date().toISOString(),
     });
   } catch (error) {

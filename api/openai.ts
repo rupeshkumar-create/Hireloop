@@ -1,5 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
+import { getBearerToken } from '../src/server/adminAuth.js';
+import { verifyAiAccess } from '../src/server/apiAuth.js';
 
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -13,6 +15,17 @@ const openai = new OpenAI({
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ error: 'Missing authorization token.' });
+
+  try {
+    await verifyAiAccess(token);
+  } catch (err: unknown) {
+    const status = (err as { status?: number }).status ?? 401;
+    const message = err instanceof Error ? err.message : 'Unauthorized';
+    return res.status(status).json({ error: message });
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;

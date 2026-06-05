@@ -34,33 +34,32 @@ export function normalizeApolloRecruiter(
   };
 }
 
+import { getAiAuthToken } from './aiAuth';
+
 export async function fetchRecruiterFromApollo(input: {
   company: string;
   jobTitle: string;
 }): Promise<RecruiterContact | null> {
-  const apiKey = import.meta.env.VITE_APOLLO_API_KEY;
-  if (!apiKey) {
-    console.warn('Apollo API key missing; skipping recruiter lookup.');
+  const authToken = await getAiAuthToken();
+  if (!authToken) {
+    console.warn('Not authenticated; skipping recruiter lookup.');
     return null;
   }
 
   try {
-    const response = await fetch(
-      'https://api.apollo.io/api/v1/mixed_people/search',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Api-Key': apiKey,
-        },
-        body: JSON.stringify({
-          q_organization_name: input.company,
-          person_titles: ['Recruiter', 'Talent Partner', 'Hiring Manager'],
-          page: 1,
-          per_page: 5,
-        }),
-      }
-    );
+    const response = await fetch('/api/apollo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        q_organization_name: input.company,
+        person_titles: ['Recruiter', 'Talent Partner', 'Hiring Manager'],
+        page: 1,
+        per_page: 5,
+      }),
+    });
 
     if (!response.ok) {
       console.error('Apollo recruiter lookup failed with status:', response.status);

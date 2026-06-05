@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { ArrowRight, Briefcase, Loader2, Play, RefreshCw } from 'lucide-react';
+import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobs } from '../hooks/useDashboardJobs';
@@ -83,10 +83,6 @@ export function Dashboard() {
     nextJobDeliveryAt,
     userCountry,
     regionFilteredCount,
-    dailyAlertsAutoPaused,
-    dailyAlertsPausedAt,
-    resumingAlerts,
-    resumeDailyAlerts,
   } = useDashboardJobs(user, profile, updateProfile);
 
   const {
@@ -203,45 +199,6 @@ export function Dashboard() {
           </div>
         </div>
       )}
-      {/* Auto-pause banner — shown only when the daily cron has skipped this
-          user for inactivity. Clicking Resume flips the flag and fires a
-          fresh on-demand run so the user gets jobs today, not tomorrow. */}
-      {dailyAlertsAutoPaused && (
-        <div className="flex flex-col gap-3 rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-4 py-4 text-[13px] text-[var(--hs-app-fg)] sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="font-semibold">Your daily job agent is paused</div>
-            <p className="mt-1 text-[12px] text-[var(--hs-app-muted)]">
-              We paused the 8 AM daily run after 3 days of inactivity to save
-              compute. Click Resume to turn it back on and pull a fresh batch
-              for today.
-              {dailyAlertsPausedAt && (
-                <>
-                  {' '}Paused{' '}
-                  {new Date(dailyAlertsPausedAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                  .
-                </>
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="hs-btn hs-btn-primary self-start sm:self-auto"
-            onClick={() => resumeDailyAlerts()}
-            disabled={resumingAlerts || generatingJobs}
-          >
-            {resumingAlerts ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Play className="h-3.5 w-3.5" />
-            )}
-            Resume daily alerts
-          </button>
-        </div>
-      )}
-
       <GettingStartedCard
         hasMatches={filteredAndSortedJobs.length > 0}
         // Use the LIVE Firestore snapshot count, not the Dashboard-local

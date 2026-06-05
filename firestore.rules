@@ -172,6 +172,45 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
+    // Content Growth System — admin-only (written via Admin SDK crons)
+    match /content_growth/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_keywords/{keywordId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_competitors/{competitorId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_clusters/{clusterId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /content_metrics/{slug} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    match /content_rankings/{rankingId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_learning_reports/{reportId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_strategy_plans/{planId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /content_growth_runs/{runId} {
+      allow read: if isSuperAdmin();
+    }
+
     match /job_sources/{sourceId} {
       allow read, write: if isSuperAdmin();
     }

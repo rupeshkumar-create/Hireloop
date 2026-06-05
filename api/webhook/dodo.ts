@@ -1,6 +1,17 @@
+import { createHmac, timingSafeEqual } from 'crypto';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+
+function verifyDodoSignature(rawBody: string, signature: string | undefined, secret: string): boolean {
+  if (!signature) return false;
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  try {
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
 // Note: Requires FIREBASE_SERVICE_ACCOUNT_KEY env var in Vercel containing the stringified JSON
 if (!getApps().length && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
@@ -15,6 +26,15 @@ if (!getApps().length && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+
+  const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
+    const signature = req.headers['x-dodo-signature'] as string | undefined;
+    if (!verifyDodoSignature(rawBody, signature, webhookSecret)) {
+      return res.status(401).send('Invalid webhook signature');
+    }
+  }
   
   try {
     const event = req.body;

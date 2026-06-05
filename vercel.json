@@ -8,7 +8,11 @@
     "api/cron/process-user.ts": { "maxDuration": 60 },
     "api/cron/daily-alerts.ts": { "maxDuration": 60 },
     "api/openai.ts": { "maxDuration": 60 },
-    "api/admin/users.ts": { "maxDuration": 30 }
+    "api/apollo.ts": { "maxDuration": 30 },
+    "api/admin/users.ts": { "maxDuration": 30 },
+    "api/admin/content-growth.ts": { "maxDuration": 300 },
+    "api/cron/daily-blog.ts": { "maxDuration": 300 },
+    "api/cron/monthly-learning.ts": { "maxDuration": 300 }
   },
   "crons": [
     {
@@ -22,9 +26,21 @@
     {
       "path": "/api/cron/weekly-analysis",
       "schedule": "0 6 * * 6"
+    },
+    {
+      "path": "/api/cron/monthly-learning",
+      "schedule": "0 7 1 * *"
     }
   ],
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap.xml"
+    },
+    {
+      "source": "/blog/rss.xml",
+      "destination": "/api/blog/rss.xml"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -9,6 +9,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireCronSecret } from '../../src/server/cronAuth.js';
 import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../../src/server/marketingEngine.js';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
+import {
+  runKeywordDiscovery,
+  runCompetitorAnalysis,
+} from '../../src/server/contentGrowth/orchestrator.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;
@@ -19,7 +23,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       strategy = await initializeStrategy();
     }
 
-    const updatedStrategy = await runWeeklyAnalysis(strategy);
+    const [updatedStrategy, keywordCount, competitorCount] = await Promise.all([
+      runWeeklyAnalysis(strategy),
+      runKeywordDiscovery().catch(() => 0),
+      runCompetitorAnalysis().catch(() => 0),
+    ]);
 
     // Audit log
     const db = getAdminDb();
@@ -27,6 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       type: 'weekly_analysis',
       strategyVersion: updatedStrategy.version,
       newTopicsAdded: updatedStrategy.pendingTopics.length - strategy.pendingTopics.length,
+      keywordsDiscovered: keywordCount,
+      competitorsAnalyzed: competitorCount,
       lastAnalysisDate: updatedStrategy.lastAnalysisDate,
       createdAt: new Date().toISOString(),
     });
@@ -36,6 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       strategyVersion: updatedStrategy.version,
       pendingTopics: updatedStrategy.pendingTopics.length,
       usedTopics: updatedStrategy.usedTopics.length,
+      keywordsDiscovered: keywordCount,
+      competitorsAnalyzed: competitorCount,
       lastAnalysisDate: updatedStrategy.lastAnalysisDate,
     });
   } catch (error) {

@@ -15,6 +15,7 @@ import {
 } from './validator';
 import { registerGuardrailTask, runWithGuardrails } from './systemEngine';
 import { fetchRecruiterFromApollo, type RecruiterContact } from './apolloService';
+import { getAiAuthToken } from './aiAuth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared OpenRouter proxy caller
@@ -25,9 +26,13 @@ export async function callOpenAI(
   response_format?: any,
   model: string = 'openai/gpt-4o-mini'
 ) {
+  const authToken = await getAiAuthToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
   const response = await fetch('/api/openai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ messages, response_format, model }),
   });
 

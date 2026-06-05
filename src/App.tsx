@@ -20,6 +20,7 @@ import { BlogPost } from './pages/BlogPost';
 import { Toaster } from 'sonner';
 import { useState, useEffect } from 'react';
 import { ArrowRight, Search } from 'lucide-react';
+import { isAdminEmail } from './lib/adminEmails';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -39,12 +40,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     if (loading) return;
     if (!realUser) { setStatus('denied'); return; }
     setStatus('checking');
-    const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
-    const userEmail = realUser.email?.toLowerCase();
+    const userEmail = realUser.email;
 
     realUser.getIdTokenResult(false)
-      .then(r => setStatus((r.claims.superAdmin === true || ADMIN_EMAILS.includes(userEmail || '')) ? 'allowed' : 'denied'))
-      .catch(() => setStatus(ADMIN_EMAILS.includes(userEmail || '') ? 'allowed' : 'denied'));
+      .then(r => setStatus((r.claims.superAdmin === true || isAdminEmail(userEmail)) ? 'allowed' : 'denied'))
+      .catch(() => setStatus(isAdminEmail(userEmail) ? 'allowed' : 'denied'));
   }, [realUser, loading]);
 
   if (loading || status === 'checking') {

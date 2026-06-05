@@ -529,10 +529,28 @@ const LP_STYLE = `
     .lp-feat-item-hdr { flex-direction:column; gap:6px; }
     .lp-feat-tag { padding-top:0; }
   }
+  .lp-blog-grid { display:grid; gap:16px; margin-top:28px; }
+  @media(min-width:768px){ .lp-blog-grid { grid-template-columns:repeat(3,1fr); } }
+  .lp-blog-card {
+    display:block; padding:20px; border:1px solid var(--lp-border); border-radius:12px;
+    background:var(--lp-surface); text-decoration:none; color:inherit; transition:border-color .2s;
+  }
+  .lp-blog-card:hover { border-color:var(--lp-accent); }
+  .lp-blog-card h3 { font-size:17px; font-weight:500; margin:0 0 8px; line-height:1.35; }
+  .lp-blog-card p { margin:0; font-size:14px; color:var(--lp-muted); line-height:1.5; }
+  .lp-blog-meta { margin-top:12px; font-family:var(--lp-font-m); font-size:11px; color:var(--lp-muted); }
   @media(prefers-reduced-motion:reduce){
     .lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s { opacity:1 !important; transform:none !important; }
   }
 `;
+
+interface LandingBlogPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  publishedAt: string;
+  category: string;
+}
 
 const MARQUEE_ITEMS = [
   'Remote · Worldwide', '50+ Resume Signals', 'AI Match Scoring', 'ATS Integrity Checks',
@@ -540,11 +558,51 @@ const MARQUEE_ITEMS = [
 ];
 
 const FEATURES = [
-  { title: 'Hard validation before AI scoring', tag: 'Validator', desc: 'Deterministic rules reject every listing that fails remote, location, salary, freshness, or link checks. AI never scores a listing that hasn\'t cleared the hard filter first.' },
-  { title: 'Resume-grounded match scores', tag: 'AI Engine', desc: 'The match score is derived from your actual resume text — not job title keywords. Experience depth, skill overlap, seniority calibration, and salary range all factor into the final ranking.' },
-  { title: 'A system that learns from you', tag: 'Learning Loop', desc: 'Every save, dismiss, and application is a signal. The next cycle\'s Scout queries adjust accordingly — boosting what you engage with, suppressing what you skip.' },
-  { title: 'Application drafts on demand', tag: 'AI Tasks', desc: 'Generate a tailored cover letter, a resume variant for a specific role, or a set of interview prep questions — all grounded in your profile and the actual job description.' },
-  { title: 'Tracker built in', tag: 'Job Tracker', desc: 'Every matched job flows into a built-in tracker. Move listings through stages, add notes, mark applied — a clean record of your search without a separate spreadsheet.' },
+  {
+    tag: 'Validator',
+    title: 'Hard validation before AI scoring',
+    summary:
+      'Every listing passes deterministic checks before AI touches it. Bad jobs never waste your attention or your match queue.',
+    detailTitle: '50+ hard rules, zero LLM guesswork',
+    detail:
+      'Before a match score is calculated, each job is screened for remote eligibility, location fit, salary floor, posting freshness, and application-link integrity. Roles that fail any check are dropped immediately — so the AI only ranks listings that are real, relevant, and actually worth applying to.',
+  },
+  {
+    tag: 'AI Engine',
+    title: 'Resume-grounded match scores',
+    summary:
+      'Scores reflect your real experience — not keyword stuffing or title inflation.',
+    detailTitle: 'Your resume is the scoring input',
+    detail:
+      'Hireschema reads your full work history, skills, seniority signals, and compensation expectations — then compares them to each job description. The result is a match score grounded in overlap and fit, not whether you guessed the right buzzwords in a title search.',
+  },
+  {
+    tag: 'Learning Loop',
+    title: 'A system that learns from you',
+    summary:
+      'Saves, skips, and applications teach Scout what "good" looks like for you.',
+    detailTitle: 'Signals that sharpen every cycle',
+    detail:
+      'When you save a role, dismiss one, or mark applied, those actions feed the learning loop. Future Scout runs boost companies and job types you engage with and quietly suppress patterns you consistently skip — so day two feels smarter than day one.',
+  },
+  {
+    tag: 'AI Tasks',
+    title: 'Application drafts on demand',
+    summary:
+      'Cover letters, resume tweaks, and interview prep — generated from your profile and the role.',
+    detailTitle: 'Role-specific drafts in one click',
+    detail:
+      'For any matched job, generate a tailored cover letter, a resume variant aligned to the posting, or interview questions drawn from the job description and your background. Everything is anchored to your actual profile — not generic templates.',
+  },
+  {
+    tag: 'Job Tracker',
+    title: 'Tracker built in',
+    summary:
+      'Matched jobs flow straight into a pipeline — no spreadsheet required.',
+    detailTitle: 'From match to offer, one place',
+    detail:
+      'Every role Scout surfaces lands in your built-in tracker. Move jobs through saved, applied, interviewing, and offered stages, attach notes, and keep a clean record of your search — without exporting to another tool.',
+  },
 ];
 
 const FREE_FEATURES = [
@@ -576,6 +634,14 @@ export function LandingPage() {
   const progressRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const [activeFeat, setActiveFeat] = useState(0);
+  const [blogPosts, setBlogPosts] = useState<LandingBlogPost[]>([]);
+
+  useEffect(() => {
+    fetch('/api/blog?limit=3')
+      .then((r) => r.json())
+      .then((data) => setBlogPosts((data.posts ?? []).slice(0, 3)))
+      .catch(() => setBlogPosts([]));
+  }, []);
 
   // inject styles once
   useEffect(() => {
@@ -682,6 +748,7 @@ export function LandingPage() {
           <div className="lp-nav-actions">
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
+            <Link to="/blog" className="lp-nav-link">Hiring Guides</Link>
             <a href="#pricing" className="lp-nav-link">Pricing</a>
             <Link to="/login" className="lp-nav-link">Sign in</Link>
             <Link to="/login" className="lp-btn-p">Start free</Link>
@@ -831,7 +898,7 @@ export function LandingPage() {
               <div key={activeFeat} className="lp-feat-left-body">
                 <p className="lp-feat-left-num">0{activeFeat + 1}&nbsp;/&nbsp;0{FEATURES.length}</p>
                 <h3 className="lp-feat-left-title">{FEATURES[activeFeat].title}</h3>
-                <p className="lp-feat-left-desc">{FEATURES[activeFeat].desc}</p>
+                <p className="lp-feat-left-desc">{FEATURES[activeFeat].summary}</p>
               </div>
 
               {/* vertical stepper nav */}
@@ -861,10 +928,10 @@ export function LandingPage() {
                   className={`lp-feat-item${i === activeFeat ? ' lp-feat-active' : ''}`}
                 >
                   <div className="lp-feat-item-hdr">
-                    <h3 className="lp-feat-ttl">{f.title}</h3>
+                    <h3 className="lp-feat-ttl">{f.detailTitle}</h3>
                     <span className="lp-feat-tag">{f.tag}</span>
                   </div>
-                  <p className="lp-feat-desc">{f.desc}</p>
+                  <p className="lp-feat-desc">{f.detail}</p>
                 </div>
               ))}
             </div>
@@ -910,15 +977,44 @@ export function LandingPage() {
             </div>
             <div className="lp-plan">
               <span className="lp-plan-name">Pro</span>
-              <div className="lp-plan-price">$19</div>
+              <div className="lp-plan-price">$9</div>
               <span className="lp-plan-period">per month — cancel anytime</span>
               <ul className="lp-plan-features">
                 {PRO_FEATURES.map(f => (
                   <li key={f} className="lp-plan-feature"><span className="lp-feat-dot" />{f}</li>
                 ))}
               </ul>
-              <Link to="/login" className="lp-btn-p">Start Pro trial</Link>
+              <Link to="/login" className="lp-btn-p">Upgrade to Pro</Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Blog ── */}
+      <section id="blog" className="lp-section">
+        <div className="lp-container">
+          <p className="lp-eyebrow lp-reveal">Hiring Guides</p>
+          <h2 className="lp-display lp-ds lp-reveal">Remote job search advice, updated daily.</h2>
+          <p className="lp-body-lg lp-reveal" style={{ maxWidth: 640, marginTop: 12 }}>
+            Practical guides on remote hiring, ATS strategy, and career growth — written for real job seekers.
+          </p>
+          {blogPosts.length > 0 ? (
+            <div className="lp-blog-grid lp-reveal">
+              {blogPosts.map((post) => (
+                <Link key={post.slug} to={`/blog/${post.slug}`} className="lp-blog-card">
+                  <h3>{post.title}</h3>
+                  <p>{post.excerpt}</p>
+                  <div className="lp-blog-meta">
+                    {post.category} · {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="lp-body-sm lp-reveal" style={{ marginTop: 20 }}>Fresh guides publish daily — check back soon.</p>
+          )}
+          <div className="lp-reveal" style={{ marginTop: 24 }}>
+            <Link to="/blog" className="lp-btn-g">View all hiring guides</Link>
           </div>
         </div>
       </section>
@@ -977,7 +1073,7 @@ export function LandingPage() {
                   <li><a href="#pricing">Pricing</a></li>
                   <li><a href="#changelog">Changelog</a></li>
                   <li><a href="mailto:hello@hireschema.com">Contact</a></li>
-                  <li><a href="#blog">Blog</a></li>
+                  <li><Link to="/blog">Hiring Guides</Link></li>
                 </ul>
               </div>
 

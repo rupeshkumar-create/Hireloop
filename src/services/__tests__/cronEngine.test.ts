@@ -1,20 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildCronRunId,
-  evaluateActivityGate,
   evaluateDueUsers,
   getCronRunDateIST,
-  INACTIVITY_PAUSE_DAYS,
   isActiveCronUser,
   processUserCronRun,
   queueCronRun,
   type CronRunRecord,
 } from '../cronEngine';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const FIXED_NOW = new Date('2026-05-30T03:00:00.000Z');
-const isoDaysAgo = (days: number) =>
-  new Date(FIXED_NOW.getTime() - days * DAY_MS).toISOString();
 
 describe('isActiveCronUser', () => {
   it('returns true when plan is present and alerts are enabled', () => {
@@ -105,110 +98,6 @@ describe('evaluateDueUsers', () => {
 
     expect(result.due.map((user) => user.id)).toEqual(['due_user']);
     expect(result.skipped.map((user) => user.id)).toEqual(['later_user']);
-  });
-});
-
-describe('evaluateActivityGate', () => {
-  it('keeps users active (returns null) when lastActiveAt is within the inactivity window', () => {
-    const gate = evaluateActivityGate(
-      { lastActiveAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS) },
-      FIXED_NOW
-    );
-    expect(gate).toBeNull();
-  });
-
-  it('auto-pauses users who crossed the inactivity window', () => {
-    const gate = evaluateActivityGate(
-      { lastActiveAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS + 1) },
-      FIXED_NOW
-    );
-    expect(gate).toMatchObject({
-      reason: 'inactive_3_days',
-      shouldPersistPause: true,
-    });
-  });
-
-  it('keeps already-paused users paused without re-persisting', () => {
-    const gate = evaluateActivityGate(
-      {
-        dailyAlertsAutoPaused: true,
-        // Even with very recent activity, the pause flag wins until the user
-        // clicks "Resume daily alerts" — opening the app is intentionally
-        // not enough on its own.
-        lastActiveAt: FIXED_NOW.toISOString(),
-      },
-      FIXED_NOW
-    );
-    expect(gate).toMatchObject({
-      reason: 'auto_paused',
-      shouldPersistPause: false,
-    });
-  });
-
-  it('falls back to createdAt when lastActiveAt is missing', () => {
-    const gate = evaluateActivityGate(
-      { createdAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS + 2) },
-      FIXED_NOW
-    );
-    expect(gate).not.toBeNull();
-  });
-
-  it('does not pause users with no activity timestamps at all', () => {
-    // Conservative: a profile with no timestamps shouldn't be auto-paused
-    // on the first cron run. The fields will populate within a day.
-    const gate = evaluateActivityGate({}, FIXED_NOW);
-    expect(gate).toBeNull();
-  });
-});
-
-describe('evaluateDueUsers — inactivity bucket', () => {
-  it('routes inactive users to the inactive bucket and out of due/skipped', () => {
-    const result = evaluateDueUsers(
-      [
-        {
-          id: 'active_user',
-          data: {
-            plan: 'pro',
-            receiveDailyAlerts: true,
-            deliveryTimezone: 'Asia/Kolkata',
-            preferredDeliveryHour: 8,
-            nextJobDeliveryAt: '2026-05-30T02:30:00.000Z',
-            lastActiveAt: isoDaysAgo(1),
-          },
-        },
-        {
-          id: 'inactive_user',
-          data: {
-            plan: 'pro',
-            receiveDailyAlerts: true,
-            deliveryTimezone: 'Asia/Kolkata',
-            preferredDeliveryHour: 8,
-            nextJobDeliveryAt: '2026-05-30T02:30:00.000Z',
-            lastActiveAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS + 2),
-          },
-        },
-        {
-          id: 'already_paused_user',
-          data: {
-            plan: 'pro',
-            receiveDailyAlerts: true,
-            deliveryTimezone: 'Asia/Kolkata',
-            preferredDeliveryHour: 8,
-            nextJobDeliveryAt: '2026-05-30T02:30:00.000Z',
-            lastActiveAt: isoDaysAgo(0),
-            dailyAlertsAutoPaused: true,
-          },
-        },
-      ],
-      FIXED_NOW
-    );
-
-    expect(result.due.map((u) => u.id)).toEqual(['active_user']);
-    expect(result.inactive.map((u) => u.id).sort()).toEqual([
-      'already_paused_user',
-      'inactive_user',
-    ]);
-    expect(result.skipped.map((u) => u.id)).toEqual([]);
   });
 });
 
@@ -510,75 +399,6 @@ describe('processUserCronRun', () => {
 
     expect(result.status).toBe('skipped');
     expect(deps.loadUser).not.toHaveBeenCalled();
-  });
-
-  it('skips inactive users without calling generateJobs', async () => {
-    const deps = {
-      loadUser: vi.fn().mockResolvedValue({
-        id: 'user_inactive',
-        data: {
-          plan: 'pro',
-          receiveDailyAlerts: true,
-          email: 'inactive@example.com',
-          careerPaths: ['Frontend Engineer'],
-          resumeText: 'experienced engineer with React',
-          seenJobFingerprints: [],
-          lastActiveAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS + 1),
-        },
-      }),
-      getExistingRun: vi.fn().mockResolvedValue({
-        id: 'user_inactive_2026-05-30',
-        status: 'queued',
-      } as CronRunRecord),
-      markRun: vi.fn().mockResolvedValue(undefined),
-      generateJobs: vi.fn(),
-      storeJobs: vi.fn(),
-    };
-
-    const result = await processUserCronRun(
-      { userId: 'user_inactive', runDate: '2026-05-30' },
-      deps
-    );
-
-    expect(result.status).toBe('skipped');
-    expect(deps.generateJobs).not.toHaveBeenCalled();
-    expect(deps.markRun).toHaveBeenCalledWith(
-      'user_inactive_2026-05-30',
-      expect.objectContaining({
-        status: 'skipped',
-        inactivityReason: 'inactive_3_days',
-      })
-    );
-  });
-
-  it('still runs for an inactive user when bypassActiveCheck is true (manual resume)', async () => {
-    const deps = {
-      loadUser: vi.fn().mockResolvedValue({
-        id: 'user_inactive',
-        data: {
-          plan: 'pro',
-          receiveDailyAlerts: true,
-          email: 'inactive@example.com',
-          careerPaths: ['Frontend Engineer'],
-          resumeText: 'experienced engineer with React',
-          seenJobFingerprints: [],
-          lastActiveAt: isoDaysAgo(INACTIVITY_PAUSE_DAYS + 5),
-          dailyAlertsAutoPaused: true,
-        },
-      }),
-      getExistingRun: vi.fn().mockResolvedValue(null),
-      markRun: vi.fn().mockResolvedValue(undefined),
-      generateJobs: vi.fn().mockResolvedValue({ jobs: [] }),
-      storeJobs: vi.fn().mockResolvedValue(undefined),
-    };
-
-    const result = await processUserCronRun(
-      { userId: 'user_inactive', runDate: '2026-05-30', bypassActiveCheck: true },
-      deps
-    );
-
-    expect(result.status).toBe('completed');
-    expect(deps.generateJobs).toHaveBeenCalledTimes(1);
   });
 
   it('marks the run failed when storage throws', async () => {

@@ -5,6 +5,7 @@ import { stripUndefinedDeep } from '../lib/firestoreSanitizer';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 
 import { ResumeAnalysis } from '../services/aiService';
+import { setAiAuthTokenGetter } from '../services/aiAuth';
 import type { LearningSignals } from '../services/learningSignals';
 
 export interface LearningProfile {
@@ -99,18 +100,6 @@ export interface UserProfile {
   plan?: 'free' | 'pro';
   receiveDailyAlerts?: boolean;
   antiSlopEnabled?: boolean;
-  /**
-   * Set true by the daily-alerts cron when the user has been inactive for
-   * more than 3 days. While true, the 8 AM job pipeline skips this user
-   * entirely (no job research, no AI ranking). Cleared only by an explicit
-   * "Resume daily alerts" click — opening the app is intentionally not
-   * enough, because the whole point is to stop spending compute on users
-   * who aren't actively looking.
-   */
-  dailyAlertsAutoPaused?: boolean;
-  dailyAlertsPausedReason?: 'inactive_3_days' | null;
-  dailyAlertsPausedAt?: string | null;
-  dailyAlertsResumedAt?: string | null;
   dailyJobs?: any[];
   dailyJobsMeta?: Record<string, any>;
   lastJobFetchTime?: string;
@@ -166,6 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setImpersonatedEmail(null);
     setImpersonatedProfile(null);
   };
+
+  useEffect(() => {
+    setAiAuthTokenGetter(async () => {
+      const current = auth.currentUser;
+      if (!current) return null;
+      return current.getIdToken();
+    });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {

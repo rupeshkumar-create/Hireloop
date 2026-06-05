@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /blog/
+
+Sitemap: https://hireschema.com/sitemap.xml
+
+# AI crawlers
+User-agent: GPTBot
+Allow: /blog/
+
+User-agent: ClaudeBot
+Allow: /blog/
+
+User-agent: PerplexityBot
+Allow: /blog/
+
+User-agent: Google-Extended
+Allow: /blog/
