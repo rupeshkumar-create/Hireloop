@@ -1,0 +1,34 @@
+{
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/jobs/index.ts": { "maxDuration": 60 },
+    "api/cron/process-user.ts": { "maxDuration": 60 },
+    "api/cron/daily-alerts.ts": { "maxDuration": 60 },
+    "api/openai.ts": { "maxDuration": 60 },
+    "api/admin/users.ts": { "maxDuration": 30 }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily-alerts",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/daily-blog",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-analysis",
+      "schedule": "0 6 * * 6"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+

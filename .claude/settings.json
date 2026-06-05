@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git status*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run build*)",
+      "Bash(npm run test*)",
+      "Bash(npx tsc*)",
+      "Bash(ls *)",
+      "Bash(ls)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" == *\"firestore.rules\"* ]]; then echo '⚠️  firestore.rules changed — run: npm run deploy:rules'; fi"
+          },
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" == *\"MODEL_ROUTER.md\"* ]]; then echo '⚠️  MODEL_ROUTER.md changed — verify task→model assignments match in src/services/aiService.ts and src/services/jobMatchingEngine.ts'; fi"
+          },
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" == *\"/api/\"* && \"$FILE\" == *\".ts\"* ]]; then echo 'ℹ️  API file changed — remember to test via: curl -X POST http://localhost:3000/api/<endpoint>'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

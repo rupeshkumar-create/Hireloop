@@ -1,0 +1,670 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  CheckCircle2,
+  Loader2,
+  ArrowRight,
+  Sparkles,
+  X,
+  Plus,
+  Briefcase,
+  Compass,
+  Rocket,
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { ResumeUploader } from '../components/dashboard/ResumeUploader';
+import { Button } from '../components/ui/button';
+import { toast } from 'sonner';
+import type { DailyJob } from '../types/dailyJob';
+import { getDailyMatchLimit } from '../lib/planLimits';
+import { inferUserCountry } from '../services/remoteEligibility';
+import { scoreVerdict } from '../lib/jobScore';
+
+const COUNTRY_DISPLAY: Record<string, string> = {
+  US: 'the United States', CA: 'Canada', MX: 'Mexico', GB: 'the UK',
+  IE: 'Ireland', DE: 'Germany', FR: 'France', NL: 'the Netherlands',
+  ES: 'Spain', IT: 'Italy', PT: 'Portugal', PL: 'Poland',
+  SE: 'Sweden', NO: 'Norway', DK: 'Denmark', FI: 'Finland',
+  IN: 'India', SG: 'Singapore', AU: 'Australia', NZ: 'New Zealand',
+  JP: 'Japan', CN: 'China', PH: 'the Philippines', ID: 'Indonesia',
+  VN: 'Vietnam', TH: 'Thailand', BR: 'Brazil', AR: 'Argentina',
+  CL: 'Chile', CO: 'Colombia', PE: 'Peru',
+};
+
+type Step = 'upload' | 'paths' | 'scout' | 'matches';
+
+const STEP_ORDER: Step[] = ['upload', 'paths', 'scout', 'matches'];
+const STEP_LABELS: Record<Step, string> = {
+  upload: 'Upload resume',
+  paths: 'Confirm 3 paths',
+  scout: 'Scout running',
+  matches: 'First matches',
+};
+
+// Derive the natural starting step from profile state so a refresh mid-wizard
+// resumes where the user left off.
+function deriveInitialStep(profile: any): Step {
+  if (!profile?.resumeText) return 'upload';
+  if (!profile?.careerPaths || profile.careerPaths.length === 0) return 'paths';
+  // careerPaths populated → user can still review/confirm them
+  // We'll only auto-advance past 'paths' once the user explicitly continues.
+  return 'paths';
+}
+
+export function Onboarding() {
+  const { profile, updateProfile, loading } = useAuth();
+  const navigate = useNavigate();
+  const [step, setStep] = useState<Step>('upload');
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  // Initial step derivation once the profile lands.
+  useEffect(() => {
+    if (loading) return;
+    if (!bootstrapped) {
+      setStep(deriveInitialStep(profile));
+      setBootstrapped(true);
+    }
+  }, [loading, profile, bootstrapped]);
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
+  }
+  // Treat as already-onboarded if the explicit flag is set, OR if the user
+  // is a legacy account that pre-dates the wizard (has a resume, paths, and
+  // jobs already delivered — clearly through the funnel).
+  const isLegacyOnboarded =
+    !!profile?.resumeText &&
+    (profile?.careerPaths?.length || 0) > 0 &&
+    (profile?.dailyJobs?.length || 0) > 0;
+  if (profile?.onboardingCompletedAt || isLegacyOnboarded) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const goNext = (next: Step) => setStep(next);
+  const finish = async () => {
+    await updateProfile({ onboardingCompletedAt: new Date().toISOString() });
+    navigate('/dashboard');
+  };
+
+  return (
+    <div className="min-h-screen bg-background overflow-y-auto">
+      <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
+        <WizardHeader currentStep={step} />
+
+        <div className="mt-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22 }}
+            >
+              {step === 'upload' && (
+                <UploadStep
+                  profile={profile}
+                  updateProfile={updateProfile}
+                  onDone={() => goNext('paths')}
+                />
+              )}
+              {step === 'paths' && (
+                <PathsStep
+                  profile={profile}
+                  updateProfile={updateProfile}
+                  onDone={() => goNext('scout')}
+                />
+              )}
+              {step === 'scout' && (
+                <ScoutStep
+                  profile={profile}
+                  onDone={() => goNext('matches')}
+                />
+              )}
+              {step === 'matches' && (
+                <MatchesStep
+                  profile={profile}
+                  onFinish={finish}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Header / progress indicator ──────────────────────────────────────────────
+
+function WizardHeader({ currentStep }: { currentStep: Step }) {
+  const currentIndex = STEP_ORDER.indexOf(currentStep);
+  return (
+    <header>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-muted">
+        Welcome to Hireschema
+      </p>
+      <h1 className="mt-2 text-3xl md:text-4xl font-semibold text-foreground">
+        Calibrate your AI Scout.
+      </h1>
+      <p className="mt-2 text-foreground-muted">
+        Four short steps. By the end you'll see your first matched jobs.
+      </p>
+
+      <ol className="mt-8 flex flex-wrap items-center gap-2">
+        {STEP_ORDER.map((s, i) => {
+          const state: 'done' | 'active' | 'pending' =
+            i < currentIndex ? 'done' : i === currentIndex ? 'active' : 'pending';
+          return (
+            <li
+              key={s}
+              className={[
+                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                state === 'done'
+                  ? 'border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] text-[var(--hs-app-accent)]'
+                  : state === 'active'
+                  ? 'border-[var(--hs-app-accent)]/40 bg-[var(--hs-app-accent)]/10 text-[var(--hs-app-accent)]'
+                  : 'border-border bg-surface text-foreground-muted',
+              ].join(' ')}
+            >
+              {state === 'done' ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : (
+                <span className="text-[10px] font-bold">{i + 1}</span>
+              )}
+              {STEP_LABELS[s]}
+            </li>
+          );
+        })}
+      </ol>
+    </header>
+  );
+}
+
+// ─── Step 1 — Upload ──────────────────────────────────────────────────────────
+
+function UploadStep({
+  profile,
+  updateProfile,
+  onDone,
+}: {
+  profile: any;
+  updateProfile: (data: any) => Promise<void>;
+  onDone: () => void;
+}) {
+  // If a resume is already in the profile (refresh after upload), allow user
+  // to continue without re-uploading.
+  const hasResume = Boolean(profile?.resumeText);
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
+      <StepHeading
+        icon={Briefcase}
+        eyebrow="Step 1 of 4"
+        title="Upload your resume"
+        body="We'll extract your skills, summarise your experience, and suggest 3 career paths. This runs once — no manual setup."
+      />
+
+      <div className="mt-8">
+        <ResumeUploader
+          profile={profile}
+          updateProfile={updateProfile}
+          onSuccess={onDone}
+        />
+      </div>
+
+      {hasResume && (
+        <div className="mt-6 flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3 text-sm">
+          <span className="text-foreground-muted">
+            <CheckCircle2 className="inline h-4 w-4 text-[var(--hs-app-accent)] mr-2" />
+            Resume already uploaded.
+          </span>
+          <Button variant="outline" size="sm" onClick={onDone}>
+            Continue <ArrowRight className="ml-1.5 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Step 2 — Confirm 3 paths ─────────────────────────────────────────────────
+
+function PathsStep({
+  profile,
+  updateProfile,
+  onDone,
+}: {
+  profile: any;
+  updateProfile: (data: any) => Promise<void>;
+  onDone: () => void;
+}) {
+  // Start from existing careerPaths if any, otherwise from suggestions.
+  const seed: string[] = useMemo(() => {
+    if (profile?.careerPaths?.length) return profile.careerPaths.slice(0, 3);
+    if (profile?.careerPathSuggestions?.length) {
+      return profile.careerPathSuggestions.slice(0, 3).map((p: any) => p.title);
+    }
+    return [];
+  }, [profile?.careerPaths, profile?.careerPathSuggestions]);
+
+  const [paths, setPaths] = useState<string[]>(seed);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const suggestions = (profile?.careerPathSuggestions || []) as Array<{
+    id: string;
+    title: string;
+    rationale?: string;
+  }>;
+
+  const addPath = (title: string) => {
+    const t = title.trim();
+    if (!t) return;
+    if (paths.includes(t)) return;
+    if (paths.length >= 3) {
+      toast.info('You can pick up to 3 paths. Remove one to add another.');
+      return;
+    }
+    setPaths([...paths, t]);
+    setDraft('');
+  };
+
+  const removePath = (title: string) => setPaths(paths.filter((p) => p !== title));
+
+  const handleContinue = async () => {
+    if (paths.length === 0) {
+      toast.error('Pick at least one path so Scout knows what to search for.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfile({ careerPaths: paths });
+      // Kick Scout *now* (async, fire-and-forget) so the pipeline is already
+      // running while the user reads the step-3 progress UI. By the time
+      // they look up from the page, results are usually landing.
+      // Errors are swallowed here — step 3 retries on mount as a fallback.
+      void triggerScoutRun().catch(() => {});
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not save career paths.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Resolve the inferred country up-front so we can show the user what
+  // region Scout will filter for *before* they see the dashboard. This
+  // pre-empts the "why are you showing me US jobs?" confusion entirely.
+  const inferredCountry = inferUserCountry({
+    deliveryTimezone: profile?.deliveryTimezone,
+    locations: profile?.preferences?.locations || (profile?.location ? [profile.location] : []),
+  });
+  const countryLabel = inferredCountry !== 'UNKNOWN' ? COUNTRY_DISPLAY[inferredCountry] || inferredCountry : null;
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
+      <StepHeading
+        icon={Compass}
+        eyebrow="Step 2 of 4"
+        title="Confirm your 3 career paths"
+        body="We auto-detected these from your resume. Keep the ones that fit, swap any that don't. Scout uses these to search."
+      />
+
+      {countryLabel && (
+        <div className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-accent-soft)] px-4 py-3">
+          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent)] text-[10px] font-bold text-white">
+            {inferredCountry}
+          </span>
+          <div className="text-[13px] leading-relaxed text-foreground">
+            <span className="font-medium">Scout will focus on remote roles eligible for {countryLabel}.</span>{' '}
+            <span className="text-foreground-muted">
+              We detected this from your resume + timezone. You can change it later in Settings.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Selected pills */}
+      <div className="mt-8">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted mb-3">
+          Your paths ({paths.length}/3)
+        </div>
+        {paths.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-foreground-muted">
+            No paths selected yet. Pick one of the suggestions below or add your own.
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {paths.map((p) => (
+              <span
+                key={p}
+                className="group inline-flex items-center gap-2 rounded-full bg-[var(--hs-app-accent)]/15 px-3 py-1.5 text-sm font-medium text-[var(--hs-app-accent)]"
+              >
+                {p}
+                <button
+                  type="button"
+                  onClick={() => removePath(p)}
+                  className="rounded-full p-0.5 hover:bg-[var(--hs-app-accent)]/25"
+                  aria-label={`Remove ${p}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="mt-8">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted mb-3">
+            AI suggestions
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {suggestions.map((s) => {
+              const selected = paths.includes(s.title);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => (selected ? removePath(s.title) : addPath(s.title))}
+                  className={[
+                    'text-left rounded-xl border px-4 py-3 transition-all',
+                    selected
+                      ? 'border-[var(--hs-app-accent)] bg-[var(--hs-app-accent)]/10'
+                      : 'border-border bg-background hover:border-[var(--hs-app-accent)]/40 hover:bg-[var(--hs-app-accent)]/5',
+                  ].join(' ')}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-foreground text-sm">{s.title}</span>
+                    {selected ? (
+                      <CheckCircle2 className="h-4 w-4 text-[var(--hs-app-accent)] shrink-0" />
+                    ) : (
+                      <Plus className="h-4 w-4 text-foreground-muted shrink-0" />
+                    )}
+                  </div>
+                  {s.rationale && (
+                    <p className="mt-2 text-xs leading-relaxed text-foreground-muted">{s.rationale}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Custom entry */}
+      <div className="mt-8">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted mb-3">
+          Add your own
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addPath(draft);
+              }
+            }}
+            placeholder="e.g. Staff Platform Engineer"
+            className="flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-2 focus:ring-[var(--hs-app-accent)]/40"
+          />
+          <Button variant="outline" onClick={() => addPath(draft)} disabled={!draft.trim() || paths.length >= 3}>
+            Add
+          </Button>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-10 flex items-center justify-between">
+        <span className="text-xs text-foreground-muted">
+          Pick at least 1. Up to 3 paths gives Scout the best signal.
+        </span>
+        <Button onClick={handleContinue} disabled={saving || paths.length === 0}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          Continue <ArrowRight className="ml-1.5 h-4 w-4" />
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+// Fires a one-shot Scout request via /api/jobs. Defined outside any step so
+// it can be triggered from step 2's "Continue" handler — that way the engine
+// is already running by the time the user lands on step 3. Idempotent on the
+// API side (the user-triggered dispatcher dedupes); harmless if called twice.
+async function triggerScoutRun(): Promise<void> {
+  const { getAuth } = await import('firebase/auth');
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated.');
+  const idToken = await user.getIdToken(true);
+  const res = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ mode: 'request' }),
+  });
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Scout request failed (${res.status}). ${text}`);
+  }
+}
+
+// ─── Step 3 — Scout runs ──────────────────────────────────────────────────────
+
+const SCOUT_STAGES = [
+  { id: 'queue',     label: 'Briefing Scout on your profile',     hint: 'Loading your resume + career paths' },
+  { id: 'search',    label: 'Searching ATS feeds and live web',   hint: 'Greenhouse · Lever · Perplexity' },
+  { id: 'validate',  label: 'Filtering by your region + freshness', hint: 'Removing region-restricted roles' },
+  { id: 'rank',      label: 'AI scoring resume fit',              hint: 'Gemini ranks the strongest matches' },
+  { id: 'deliver',   label: 'Preparing your first matches',       hint: 'Almost there…' },
+];
+
+function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
+  const [stageIdx, setStageIdx] = useState(0);
+  const [triggered, setTriggered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Step 2 already fired Scout — this effect is a safety-net retry in case
+  // the user reloaded mid-flow and arrived on step 3 with no run pending.
+  useEffect(() => {
+    let cancelled = false;
+    if (triggered) return;
+    setTriggered(true);
+
+    triggerScoutRun().catch((e: any) => {
+      if (!cancelled) setError(e?.message || 'Could not start Scout. You can try again from the dashboard.');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Animate stages forward roughly every 6s as a perceived-progress affordance.
+  // We don't have per-stage backend events; this gives the user a sense the
+  // engine is working through the pipeline. The reactive jobs effect below is
+  // what actually advances out of this step.
+  useEffect(() => {
+    if (stageIdx >= SCOUT_STAGES.length - 1) return;
+    const t = setTimeout(() => setStageIdx((i) => Math.min(i + 1, SCOUT_STAGES.length - 1)), 6000);
+    return () => clearTimeout(t);
+  }, [stageIdx]);
+
+  // Reactive: as soon as the profile snapshot delivers today's dailyJobs, advance.
+  const jobsReady = (profile?.dailyJobs?.length || 0) > 0;
+  useEffect(() => {
+    if (jobsReady) onDone();
+  }, [jobsReady, onDone]);
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
+      <StepHeading
+        icon={Rocket}
+        eyebrow="Step 3 of 4"
+        title="Scout is searching for your matches"
+        body="This usually takes 30–90 seconds. We're scoring jobs against your resume now — no need to refresh."
+      />
+
+      {error ? (
+        <div className="mt-8 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      ) : (
+        <ul className="mt-8 space-y-3">
+          {SCOUT_STAGES.map((s, i) => {
+            const state: 'done' | 'active' | 'pending' =
+              i < stageIdx ? 'done' : i === stageIdx ? 'active' : 'pending';
+            return (
+              <li
+                key={s.id}
+                className={[
+                  'flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors',
+                  state === 'done'
+                    ? 'border-[var(--hs-app-accent)]/25 bg-[var(--hs-app-accent-soft)]'
+                    : state === 'active'
+                    ? 'border-[var(--hs-app-accent)]/40 bg-[var(--hs-app-accent)]/5'
+                    : 'border-border bg-background',
+                ].join(' ')}
+              >
+                <div className="mt-0.5 shrink-0">
+                  {state === 'done' ? (
+                    <CheckCircle2 className="h-5 w-5 text-[var(--hs-app-accent)]" />
+                  ) : state === 'active' ? (
+                    <Loader2 className="h-5 w-5 text-[var(--hs-app-accent)] animate-spin" />
+                  ) : (
+                    <span className="block h-5 w-5 rounded-full border-2 border-border" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={[
+                      'text-sm font-medium',
+                      state === 'pending' ? 'text-foreground-muted' : 'text-foreground',
+                    ].join(' ')}
+                  >
+                    {s.label}
+                  </div>
+                  <div className="text-xs text-foreground-muted mt-0.5">{s.hint}</div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="mt-8 text-xs text-foreground-muted">
+        <Sparkles className="inline h-3 w-3 mr-1 text-[var(--hs-app-accent)]" />
+        Tip: while you wait, the same matches will be emailed to you every morning going forward.
+      </p>
+    </section>
+  );
+}
+
+// ─── Step 4 — First matches ───────────────────────────────────────────────────
+
+function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Promise<void> }) {
+  const limit = getDailyMatchLimit(profile?.plan);
+  const jobs: DailyJob[] = (profile?.dailyJobs || []).slice(0, Math.min(3, limit));
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
+      <StepHeading
+        icon={CheckCircle2}
+        eyebrow="Step 4 of 4"
+        title={`${jobs.length} fresh ${jobs.length === 1 ? 'match' : 'matches'} ready`}
+        body="Here's a preview. The full list and your AI Copilot are waiting on the dashboard."
+      />
+
+      {jobs.length === 0 ? (
+        <div className="mt-8 rounded-lg border border-dashed border-border bg-background px-4 py-6 text-sm text-foreground-muted">
+          Scout didn't surface anything this run. That's usually a thin ATS day for your paths — try Scout again tomorrow morning, or add another career path in settings.
+        </div>
+      ) : (
+        <ul className="mt-8 space-y-3">
+          {jobs.map((j: any, i: number) => {
+            const score = j.matchScore || j.finalScore || 0;
+            const verdict = scoreVerdict(score);
+            const insight = j.aiInsight || j.aiSummary;
+            return (
+              <li
+                key={j.fingerprint || `${j.title}-${j.company}-${i}`}
+                className="flex items-start gap-4 rounded-xl border border-border bg-background px-4 py-3"
+              >
+                <div className="hs-score shrink-0" style={{ '--score': `${score}%` } as React.CSSProperties}>
+                  {score || '–'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="font-medium text-foreground truncate">{j.title}</div>
+                    {score > 0 && (
+                      <span
+                        className={[
+                          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                          verdict.tone === 'accent'
+                            ? 'bg-[var(--hs-app-accent-soft)] text-[var(--hs-app-accent)]'
+                            : verdict.tone === 'good'
+                            ? 'bg-[var(--hs-app-bg)] text-[var(--hs-app-fg)] border border-[var(--hs-app-border)]'
+                            : 'bg-[var(--hs-app-bg)] text-[var(--hs-app-muted)] border border-[var(--hs-app-border)]',
+                        ].join(' ')}
+                      >
+                        {verdict.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-foreground-muted truncate">
+                    {j.company}
+                    {j.location ? ` · ${j.location}` : ''}
+                  </div>
+                  {insight && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-foreground-muted line-clamp-2">
+                      {insight}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="mt-10 flex items-center justify-end">
+        <Button onClick={onFinish}>
+          Open dashboard <ArrowRight className="ml-1.5 h-4 w-4" />
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+// ─── Shared bits ──────────────────────────────────────────────────────────────
+
+function StepHeading({
+  icon: Icon,
+  eyebrow,
+  title,
+  body,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--hs-app-accent)]/15 text-[var(--hs-app-accent)]">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground-muted">{eyebrow}</p>
+        <h2 className="mt-1 text-xl md:text-2xl font-semibold text-foreground">{title}</h2>
+        <p className="mt-2 text-sm text-foreground-muted">{body}</p>
+      </div>
+    </div>
+  );
+}

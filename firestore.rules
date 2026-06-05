@@ -1,0 +1,179 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ─────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Super Admin: custom claim OR known admin emails (case-insensitive).
+    // Emails compared with .lower() so a registration like "Kv3244@gmail.com"
+    // still resolves to the canonical lowercase admin entry.
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.superAdmin == true ||
+        request.auth.token.email.lower() == 'rupesh7126@gmail.com' ||
+        request.auth.token.email.lower() == 'kv3244@gmail.com'
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasField(data, field) {
+      return data.keys().hasAny([field]);
+    }
+
+    // ── User document validator ──────────────────────────────────────────────
+    //
+    // Validates only the fields the client is allowed to write.
+    // Server-written fields (dailyJobs, lastJobFetchTime, seenJobFingerprints,
+    // learningSignals, structuredProfile, plan, receiveDailyAlerts, etc.) are
+    // written via Admin SDK which bypasses these rules entirely — they are not
+    // restricted here and pass through silently.
+    function isValidUser(data) {
+      return (!hasField(data, 'email') || data.email is string) &&
+             (!hasField(data, 'displayName') || data.displayName is string) &&
+             (!hasField(data, 'photoURL') || data.photoURL is string) &&
+             (!hasField(data, 'careerPaths') || data.careerPaths is list) &&
+             (!hasField(data, 'jobType') || data.jobType is string) &&
+             (!hasField(data, 'location') || data.location is string) &&
+             (!hasField(data, 'minSalary') || data.minSalary == null || data.minSalary is number) &&
+             (!hasField(data, 'resumeText') || data.resumeText is string) &&
+             (!hasField(data, 'resumeRaw') || data.resumeRaw is string) &&
+             (!hasField(data, 'resumeCleaned') || data.resumeCleaned is string) &&
+             (!hasField(data, 'resumeSummary') || data.resumeSummary is string) &&
+             (!hasField(data, 'resumeAnalysis') || data.resumeAnalysis is map) &&
+             (!hasField(data, 'structuredProfile') || data.structuredProfile is map) &&
+             (!hasField(data, 'preferences') || data.preferences is map) &&
+             (!hasField(data, 'matchingPreferences') || data.matchingPreferences is map) &&
+             (!hasField(data, 'careerPathSuggestions') || data.careerPathSuggestions is list) &&
+             (!hasField(data, 'selectedCareerPathId') || data.selectedCareerPathId is string) &&
+             (!hasField(data, 'deliveryTimezone') || data.deliveryTimezone is string) &&
+             (!hasField(data, 'preferredDeliveryHour') || data.preferredDeliveryHour is number) &&
+             (!hasField(data, 'nextJobDeliveryAt') || data.nextJobDeliveryAt is string) &&
+             (!hasField(data, 'onboardingCompletedAt') || data.onboardingCompletedAt is string) &&
+             (!hasField(data, 'tourCompletedAt') || data.tourCompletedAt is string) &&
+             (!hasField(data, 'activatedAt') || data.activatedAt is string) &&
+             (!hasField(data, 'lastSuccessfulJobRunLocalDate') || data.lastSuccessfulJobRunLocalDate is string) &&
+             (!hasField(data, 'matchReadiness') || data.matchReadiness is map) &&
+             (!hasField(data, 'receiveDailyAlerts') || data.receiveDailyAlerts is bool) &&
+             (!hasField(data, 'antiSlopEnabled') || data.antiSlopEnabled is bool) &&
+             (!hasField(data, 'lastJobFetchTime') || data.lastJobFetchTime is string) &&
+             (!hasField(data, 'learningProfile') || data.learningProfile is map) &&
+             (!hasField(data, 'learningSignals') || data.learningSignals is map) &&
+             (!hasField(data, 'createdAt') || data.createdAt is string || data.createdAt is timestamp) &&
+             (!hasField(data, 'updatedAt') || data.updatedAt is string || data.updatedAt is timestamp);
+    }
+
+    // Clients cannot upgrade their own plan — it is set exclusively by the server.
+    // On create: plan must be absent OR 'free' (AuthContext sets 'free' on signup).
+    // On update: plan must not change from its stored value.
+    function planUnchanged(data) {
+      return !hasField(data, 'plan') ||
+             (resource == null && data.plan == 'free') ||
+             (resource != null && data.plan == resource.data.plan);
+    }
+
+    function isValidTrackedJob(data) {
+      return hasRequiredFields(['userId', 'title', 'company', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.company is string && data.company.size() > 0 && data.company.size() < 200 &&
+             (!hasField(data, 'location') || (data.location is string && data.location.size() < 200)) &&
+             (!hasField(data, 'salary') || (data.salary is string && data.salary.size() < 100)) &&
+             data.status in ['saved', 'applied', 'interviewing', 'offered', 'rejected'] &&
+             (!hasField(data, 'url') || (data.url is string && data.url.size() < 2000)) &&
+             (!hasField(data, 'notes') || (data.notes is string && data.notes.size() < 50000)) &&
+             (!hasField(data, 'coldEmail') || (data.coldEmail is string && data.coldEmail.size() < 50000)) &&
+             (!hasField(data, 'tailoredResume') || (data.tailoredResume is string && data.tailoredResume.size() < 100000)) &&
+             (!hasField(data, 'interviewQuestions') ||
+              ((data.interviewQuestions is string && data.interviewQuestions.size() < 50000) ||
+               (data.interviewQuestions is list && data.interviewQuestions.size() <= 20))) &&
+             (!hasField(data, 'contactEmail') || (data.contactEmail is string && data.contactEmail.size() < 200)) &&
+             (!hasField(data, 'contact') || data.contact is map) &&
+             (!hasField(data, 'statusChangedAt') || data.statusChangedAt is string) &&
+             (!hasField(data, 'appliedAt') || data.appliedAt is string) &&
+             (!hasField(data, 'interviewAt') || data.interviewAt is string) &&
+             (!hasField(data, 'offerDeadline') || data.offerDeadline is string) &&
+             (!hasField(data, 'followUpEmail') || (data.followUpEmail is string && data.followUpEmail.size() < 50000)) &&
+             (!hasField(data, 'journal') || (data.journal is string && data.journal.size() < 100000)) &&
+             (!hasField(data, 'matchScore') || data.matchScore is number) &&
+             (!hasField(data, 'finalScore') || data.finalScore is number) &&
+             data.createdAt is string &&
+             (!hasField(data, 'updatedAt') || data.updatedAt is string);
+    }
+
+    // ── Collections ──────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+
+      // On create: validate the initial document structure and block plan self-assignment.
+      allow create: if (isOwner(userId) && isValidUser(request.resource.data) && planUnchanged(request.resource.data)) || isSuperAdmin();
+
+      // On update: only enforce that the owner cannot self-upgrade their plan.
+      // isValidUser() is intentionally NOT used here — it validates the full merged
+      // document, which includes server-written fields (uid, dailyJobs, plan, etc.)
+      // that would cause every legitimate client update to fail.
+      allow update: if (isOwner(userId) && planUnchanged(request.resource.data)) || isSuperAdmin();
+
+      allow delete: if isOwner(userId) || isSuperAdmin();
+
+      // Daily job batches — written by server (Admin SDK bypasses rules).
+      // Clients may only read their own records.
+      match /daily_matches/{date} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow write: if isSuperAdmin();
+      }
+    }
+
+    match /trackedJobs/{jobId} {
+      allow read: if isDocOwner() || isSuperAdmin();
+      allow create: if (isAuthenticated() && isValidTrackedJob(request.resource.data)) || isSuperAdmin();
+      allow update: if (isDocOwner() &&
+                        isValidTrackedJob(request.resource.data) &&
+                        request.resource.data.userId == resource.data.userId &&
+                        request.resource.data.createdAt == resource.data.createdAt) || isSuperAdmin();
+      allow delete: if isDocOwner() || isSuperAdmin();
+    }
+
+    // cron run dedup guards — server-side only (Admin SDK). No client access.
+    match /cronRuns/{runId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /admin_logs/{logId} {
+      allow read, create: if isSuperAdmin();
+    }
+
+    // Published posts are publicly readable (no auth required) for SEO.
+    match /blog_posts/{postId} {
+      allow read: if resource.data.status == 'published' || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    match /marketing/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /marketing_runs/{runId} {
+      allow read: if isSuperAdmin();
+    }
+
+    match /job_sources/{sourceId} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
