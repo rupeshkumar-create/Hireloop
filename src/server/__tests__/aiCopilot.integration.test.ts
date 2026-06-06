@@ -42,23 +42,19 @@ describe('openai API handler', () => {
   });
 
   it('rejects unauthenticated requests', async () => {
-    const handler = (await import('../../../api/openai.ts')).default;
+    const aiCatchAll = (await import('../../../api/ai/[[...route]].ts')).default;
     const req = {
       method: 'POST',
       headers: {},
+      query: { route: 'openai' },
       body: { messages: [{ role: 'user', content: 'hi' }] },
     } as VercelRequest;
     const res = mockRes();
 
-    await handler(req, res);
+    await aiCatchAll(req, res);
 
     expect(res.statusCode).toBe(401);
     expect((res.body as { error?: string }).error).toMatch(/authorization/i);
-  });
-
-  it('explicit /api/ai/openai route uses the same handler', async () => {
-    const handler = (await import('../../../api/ai/openai.ts')).default;
-    expect(typeof handler).toBe('function');
   });
 });
 

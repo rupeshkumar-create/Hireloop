@@ -1,19 +1,47 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 describe('AI API route wiring', () => {
-  it('exports explicit /api/openai handler', async () => {
-    const mod = await import('../../../api/openai.ts');
+  it('exports openai handler from server module', async () => {
+    const mod = await import('../api/handlers/openai.js');
     expect(typeof mod.default).toBe('function');
   });
 
-  it('exports explicit /api/apollo handler', async () => {
-    const mod = await import('../../../api/apollo.ts');
+  it('exports apollo handler from server module', async () => {
+    const mod = await import('../api/handlers/apollo.js');
     expect(typeof mod.default).toBe('function');
   });
 
   it('ai catch-all resolves openai and apollo sub-routes', async () => {
     const mod = await import('../../../api/ai/[[...route]].ts');
     expect(typeof mod.default).toBe('function');
+  });
+
+  it('ai catch-all dispatches /api/ai/openai to openai handler', async () => {
+    const aiCatchAll = (await import('../../../api/ai/[[...route]].ts')).default;
+    const req = {
+      method: 'POST',
+      headers: {},
+      query: { route: 'openai' },
+      body: { messages: [{ role: 'user', content: 'hi' }] },
+    } as VercelRequest;
+    const res = {
+      statusCode: 200,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        this.body = payload;
+        return this;
+      },
+      body: undefined as unknown,
+    } as VercelResponse & { body?: unknown };
+
+    await aiCatchAll(req, res);
+
+    expect(res.statusCode).toBe(401);
+    expect((res.body as { error?: string }).error).toMatch(/authorization/i);
   });
 });
 
