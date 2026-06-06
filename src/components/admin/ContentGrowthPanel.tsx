@@ -619,24 +619,24 @@ export function ContentGrowthPanel() {
       {tab === 'strategy' && data.strategy && (
         <div className="space-y-5">
           <div className="grid gap-3 md:grid-cols-3">
-            <StatBox label="Strategy Version" value={`v${data.strategy.version}`} />
-            <StatBox label="Pending Topics" value={data.strategy.stats.pendingCount} />
-            <StatBox label="Published Topics" value={data.strategy.stats.publishedCount} />
+            <StatBox label="Strategy Version" value={`v${data.strategy.version ?? 1}`} />
+            <StatBox label="Pending Topics" value={data.strategy.stats?.pendingCount ?? 0} />
+            <StatBox label="Published Topics" value={data.strategy.stats?.publishedCount ?? 0} />
           </div>
 
           <CollapsibleSection title="Target Audience" defaultOpen>
-            <p className="text-sm text-foreground-muted">{data.strategy.targetAudience}</p>
+            <p className="text-sm text-foreground-muted">{data.strategy.targetAudience ?? '—'}</p>
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Content Pillars (${data.strategy.contentPillars.length})`} defaultOpen>
+          <CollapsibleSection title={`Content Pillars (${(data.strategy.contentPillars ?? []).length})`} defaultOpen>
             <ul className="list-inside list-disc text-sm text-foreground-muted">
-              {data.strategy.contentPillars.map((p) => <li key={p}>{p}</li>)}
+              {(data.strategy.contentPillars ?? []).map((p) => <li key={p}>{p}</li>)}
             </ul>
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Primary Keywords (${data.strategy.primaryKeywords.length})`}>
+          <CollapsibleSection title={`Primary Keywords (${(data.strategy.primaryKeywords ?? []).length})`}>
             <div className="flex flex-wrap gap-1.5">
-              {data.strategy.primaryKeywords.map((k) => (
+              {(data.strategy.primaryKeywords ?? []).map((k) => (
                 <span key={k} className="rounded-md border border-border px-2 py-0.5 text-xs">{k}</span>
               ))}
             </div>

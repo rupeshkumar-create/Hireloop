@@ -39,7 +39,17 @@ export function Blog() {
   useEffect(() => {
     fetch('/api/blog?limit=50')
       .then(async (r) => {
-        const data = await r.json().catch(() => ({}));
+        const contentType = r.headers.get('content-type') ?? '';
+        const text = await r.text();
+        let data: { posts?: BlogPostSummary[]; error?: string } = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error('Blog API returned an invalid response. Redeploy may be required.');
+        }
+        if (!contentType.includes('application/json')) {
+          throw new Error('Blog API is misconfigured on the server (expected JSON).');
+        }
         if (!r.ok || data.error) {
           throw new Error(data.error || `Blog API error (${r.status})`);
         }

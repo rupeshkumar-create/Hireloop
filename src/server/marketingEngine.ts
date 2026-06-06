@@ -400,6 +400,16 @@ export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content
       );
     }
 
+    // Legacy posts may omit status — include anything that isn't explicitly draft
+    if (fromDb.length === 0) {
+      const snap = await db.collection(BLOG_COLLECTION).limit(Math.max(limit, 50)).get();
+      fromDb = snap.docs
+        .map(mapDoc)
+        .filter((p) => p.status !== 'draft')
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        .slice(0, limit);
+    }
+
     if (fromDb.length > 0) return fromDb;
     return getEvergreenPostSummaries(limit);
   } catch (error) {
