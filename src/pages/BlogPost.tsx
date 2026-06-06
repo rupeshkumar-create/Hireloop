@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { ArrowLeft, Clock, Tag, TrendingUp, BookOpen, DollarSign } from 'lucide-react';
-import { Button } from '../components/ui/button';
+import { ArrowLeft, Clock, TrendingUp, BookOpen, DollarSign } from 'lucide-react';
 import { SeoHead } from '../components/seo/SeoHead';
+import { BlogArticleMarkdown } from '../components/blog/BlogArticleMarkdown';
+import { prepareBlogBodyContent } from '../lib/blogContent';
 import { usePageAnalytics, trackCtaClick } from '../hooks/usePageAnalytics';
 
 interface BlogPostData {
@@ -51,30 +50,55 @@ export function BlogPost() {
   useEffect(() => {
     if (!slug) return;
     fetch(`/api/blog?slug=${encodeURIComponent(slug)}`)
-      .then((r) => {
-        if (r.status === 404) { setNotFound(true); setLoading(false); return null; }
-        return r.json();
+      .then(async (r) => {
+        if (r.status === 404) {
+          setNotFound(true);
+          setLoading(false);
+          return null;
+        }
+        const contentType = r.headers.get('content-type') ?? '';
+        const text = await r.text();
+        try {
+          const data = text ? JSON.parse(text) : {};
+          if (!contentType.includes('application/json')) throw new Error('Invalid response');
+          return data;
+        } catch {
+          throw new Error('Invalid response');
+        }
       })
       .then((data) => {
         if (!data) return;
         setPost(data.post);
         setLoading(false);
       })
-      .catch(() => { setNotFound(true); setLoading(false); });
+      .catch(() => {
+        setNotFound(true);
+        setLoading(false);
+      });
   }, [slug]);
+
+  const bodyContent = useMemo(() => {
+    if (!post) return '';
+    const hasStructured =
+      Boolean(post.definitions?.length) ||
+      Boolean(post.salaryBenchmarks?.length) ||
+      Boolean(post.hiringTrends?.length) ||
+      Boolean(post.faq?.length);
+
+    return prepareBlogBodyContent(post.content, {
+      title: post.title,
+      stripStructuredSections: hasStructured,
+      stripFaq: Boolean(post.faq?.length),
+    });
+  }, [post]);
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-16">
+      <div className="blog-lp-container">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 w-24 rounded bg-border" />
-          <div className="h-8 w-full rounded bg-border" />
-          <div className="h-8 w-4/5 rounded bg-border" />
-          <div className="mt-8 space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-3 rounded bg-border" style={{ width: `${75 + (i % 3) * 8}%` }} />
-            ))}
-          </div>
+          <div className="h-4 w-28 rounded bg-[var(--lp-border)]" />
+          <div className="h-10 w-full rounded bg-[var(--lp-border)]" />
+          <div className="h-6 w-2/3 rounded bg-[var(--lp-border)]" />
         </div>
       </div>
     );
@@ -82,17 +106,18 @@ export function BlogPost() {
 
   if (notFound || !post) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-32 text-center">
-        <h1 className="mb-3 text-2xl font-medium">Post not found</h1>
-        <p className="mb-8 text-foreground-muted">This article may have been moved or doesn't exist.</p>
-        <Link to="/blog">
-          <Button variant="outline">Back to Hiring Guides</Button>
+      <div className="blog-lp-container py-24 text-center">
+        <h1 className="blog-lp-display blog-lp-title-lg">Post not found</h1>
+        <p className="blog-lp-lede mt-3">This article may have been moved or doesn&apos;t exist.</p>
+        <Link to="/blog" className="blog-lp-btn-p mt-8 inline-flex">
+          Back to Hiring Guides
         </Link>
       </div>
     );
   }
 
   const canonicalUrl = `https://hireschema.com/blog/${post.slug}`;
+  const lede = post.directAnswer || post.seoDescription;
 
   return (
     <>
@@ -105,128 +130,89 @@ export function BlogPost() {
         ogImage={post.coverImageUrl}
       />
 
-      <article className="mx-auto max-w-2xl px-6 py-12">
-        <Link
-          to="/blog"
-          className="mb-8 inline-flex items-center gap-1.5 text-sm text-foreground-muted transition-colors hover:text-foreground"
-        >
+      <article className="blog-lp-container">
+        <Link to="/blog" className="blog-lp-back">
           <ArrowLeft className="h-4 w-4" />
           All hiring guides
         </Link>
 
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span className="rounded-md border border-border px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-foreground-muted">
-            {post.category}
-          </span>
-          {post.clusterId && (
-            <span className="rounded-md border border-border px-2.5 py-0.5 text-[11px] text-foreground-muted">
-              {post.clusterId.replace(/-/g, ' ')}
+        <header className="blog-lp-article-header">
+          <div className="blog-lp-meta-row">
+            <span className="blog-lp-badge">{post.category}</span>
+            <span className="blog-lp-meta inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {post.readTimeMinutes} min read
             </span>
-          )}
-          <span className="flex items-center gap-1 text-xs text-foreground-muted">
-            <Clock className="h-3 w-3" />
-            {post.readTimeMinutes} min read
-          </span>
-          <span className="text-xs text-foreground-muted">{formatDate(post.publishedAt)}</span>
-        </div>
-
-        {post.tags?.length > 0 && (
-          <div className="mb-6 flex flex-wrap items-center gap-1.5">
-            <Tag className="h-3 w-3 text-foreground-muted" />
-            {post.tags.map((tag) => (
-              <span key={tag} className="text-xs text-foreground-muted">{tag}</span>
-            ))}
+            <span className="blog-lp-meta">{formatDate(post.publishedAt)}</span>
           </div>
-        )}
 
-        {/* Direct answer block for LLM retrieval */}
-        {post.directAnswer && (
-          <div className="mb-8 rounded-xl border border-border bg-surface p-5">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-foreground-muted">
-              Quick Answer
-            </p>
-            <p className="text-base leading-relaxed">{post.directAnswer}</p>
-          </div>
-        )}
+          <h1 className="blog-lp-display blog-lp-title-lg">{post.title}</h1>
 
-        {/* Cover image — deterministic SVG, no AI generation */}
-        {(post.coverImageUrl || post.imageAltText) && (
-          <div className="mb-8 overflow-hidden rounded-xl border border-border">
-            {(post.coverImageDataUri || post.coverImageUrl) ? (
-              <img
-                src={post.coverImageDataUri || post.coverImageUrl}
-                alt={post.imageAltText || post.title}
-                className="h-48 w-full object-cover md:h-56"
-              />
-            ) : (
-              <div
-                className="flex h-48 items-end bg-gradient-to-br from-surface to-surface-hover p-5 md:h-56"
-                role="img"
-                aria-label={post.imageAltText}
-              >
-                <span className="text-xs text-foreground-muted">{post.imageAltText}</span>
-              </div>
-            )}
-          </div>
-        )}
+          {lede && <p className="blog-lp-lede mt-5">{lede}</p>}
 
-        <div className="prose prose-neutral dark:prose-invert max-w-none
-          prose-headings:tracking-[-0.02em]
-          prose-h2:text-xl prose-h2:font-medium prose-h2:mt-10 prose-h2:mb-4
-          prose-h3:text-base prose-h3:font-medium prose-h3:mt-6 prose-h3:mb-2
-          prose-p:text-base prose-p:leading-relaxed prose-p:text-foreground
-          prose-li:text-base prose-li:text-foreground
-          prose-strong:font-medium prose-strong:text-foreground
-          prose-a:text-foreground prose-a:underline prose-a:underline-offset-2
-          prose-table:text-sm
-          prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:text-foreground-muted">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {post.content}
-          </ReactMarkdown>
-        </div>
-
-        {/* Definitions */}
-        {post.definitions && post.definitions.length > 0 && (
-          <section className="mt-10 rounded-xl border border-border bg-surface p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-foreground-muted" />
-              <h2 className="text-lg font-medium">Key Definitions</h2>
+          {post.tags?.length > 0 && (
+            <div className="blog-lp-tags-row">
+              {post.tags.map((tag) => (
+                <span key={tag} className="blog-lp-tag">{tag}</span>
+              ))}
             </div>
-            <dl className="space-y-3">
+          )}
+        </header>
+
+        {(post.coverImageUrl || post.coverImageDataUri) && (
+          <div className="blog-lp-cover">
+            <img
+              src={post.coverImageDataUri || post.coverImageUrl}
+              alt={post.imageAltText || post.title}
+            />
+          </div>
+        )}
+
+        <BlogArticleMarkdown content={bodyContent} />
+
+        {post.definitions && post.definitions.length > 0 && (
+          <section className="blog-lp-section">
+            <div className="mb-4 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" style={{ color: 'var(--lp-muted)' }} />
+              <h2 className="blog-lp-section-title" style={{ margin: 0 }}>Terms to know</h2>
+            </div>
+            <dl className="grid gap-3 md:grid-cols-2">
               {post.definitions.map((d) => (
-                <div key={d.term}>
-                  <dt className="text-sm font-medium">{d.term}</dt>
-                  <dd className="mt-0.5 text-sm text-foreground-muted">{d.definition}</dd>
+                <div
+                  key={d.term}
+                  className="rounded-xl border border-[var(--lp-border)] bg-[var(--lp-bg)] px-4 py-3"
+                >
+                  <dt className="text-sm font-medium" style={{ color: 'var(--lp-fg)' }}>{d.term}</dt>
+                  <dd className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--lp-muted)' }}>{d.definition}</dd>
                 </div>
               ))}
             </dl>
           </section>
         )}
 
-        {/* Salary benchmarks */}
         {post.salaryBenchmarks && post.salaryBenchmarks.length > 0 && (
-          <section className="mt-8 rounded-xl border border-border bg-surface p-6">
+          <section className="blog-lp-section">
             <div className="mb-4 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-foreground-muted" />
-              <h2 className="text-lg font-medium">Salary Benchmarks</h2>
+              <DollarSign className="h-4 w-4" style={{ color: 'var(--lp-muted)' }} />
+              <h2 className="blog-lp-section-title" style={{ margin: 0 }}>Salary benchmarks</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="blog-table-wrap">
+              <table className="blog-table">
                 <thead>
-                  <tr className="border-b text-left text-xs text-foreground-muted">
-                    <th className="pb-2 pr-4">Role</th>
-                    <th className="pb-2 pr-4">Median</th>
-                    <th className="pb-2 pr-4">Range</th>
-                    <th className="pb-2">Region</th>
+                  <tr>
+                    <th className="blog-th">Role</th>
+                    <th className="blog-th">Median</th>
+                    <th className="blog-th">Range</th>
+                    <th className="blog-th">Region</th>
                   </tr>
                 </thead>
                 <tbody>
                   {post.salaryBenchmarks.map((s) => (
-                    <tr key={s.role} className="border-b border-border/50">
-                      <td className="py-2 pr-4 font-medium">{s.role}</td>
-                      <td className="py-2 pr-4">{s.median}</td>
-                      <td className="py-2 pr-4">{s.range}</td>
-                      <td className="py-2">{s.region}</td>
+                    <tr key={s.role} className="blog-tr">
+                      <td className="blog-td font-medium">{s.role}</td>
+                      <td className="blog-td">{s.median}</td>
+                      <td className="blog-td">{s.range}</td>
+                      <td className="blog-td">{s.region}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -235,48 +221,49 @@ export function BlogPost() {
           </section>
         )}
 
-        {/* Hiring trends */}
         {post.hiringTrends && post.hiringTrends.length > 0 && (
-          <section className="mt-8 rounded-xl border border-border bg-surface p-6">
+          <section className="blog-lp-section">
             <div className="mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-foreground-muted" />
-              <h2 className="text-lg font-medium">Hiring Trends</h2>
+              <TrendingUp className="h-4 w-4" style={{ color: 'var(--lp-muted)' }} />
+              <h2 className="blog-lp-section-title" style={{ margin: 0 }}>What&apos;s changing in hiring</h2>
             </div>
             <ul className="space-y-3">
               {post.hiringTrends.map((t) => (
-                <li key={t.trend} className="text-sm">
-                  <span className="font-medium">{t.trend}</span>
-                  <span className="text-foreground-muted"> — {t.impact}</span>
-                  <span className="ml-2 text-xs text-foreground-muted">({t.timeframe})</span>
+                <li
+                  key={t.trend}
+                  className="rounded-xl border border-[var(--lp-border)] bg-[var(--lp-bg)] px-4 py-3 text-sm leading-relaxed"
+                >
+                  <span className="font-medium" style={{ color: 'var(--lp-fg)' }}>{t.trend}</span>
+                  <span style={{ color: 'var(--lp-muted)' }}> — {t.impact}</span>
+                  <span className="mt-1 block blog-lp-meta">{t.timeframe}</span>
                 </li>
               ))}
             </ul>
           </section>
         )}
 
-        {/* Structured FAQ for LLM/SEO */}
         {post.faq && post.faq.length > 0 && (
-          <section className="mt-10 rounded-xl border border-border bg-surface p-6">
-            <h2 className="mb-4 text-lg font-medium">Frequently Asked Questions</h2>
-            <div className="space-y-4">
+          <section className="blog-lp-section">
+            <h2 className="blog-lp-section-title">Common questions</h2>
+            <p className="blog-lp-body mb-4">Quick answers if you&apos;re skimming.</p>
+            <div>
               {post.faq.map((item) => (
-                <div key={item.question}>
-                  <h3 className="text-sm font-medium">{item.question}</h3>
-                  <p className="mt-1 text-sm text-foreground-muted">{item.answer}</p>
+                <div key={item.question} className="blog-faq-item">
+                  <h3 className="blog-lp-display text-lg" style={{ margin: 0 }}>{item.question}</h3>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-muted)' }}>{item.answer}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Internal links */}
         {post.internalLinks && post.internalLinks.length > 0 && (
-          <section className="mt-8">
-            <h2 className="mb-3 text-base font-medium">Related Hiring Guides</h2>
+          <section className="blog-lp-section" style={{ borderStyle: 'dashed' }}>
+            <h2 className="blog-lp-section-title">Keep reading</h2>
             <ul className="space-y-2">
               {post.internalLinks.map((link) => (
                 <li key={link.slug}>
-                  <Link to={`/blog/${link.slug}`} className="text-sm text-foreground-muted hover:text-foreground hover:underline">
+                  <Link to={`/blog/${link.slug}`} className="blog-link text-sm">
                     {link.anchorText || link.title}
                   </Link>
                 </li>
@@ -285,17 +272,13 @@ export function BlogPost() {
           </section>
         )}
 
-        <div className="mt-16 rounded-xl border border-border bg-surface p-8 text-center">
-          <h3 className="mb-2 text-lg font-medium">Find Your Next Remote Job with AI</h3>
-          <p className="mb-6 text-sm text-foreground-muted">
-            HireSchema sends you daily personalized remote job matches — tailored to your resume and preferences.
-            Free to start.
+        <div className="blog-lp-cta">
+          <h3 className="blog-lp-display text-2xl">Ready to find remote roles that fit you?</h3>
+          <p className="blog-lp-lede mx-auto mt-3 max-w-md">
+            HireSchema matches you to remote jobs daily — based on your resume, skills, and preferences. Free to start.
           </p>
-          <Link
-            to="/login"
-            onClick={() => slug && trackCtaClick(slug)}
-          >
-            <Button variant="action" size="lg">Get Daily Job Alerts</Button>
+          <Link to="/login" className="blog-lp-btn-p mt-6 inline-flex" onClick={() => slug && trackCtaClick(slug)}>
+            Get daily job matches
           </Link>
         </div>
       </article>

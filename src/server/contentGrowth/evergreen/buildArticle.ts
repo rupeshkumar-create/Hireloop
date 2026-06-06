@@ -51,7 +51,7 @@ function padToWordTarget(content: string, spec: EvergreenSpec): string {
   let n = 0;
   const keyword = spec.targetKeywords[0] ?? 'remote jobs';
   while (countWords(padded) < BLOG_TARGET_WORD_COUNT && n < 40) {
-    padded += `\n\n**Recruiter note ${n + 1}:** Candidates targeting ${keyword} should show async collaboration proof, mirror job-description keywords on page one of their resume, and apply while postings are fresh. Track reply rates weekly and refine one resume block at a time instead of increasing low-fit application volume.`;
+    padded += `\n\n**Practical tip ${n + 1}:** If you're targeting ${keyword}, lead with proof of async work, mirror keywords from the job description on page one of your resume, and apply within 48 hours of posting. Track reply rates weekly and refine one section at a time instead of sending more low-fit applications.`;
     n++;
   }
   return padded;

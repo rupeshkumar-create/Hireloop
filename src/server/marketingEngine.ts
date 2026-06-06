@@ -363,7 +363,11 @@ Return JSON with:
 export async function saveBlogPost(post: BlogPost): Promise<string> {
   const db = getAdminDb();
   const ref = db.collection(BLOG_COLLECTION).doc(post.slug);
-  await ref.set({ ...post, createdAt: new Date().toISOString() });
+  const existing = await ref.get();
+  const createdAt = existing.exists
+    ? ((existing.data()?.createdAt as string | undefined) ?? post.createdAt ?? new Date().toISOString())
+    : (post.createdAt ?? new Date().toISOString());
+  await ref.set({ ...post, createdAt, updatedAt: new Date().toISOString() });
   return post.slug;
 }
 

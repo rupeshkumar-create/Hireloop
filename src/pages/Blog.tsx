@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Tag, Sparkles } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { SeoHead } from '../components/seo/SeoHead';
 
 interface BlogPostSummary {
@@ -78,32 +78,24 @@ export function Blog() {
         keywords={['remote job search', 'hiring guides', 'resume tips', 'salary negotiation', 'interview prep']}
       />
 
-      <div className="mx-auto max-w-4xl px-6 py-16">
-        <div className="mb-14 text-center">
-          <div className="mb-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-foreground-muted">
-            <Sparkles className="h-3 w-3" />
-            Hiring Guides
-          </div>
-          <h1 className="text-4xl font-normal tracking-[-0.02em] md:text-5xl">
-            Remote Job Search, Salary Data &amp; Career Tips
+      <div className="blog-lp-container-wide">
+        <header className="blog-lp-header">
+          <p className="blog-lp-eyebrow">Hiring Guides</p>
+          <h1 className="blog-lp-display blog-lp-title-xl">
+            Remote job search, salary data &amp; career tips
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-foreground-muted">
+          <p className="blog-lp-lede">
             Actionable guides to help you find remote roles, tailor your applications, negotiate pay, and prepare for interviews.
           </p>
-        </div>
+        </header>
 
-        {/* Cluster filter */}
         <div className="mb-10 flex flex-wrap justify-center gap-2">
           {CLUSTERS.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => setActiveCluster(c.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                activeCluster === c.id
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border text-foreground-muted hover:border-border-strong hover:text-foreground'
-              }`}
+              className={`blog-lp-filter ${activeCluster === c.id ? 'blog-lp-filter-active' : ''}`}
             >
               {c.label}
             </button>
@@ -111,27 +103,25 @@ export function Blog() {
         </div>
 
         {loading && (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="blog-lp-grid">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-border bg-surface p-6">
-                <div className="mb-3 h-3 w-20 rounded bg-border" />
-                <div className="mb-2 h-5 w-full rounded bg-border" />
-                <div className="h-5 w-3/4 rounded bg-border" />
-                <div className="mt-4 h-3 w-full rounded bg-border" />
-                <div className="mt-2 h-3 w-5/6 rounded bg-border" />
+              <div key={i} className="blog-lp-card animate-pulse opacity-60">
+                <div className="mb-3 h-3 w-20 rounded bg-[var(--lp-border)]" />
+                <div className="mb-2 h-5 w-full rounded bg-[var(--lp-border)]" />
+                <div className="h-12 w-full rounded bg-[var(--lp-border)]" />
               </div>
             ))}
           </div>
         )}
 
-        {error && <p className="text-center text-sm text-foreground-muted">{error}</p>}
+        {error && <p className="text-center blog-lp-body">{error}</p>}
 
         {!loading && !error && filtered.length === 0 && (
-          <div className="py-24 text-center">
-            <p className="text-lg font-medium">No guides in this category yet.</p>
-            <p className="mt-2 text-sm text-foreground-muted">
+          <div className="py-20 text-center">
+            <p className="blog-lp-display blog-lp-title-lg">No guides in this category yet</p>
+            <p className="blog-lp-lede mt-3">
               Try another topic above, or{' '}
-              <Link to="/signup" className="underline underline-offset-2 hover:text-foreground">
+              <Link to="/login" className="blog-lp-nav-link" style={{ color: 'var(--lp-accent)' }}>
                 start matching with remote jobs
               </Link>
               .
@@ -140,48 +130,23 @@ export function Blog() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="blog-lp-grid">
             {filtered.map((post) => (
-              <Link
-                key={post.slug}
-                to={`/blog/${post.slug}`}
-                className="group flex flex-col rounded-xl border border-border bg-surface p-6 transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-border-strong"
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="rounded-md border border-border px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-foreground-muted">
-                    {post.category}
-                  </span>
-                  {post.clusterId && (
-                    <span className="text-[10px] uppercase tracking-wider text-foreground-muted">
-                      {post.clusterId.replace(/-/g, ' ')}
-                    </span>
-                  )}
+              <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-lp-card">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="blog-lp-badge">{post.category}</span>
                 </div>
-
-                <h2 className="mb-2 text-lg font-medium leading-snug tracking-[-0.01em] transition-colors group-hover:text-foreground">
-                  {post.title}
-                </h2>
-
-                <p className="mb-4 flex-1 text-sm leading-relaxed text-foreground-muted line-clamp-3">
+                <h2 className="blog-lp-card-title">{post.title}</h2>
+                <p className="blog-lp-card-excerpt line-clamp-3">
                   {post.directAnswer || post.seoDescription || post.excerpt}
                 </p>
-
-                <div className="flex items-center justify-between text-xs text-foreground-muted">
+                <div className="mt-4 flex items-center justify-between blog-lp-meta">
                   <span>{formatDate(post.publishedAt)}</span>
-                  <span className="flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {post.readTimeMinutes} min read
+                    {post.readTimeMinutes} min
                   </span>
                 </div>
-
-                {post.tags?.length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                    <Tag className="h-3 w-3 text-foreground-muted" />
-                    {post.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-[11px] text-foreground-muted">{tag}</span>
-                    ))}
-                  </div>
-                )}
               </Link>
             ))}
           </div>

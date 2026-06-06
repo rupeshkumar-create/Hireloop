@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } f
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { WebsiteLayout } from './components/WebsiteLayout';
+import { BlogLayout } from './components/blog/BlogLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
@@ -148,8 +149,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/privacy" element={<WebsiteLayout><PrivacyPolicy /></WebsiteLayout>} />
           <Route path="/terms" element={<WebsiteLayout><TermsOfService /></WebsiteLayout>} />
-          <Route path="/blog" element={<WebsiteLayout><Blog /></WebsiteLayout>} />
-          <Route path="/blog/:slug" element={<WebsiteLayout><BlogPost /></WebsiteLayout>} />
+          <Route path="/blog" element={<BlogLayout><Blog /></BlogLayout>} />
+          <Route path="/blog/:slug" element={<BlogLayout><BlogPost /></BlogLayout>} />
           <Route path="/dashboard" element={
             <PrivateRoute>
               <AppLayout>

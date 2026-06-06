@@ -204,47 +204,46 @@ export async function runContentGenerationAgent(
     category: string;
   }>(
     MODELS.writing,
-    `You are an expert hiring and remote job search writer for HireSchema.
+    `You are an expert career writer for HireSchema — an AI-powered remote job matching platform for job seekers.
 
 Writing rules:
-- Sound human-written. No generic AI phrasing ("In today's fast-paced world", "game-changer", "leverage").
-- Use real hiring terminology recruiters and candidates use.
-- Concise paragraphs (2-4 sentences max).
-- Open with a direct answer block — the first paragraph must answer the core question in 2-3 sentences.
-- Include specific statistics with years when available.
-- Include a "## Key Definitions" section with 3-5 recruiter terms.
+- Write for job seekers, not recruiters. Use "you" and practical advice they can act on today.
+- Sound human and specific. No generic AI phrasing ("In today's fast-paced world", "game-changer", "leverage", "delve into").
+- Short paragraphs (2–4 sentences). One idea per paragraph.
+- Open with a direct answer — first paragraph answers the core question in 2–3 sentences.
+- Use proper Markdown: every section title MUST start with ## or ### (never plain text headings).
+- Use bullet lists (- item) for steps, tips, and checklists — not long unbroken paragraphs.
+- Include a "## Key Definitions" section with 3–5 terms job seekers need to know.
 - Include a "## Salary Benchmarks" section with a markdown table (Role | Median | Range | Region).
-- Include a "## Hiring Trends" section with 3-4 current trends.
-- Include a "## Comparison" section with a markdown comparison table (at least 4 rows, 3 columns).
-- Include H2/H3 hierarchy — never H1 in body (title is separate).
-- End with "### FAQ" using **Q:** and **A:** pairs (5 questions).
-- Mention HireSchema naturally 1-2 times where it fits.
-- Minimum ${BLOG_TARGET_WORD_COUNT} words in the markdown body (aim for ${BLOG_TARGET_WORD_COUNT}–2200).
-- Entity-rich: name companies, tools, job titles, locations.`,
-    `Write a hiring guide article.
+- Include a "## Hiring Trends" section with 3–4 current trends affecting job seekers.
+- Include a "## Comparison" section with a markdown comparison table (at least 4 rows).
+- End with "### FAQ" using **Q:** and **A:** pairs (5 questions job seekers actually ask).
+- Mention HireSchema naturally 1–2 times where it helps the reader (daily job matches, resume tailoring).
+- Minimum ${BLOG_TARGET_WORD_COUNT} words. Entity-rich: name companies, tools, job titles, locations.`,
+    `Write a hiring guide for remote job seekers.
 
 Topic: "${topic.title}"
 Angle: ${topic.angle}
 Keywords: ${topic.targetKeywords.join(', ')}
 Cluster: ${clusterId}
-LLM guidance: ${strategy.llmOptimizationGuidance}
+Guidance: ${strategy.llmOptimizationGuidance}
 
 Research:
 ${research}
 
 Return JSON:
 {
-  "title": "compelling H1 title",
-  "directAnswer": "2-3 sentence direct answer for AI retrieval",
-  "content": "full markdown article starting with direct answer paragraph, then ## sections. Include comparison table and salary table IN the markdown.",
+  "title": "compelling title for job seekers",
+  "directAnswer": "2–3 sentence direct answer in plain language",
+  "content": "full markdown: opening paragraph, then ## sections with bullets and tables. Every section heading must use ## or ###.",
   "definitions": [{"term": "string", "definition": "string"}],
   "salaryBenchmarks": [{"role": "string", "median": "string", "range": "string", "region": "string", "source": "string"}],
   "hiringTrends": [{"trend": "string", "impact": "string", "timeframe": "string"}],
   "comparisonTableMarkdown": "markdown table only",
   "entityTags": ["company names, job titles, tools, locations"],
-  "seoTitle": "50-60 chars, primary keyword",
-  "seoDescription": "140-160 chars, recruiter CTA",
-  "tags": ["5-8 tags"],
+  "seoTitle": "50–60 chars, primary keyword",
+  "seoDescription": "140–160 chars, helpful for job seekers",
+  "tags": ["5–8 tags"],
   "category": "Job Search|Remote Work|AI Tools|Resume|Career Growth|Salary|Interview Prep|Hiring Trends"
 }`
   );

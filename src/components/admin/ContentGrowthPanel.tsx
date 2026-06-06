@@ -414,7 +414,9 @@ export function ContentGrowthPanel() {
             ? `Expanded ${result.expanded?.length ?? 0} post(s)`
             : action === 'seed-evergreen'
               ? result.message ?? `Seeded ${result.created?.length ?? 0} evergreen posts`
-              : `${action} completed`
+              : action === 'reformat-posts'
+                ? result.message ?? `Reformatted ${result.reformatted?.length ?? 0} post(s)`
+                : `${action} completed`
       );
       await loadDashboard();
     } catch (err: unknown) {
@@ -587,6 +589,7 @@ export function ContentGrowthPanel() {
                 ['learning', 'Monthly Learning'],
                 ['expand-posts', 'Expand Short Posts'],
                 ['seed-evergreen', 'Seed 10 Evergreen Posts'],
+                ['reformat-posts', 'Reformat All Posts'],
               ].map(([action, label]) => (
                 <Button key={action} variant="outline" size="sm" disabled={actionLoading !== null} onClick={() => runAction(action)}>
                   {actionLoading === action ? 'Running…' : label}
