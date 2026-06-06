@@ -3,7 +3,9 @@ import { getAdminAuth } from './firebaseAdmin.js';
 import { isAdminEmail } from '../lib/adminEmails.js';
 
 export function getBearerToken(req: VercelRequest): string | null {
-  const header = req.headers.authorization;
+  const header =
+    req.headers.authorization ??
+    (req.headers as Record<string, string | undefined>).Authorization;
   if (!header?.startsWith('Bearer ')) return null;
   return header.slice('Bearer '.length).trim() || null;
 }

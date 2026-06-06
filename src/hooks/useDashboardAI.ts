@@ -26,6 +26,13 @@ export function useDashboardAI(profile: any) {
     setActionLoading(true);
     setAiResult('');
 
+    if (!profile?.resumeText?.trim() && (action === 'email' || action === 'resume')) {
+      toast.error('Add your resume in Settings or Resume Profile before using AI Copilot.');
+      setActionLoading(false);
+      setAiAction(null);
+      return;
+    }
+
     try {
       // Dynamically import only the necessary functions
       const aiService = await import('../services/aiService');

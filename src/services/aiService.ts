@@ -41,16 +41,26 @@ export async function callOpenAI(
     throw new Error('API returned an empty response. This might be a timeout.');
   }
 
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      'AI service route not found. Deploy the latest build — the /api/openai handler must be live.'
+    );
+  }
+
   let data;
   try {
     data = JSON.parse(text);
   } catch (e) {
-    console.error('Failed to parse AI response:', text);
+    console.error('Failed to parse AI response:', text.slice(0, 200));
     throw new Error('API returned an invalid response format.');
   }
 
   if (!response.ok) {
     const error = data;
+    if (response.status === 401) {
+      throw new Error('Please sign in again to use AI Copilot.');
+    }
     if (response.status === 403 || error.error?.toLowerCase?.().includes('pro plan')) {
       throw new Error('AI_PRO_REQUIRED');
     }

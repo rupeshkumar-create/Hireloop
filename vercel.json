@@ -7,6 +7,10 @@
     "api/cron/[job].ts": { "maxDuration": 300 },
     "api/blog/index.ts": { "maxDuration": 60 },
     "api/blog/[[...route]].ts": { "maxDuration": 60 },
+    "api/openai.ts": { "maxDuration": 60 },
+    "api/apollo.ts": { "maxDuration": 60 },
+    "api/ai/openai.ts": { "maxDuration": 60 },
+    "api/ai/apollo.ts": { "maxDuration": 60 },
     "api/admin/content-growth.ts": { "maxDuration": 300 },
     "api/admin/[[...route]].ts": { "maxDuration": 300 },
     "api/ai/[[...route]].ts": { "maxDuration": 60 },
@@ -18,14 +22,6 @@
     {
       "source": "/api/cron",
       "destination": "/api/cron/tick"
-    },
-    {
-      "source": "/api/openai",
-      "destination": "/api/ai/openai"
-    },
-    {
-      "source": "/api/apollo",
-      "destination": "/api/ai/apollo"
     },
     {
       "source": "/api/analytics/pageview",

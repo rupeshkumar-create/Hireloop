@@ -138,13 +138,13 @@ export async function runWithGuardrails<TInput, TOutput>(
     const logRecord: AILogRecord = {
       taskName,
       input,
-      output,
+      output: output as TOutput,
       validation,
       latency,
       createdAt: new Date().toISOString(),
       status,
-      errorMessage,
-      userId: auth.currentUser?.uid,
+      ...(errorMessage ? { errorMessage } : {}),
+      ...(auth.currentUser?.uid ? { userId: auth.currentUser.uid } : {}),
     };
 
     try {
