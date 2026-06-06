@@ -6,7 +6,6 @@ const STRUCTURED_SECTION_HEADINGS = [
   'Hiring Trends',
   'Comparison',
   'Practical Playbook Notes',
-  'Related Hiring Guides',
 ];
 
 function escapeRegex(s: string): string {
@@ -22,6 +21,23 @@ export function stripDuplicateTitle(content: string, title: string): string {
   body = body.replace(new RegExp(`^${titlePattern}\\s*\\n+`, 'i'), '');
 
   return body.trim();
+}
+
+/** Same-line label + value (Cost:, Best for:, Pros:, etc.) — not section headings. */
+const LABEL_LINE =
+  /^[A-Za-z][A-Za-z0-9\s/&'()-]{0,32}:\s+\S/;
+
+/** Listicle entry titles like "6. Scale.jobs — Best Built-In Application Tools". */
+function isListicleEntryLine(trimmed: string): boolean {
+  if (!/^\d+\.\s+/.test(trimmed)) return false;
+  return /[—–]/.test(trimmed) || trimmed.length >= 35;
+}
+
+/** Bold the label portion of "Label: value" when not already formatted. */
+export function normalizeLabelLine(line: string): string {
+  const trimmed = line.trim();
+  if (!LABEL_LINE.test(trimmed) || /^\*\*[^*]+:\*\*/.test(trimmed)) return line;
+  return trimmed.replace(/^([^:\n]+):/, '**$1:**');
 }
 
 /** Turn plain-text section lines into ## headings when they read like titles. */
@@ -43,8 +59,18 @@ export function inferMarkdownHeadings(content: string): string {
       continue;
     }
 
-    if (/^[-*+]\s|^\d+\.\s|^>|^\|/.test(trimmed)) {
+    if (/^[-*+]\s|^>|^\|/.test(trimmed)) {
       out.push(line);
+      continue;
+    }
+
+    if (/^\d+\.\s/.test(trimmed)) {
+      out.push(isListicleEntryLine(trimmed) ? `### ${trimmed}` : line);
+      continue;
+    }
+
+    if (LABEL_LINE.test(trimmed)) {
+      out.push(normalizeLabelLine(trimmed));
       continue;
     }
 
@@ -58,6 +84,7 @@ export function inferMarkdownHeadings(content: string): string {
 
     const looksLikeHeading =
       trimmed.length <= 100 &&
+      !trimmed.includes(':') &&
       !trimmed.endsWith('.') &&
       !trimmed.endsWith('?') &&
       (next.length > 55 || /^[-*+]\s/.test(next));
@@ -96,9 +123,26 @@ export interface PrepareBlogBodyOptions {
   stripFaq?: boolean;
 }
 
+/** Demote legacy ## headings that are really label lines or listicle entries. */
+export function repairMisclassifiedHeadings(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      const h2 = trimmed.match(/^##\s+(.+)$/);
+      if (!h2) return line;
+      const inner = h2[1].trim();
+      if (LABEL_LINE.test(inner)) return normalizeLabelLine(inner);
+      if (/^\d+\.\s+/.test(inner) && isListicleEntryLine(inner)) return `### ${inner}`;
+      return line;
+    })
+    .join('\n');
+}
+
 /** Full pipeline for article body markdown shown in the reader. */
 export function prepareBlogBodyContent(content: string, options: PrepareBlogBodyOptions): string {
   let body = stripDuplicateTitle(content, options.title);
+  body = repairMisclassifiedHeadings(body);
   body = inferMarkdownHeadings(body);
 
   if (options.stripStructuredSections) {

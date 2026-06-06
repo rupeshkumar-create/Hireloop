@@ -8,6 +8,7 @@ import {
   type BlogPost,
 } from '../marketingEngine.js';
 import { reformatBlogPostContent } from '../../lib/blogContent.js';
+import { ensurePostLinkFields, loadPostLinkCatalog } from './enrichPostLinks.js';
 
 const BLOG_COLLECTION = 'blog_posts';
 
@@ -36,6 +37,12 @@ export async function reformatBlogPosts(options: {
     posts = snap.docs.map((d) => d.data() as BlogPost);
   }
 
+  if (posts.length === 0) {
+    return { reformatted, skipped, errors };
+  }
+
+  const catalog = await loadPostLinkCatalog(100);
+
   for (const post of posts) {
     if (!post.slug || !post.content?.trim()) {
       skipped.push(post.slug ?? '(unknown)');
@@ -43,7 +50,8 @@ export async function reformatBlogPosts(options: {
     }
     try {
       const patch = reformatBlogPostContent(post);
-      await saveBlogPost({ ...post, ...patch });
+      const updated = ensurePostLinkFields({ ...post, ...patch }, catalog);
+      await saveBlogPost(updated);
       reformatted.push(post.slug);
     } catch (err) {
       errors.push({

@@ -258,13 +258,19 @@ export function BlogPost() {
         )}
 
         {post.internalLinks && post.internalLinks.length > 0 && (
-          <section className="blog-lp-section" style={{ borderStyle: 'dashed' }}>
-            <h2 className="blog-lp-section-title">Keep reading</h2>
-            <ul className="space-y-2">
+          <section className="blog-lp-section">
+            <h2 className="blog-lp-section-title">Related guides</h2>
+            <p className="blog-lp-body mb-4">Continue reading on topics that pair well with this one.</p>
+            <ul className="grid gap-3 sm:grid-cols-2">
               {post.internalLinks.map((link) => (
                 <li key={link.slug}>
-                  <Link to={`/blog/${link.slug}`} className="blog-link text-sm">
-                    {link.anchorText || link.title}
+                  <Link
+                    to={`/blog/${link.slug}`}
+                    className="block rounded-xl border border-[var(--lp-border)] bg-[var(--lp-bg)] px-4 py-3 text-sm transition-colors hover:border-[var(--lp-accent)]"
+                  >
+                    <span className="font-medium" style={{ color: 'var(--lp-fg)' }}>
+                      {link.anchorText || link.title}
+                    </span>
                   </Link>
                 </li>
               ))}

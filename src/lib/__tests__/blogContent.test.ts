@@ -13,6 +13,35 @@ describe('blogContent', () => {
     expect(result).toContain('## The Matching Pipeline');
   });
 
+  it('does not promote label lines like Cost or Best for to headings', () => {
+    const content = [
+      '6. Scale.jobs — Best Built-In Application Tools',
+      '',
+      'Cost: Free tools + $4/hour application service',
+      'Volume: 1,000+ new jobs per month',
+      'Best for: Job seekers who want resume checking',
+      '',
+      'Scale.jobs combines a job board with built-in tools.',
+    ].join('\n');
+
+    const result = inferMarkdownHeadings(content);
+
+    expect(result).toContain('### 6. Scale.jobs — Best Built-In Application Tools');
+    expect(result).toContain('**Cost:** Free tools + $4/hour application service');
+    expect(result).toContain('**Volume:** 1,000+ new jobs per month');
+    expect(result).toContain('**Best for:** Job seekers who want resume checking');
+    expect(result).not.toMatch(/^##\s+Cost/m);
+    expect(result).not.toMatch(/^##\s+Volume/m);
+    expect(result).not.toMatch(/^##\s+Best for/m);
+  });
+
+  it('repairs legacy ## Cost headings saved by old reformat', () => {
+    const content = '## Cost: Free tools\n\n## Volume: 1,000 jobs\n\nBody paragraph.';
+    const result = prepareBlogBodyContent(content, { title: 'Test' });
+    expect(result).toContain('**Cost:** Free tools');
+    expect(result).not.toMatch(/^##\s+Cost/m);
+  });
+
   it('strips structured sections when rendered separately', () => {
     const content = [
       'Opening paragraph.',

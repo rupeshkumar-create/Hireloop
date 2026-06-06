@@ -330,6 +330,19 @@
   color: var(--lp-fg);
 }
 
+/* Compact metadata lines (Cost:, Best for:, etc.) */
+.blog-lp-root .blog-p:has(> .blog-strong:first-child:last-of-type),
+.blog-lp-root .blog-p:has(> .blog-strong:first-child) {
+  margin-bottom: 0.35rem;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.blog-lp-root .blog-p:has(> .blog-strong:first-child) .blog-strong {
+  color: var(--lp-fg);
+  font-weight: 500;
+}
+
 .blog-lp-root .blog-p {
   margin-bottom: 1.25rem;
   font-size: 16px;

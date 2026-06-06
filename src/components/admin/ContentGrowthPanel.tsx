@@ -416,7 +416,9 @@ export function ContentGrowthPanel() {
               ? result.message ?? `Seeded ${result.created?.length ?? 0} evergreen posts`
               : action === 'reformat-posts'
                 ? result.message ?? `Reformatted ${result.reformatted?.length ?? 0} post(s)`
-                : `${action} completed`
+                : action === 'backfill-links'
+                  ? result.message ?? `Updated links on ${result.updated?.length ?? 0} post(s)`
+                  : `${action} completed`
       );
       await loadDashboard();
     } catch (err: unknown) {
@@ -590,6 +592,7 @@ export function ContentGrowthPanel() {
                 ['expand-posts', 'Expand Short Posts'],
                 ['seed-evergreen', 'Seed 10 Evergreen Posts'],
                 ['reformat-posts', 'Reformat All Posts'],
+                ['backfill-links', 'Backfill Internal Links'],
               ].map(([action, label]) => (
                 <Button key={action} variant="outline" size="sm" disabled={actionLoading !== null} onClick={() => runAction(action)}>
                   {actionLoading === action ? 'Running…' : label}

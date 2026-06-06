@@ -9,6 +9,145 @@ import type { InternalLink } from '../../types/contentGrowth.js';
 
 const BLOG_COLLECTION = 'blog_posts';
 
+/** Score and pick related posts for internal linking. */
+export function buildInternalLinks(
+  newPost: { slug: string; title: string; targetKeywords: string[]; clusterId: string },
+  existingPosts: { slug: string; title: string; targetKeywords: string[]; clusterId?: string }[]
+): InternalLink[] {
+  const scored = existingPosts
+    .filter((p) => p.slug !== newPost.slug)
+    .map((p) => {
+      const keywordOverlap = p.targetKeywords.filter((k) =>
+        newPost.targetKeywords.some(
+          (nk) =>
+            nk.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(nk.toLowerCase())
+        )
+      ).length;
+      const clusterBonus = p.clusterId === newPost.clusterId ? 3 : 0;
+      return {
+        slug: p.slug,
+        title: p.title,
+        anchorText: p.title.split(':')[0].slice(0, 60),
+        relevanceScore: keywordOverlap * 2 + clusterBonus,
+      };
+    })
+    .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+  const relevant = scored.filter((l) => l.relevanceScore > 0).slice(0, 5);
+  if (relevant.length >= 2) return relevant;
+
+  const clusterMatches = scored.filter((l) => l.relevanceScore >= 3).slice(0, 3);
+  const recent = existingPosts
+    .filter((p) => p.slug !== newPost.slug)
+    .slice(0, 4)
+    .map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      anchorText: p.title.split(':')[0].slice(0, 60),
+      relevanceScore: 1,
+    }));
+
+  const merged = [...clusterMatches, ...recent];
+  const seen = new Set<string>();
+  return merged
+    .filter((l) => {
+      if (seen.has(l.slug)) return false;
+      seen.add(l.slug);
+      return true;
+    })
+    .slice(0, 4);
+}
+
+/** Inject a Related Hiring Guides markdown section before FAQ. */
+export function injectInternalLinks(content: string, links: InternalLink[]): string {
+  if (links.length === 0) return content;
+
+  const relatedSection = [
+    '',
+    '## Related Hiring Guides',
+    '',
+    ...links.map((l) => `- [${l.anchorText}](/blog/${l.slug})`),
+    '',
+  ].join('\n');
+
+  const faqIndex = content.search(/###\s+FAQ/i);
+  if (faqIndex > 0) {
+    return content.slice(0, faqIndex) + relatedSection + content.slice(faqIndex);
+  }
+  return content + relatedSection;
+}
+
+export function extractInternalLinksFromMarkdown(content: string): InternalLink[] {
+  const start = content.search(/##\s+Related Hiring Guides/i);
+  if (start < 0) return [];
+
+  const tail = content.slice(start);
+  const nextHeading = tail.search(/\n##\s+(?!Related Hiring Guides)/i);
+  const faqStart = tail.search(/\n###\s+FAQ/i);
+  const end =
+    nextHeading > 0 && faqStart > 0
+      ? Math.min(nextHeading, faqStart)
+      : nextHeading > 0
+        ? nextHeading
+        : faqStart > 0
+          ? faqStart
+          : tail.length;
+  const section = tail.slice(0, end);
+
+  const links: InternalLink[] = [];
+  const linkRegex = /\[([^\]]+)\]\(\/blog\/([^)]+)\)/g;
+  let match;
+  while ((match = linkRegex.exec(section)) !== null) {
+    links.push({
+      slug: match[2].trim(),
+      title: match[1].trim(),
+      anchorText: match[1].trim(),
+      relevanceScore: 1,
+    });
+  }
+  return links;
+}
+
+export function contentHasRelatedSection(content: string): boolean {
+  return /##\s+Related Hiring Guides/i.test(content);
+}
+
+export function ensurePostLinkFields(
+  post: Pick<BlogPost, 'slug' | 'title' | 'content' | 'targetKeywords' | 'tags' | 'clusterId' | 'internalLinks'>,
+  catalog: { slug: string; title: string; targetKeywords: string[]; clusterId?: string; tags?: string[] }[]
+): Pick<BlogPost, 'content' | 'internalLinks'> & BlogPost {
+  let internalLinks =
+    post.internalLinks && post.internalLinks.length > 0
+      ? post.internalLinks
+      : extractInternalLinksFromMarkdown(post.content);
+
+  if (internalLinks.length === 0) {
+    internalLinks = buildInternalLinks(
+      {
+        slug: post.slug,
+        title: post.title,
+        targetKeywords: post.targetKeywords?.length ? post.targetKeywords : (post.tags ?? []),
+        clusterId: post.clusterId ?? 'remote-job-search',
+      },
+      catalog
+        .filter((p) => p.slug !== post.slug)
+        .map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          targetKeywords: p.targetKeywords?.length ? p.targetKeywords : (p.tags ?? []),
+          clusterId: p.clusterId,
+        }))
+    );
+  }
+
+  let content = post.content;
+  if (internalLinks.length > 0 && !contentHasRelatedSection(content)) {
+    content = injectInternalLinks(content, internalLinks);
+  }
+
+  return { ...(post as BlogPost), internalLinks, content };
+}
+
 export async function applyBidirectionalLinks(
   newPost: { slug: string; title: string; anchorText: string; clusterId: string },
   relatedSlugs: string[]

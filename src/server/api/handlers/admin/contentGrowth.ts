@@ -20,6 +20,7 @@ import {
 } from '../../../contentGrowth/orchestrator.js';
 import { seedEvergreenPosts } from '../../../contentGrowth/seedEvergreen.js';
 import { reformatBlogPosts } from '../../../contentGrowth/reformatPosts.js';
+import { backfillAllPostInternalLinks } from '../../../contentGrowth/enrichPostLinks.js';
 import { saveGrowthState } from '../../../contentGrowth/storage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -124,6 +125,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             success: true,
             action,
             message: `Reformatted ${result.reformatted.length} post(s)`,
+            ...result,
+          });
+        }
+        case 'backfill-links': {
+          const result = await backfillAllPostInternalLinks({
+            slug: body.slug,
+            limit: body.slug ? 1 : 100,
+          });
+          return res.status(200).json({
+            success: true,
+            action,
+            message: `Added internal links to ${result.updated.length} post(s)`,
             ...result,
           });
         }

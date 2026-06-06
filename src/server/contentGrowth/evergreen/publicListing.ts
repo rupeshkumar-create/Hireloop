@@ -3,6 +3,7 @@
  * Ensures /blog works immediately; seedEvergreenPosts() persists to Firestore for admin.
  */
 import type { BlogPost } from '../marketingEngine.js';
+import { buildInternalLinks, injectInternalLinks } from '../linking.js';
 import { EVERGREEN_SPECS } from './catalog.js';
 import { buildEvergreenMarkdown, extractFaqFromMarkdown } from './buildArticle.js';
 
@@ -10,8 +11,28 @@ function estimateReadTime(content: string): number {
   return Math.max(1, Math.round(content.split(/\s+/).filter(Boolean).length / 200));
 }
 
+function evergreenCatalog() {
+  return EVERGREEN_SPECS.map((s) => ({
+    slug: s.slug,
+    title: s.title,
+    targetKeywords: s.targetKeywords,
+    clusterId: s.clusterId,
+    tags: s.tags,
+  }));
+}
+
 function buildPostFromSpec(spec: (typeof EVERGREEN_SPECS)[number]): BlogPost {
-  const content = buildEvergreenMarkdown(spec);
+  const catalog = evergreenCatalog().filter((s) => s.slug !== spec.slug);
+  const internalLinks = buildInternalLinks(
+    {
+      slug: spec.slug,
+      title: spec.title,
+      targetKeywords: spec.targetKeywords,
+      clusterId: spec.clusterId,
+    },
+    catalog
+  );
+  const content = injectInternalLinks(buildEvergreenMarkdown(spec), internalLinks);
   const faq = extractFaqFromMarkdown(content);
   return {
     slug: spec.slug,
@@ -30,6 +51,7 @@ function buildPostFromSpec(spec: (typeof EVERGREEN_SPECS)[number]): BlogPost {
     faq,
     directAnswer: spec.directAnswer,
     clusterId: spec.clusterId,
+    internalLinks,
     coverImageUrl: `https://hireschema.com/api/blog/cover?slug=${encodeURIComponent(spec.slug)}`,
   };
 }

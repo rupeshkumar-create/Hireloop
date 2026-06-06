@@ -279,73 +279,7 @@ export function runSeoValidationAgent(post: Partial<BlogPost>): SeoValidationRes
   };
 }
 
-// ─── Internal Linking Agent ────────────────────────────────────────────────────
-
-/** Deterministic internal linking — zero AI calls. */
-export function buildInternalLinks(
-  newPost: { slug: string; title: string; targetKeywords: string[]; clusterId: string },
-  existingPosts: { slug: string; title: string; targetKeywords: string[]; clusterId?: string }[]
-): InternalLink[] {
-  const scored = existingPosts
-    .filter((p) => p.slug !== newPost.slug)
-    .map((p) => {
-      const keywordOverlap = p.targetKeywords.filter((k) =>
-        newPost.targetKeywords.some(
-          (nk) =>
-            nk.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(nk.toLowerCase())
-        )
-      ).length;
-      const clusterBonus = p.clusterId === newPost.clusterId ? 3 : 0;
-      return {
-        slug: p.slug,
-        title: p.title,
-        anchorText: p.title.split(':')[0].slice(0, 60),
-        relevanceScore: keywordOverlap * 2 + clusterBonus,
-      };
-    })
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
-
-  const relevant = scored.filter((l) => l.relevanceScore > 0).slice(0, 5);
-  if (relevant.length >= 2) return relevant;
-
-  // Fallback: same-cluster or most recent posts — no AI
-  const clusterMatches = scored.filter((l) => l.relevanceScore >= 3).slice(0, 3);
-  const recent = existingPosts
-    .filter((p) => p.slug !== newPost.slug)
-    .slice(0, 4)
-    .map((p) => ({
-      slug: p.slug,
-      title: p.title,
-      anchorText: p.title.split(':')[0].slice(0, 60),
-      relevanceScore: 1,
-    }));
-
-  const merged = [...clusterMatches, ...recent];
-  const seen = new Set<string>();
-  return merged.filter((l) => {
-    if (seen.has(l.slug)) return false;
-    seen.add(l.slug);
-    return true;
-  }).slice(0, 4);
-}
-
-export function injectInternalLinks(content: string, links: InternalLink[]): string {
-  if (links.length === 0) return content;
-
-  const relatedSection = [
-    '',
-    '## Related Hiring Guides',
-    '',
-    ...links.map((l) => `- [${l.anchorText}](/blog/${l.slug})`),
-    '',
-  ].join('\n');
-
-  const faqIndex = content.search(/###\s+FAQ/i);
-  if (faqIndex > 0) {
-    return content.slice(0, faqIndex) + relatedSection + content.slice(faqIndex);
-  }
-  return content + relatedSection;
-}
+export { buildInternalLinks, injectInternalLinks } from './linking.js';
 
 // ─── Schema Generation Agent ─────────────────────────────────────────────────
 
