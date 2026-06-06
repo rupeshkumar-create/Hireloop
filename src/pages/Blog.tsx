@@ -38,13 +38,17 @@ export function Blog() {
 
   useEffect(() => {
     fetch('/api/blog?limit=50')
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || data.error) {
+          throw new Error(data.error || `Blog API error (${r.status})`);
+        }
         setPosts(data.posts ?? []);
         setLoading(false);
       })
-      .catch(() => {
-        setError('Could not load posts.');
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Could not load posts.';
+        setError(message);
         setLoading(false);
       });
   }, []);

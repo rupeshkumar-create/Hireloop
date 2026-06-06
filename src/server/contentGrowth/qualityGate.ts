@@ -4,6 +4,7 @@
  */
 
 import type { BlogPost } from '../marketingEngine.js';
+import { BLOG_TARGET_WORD_COUNT, countWords } from './wordCount.js';
 
 const SLOP_PHRASES = [
   'in today\'s fast-paced',
@@ -74,7 +75,7 @@ export function scoreLlmOptimization(post: Partial<BlogPost>): LlmOptimizationSc
   add('Entity tags (5+)', (post.entityTags?.length ?? 0) >= 5, 10, `${post.entityTags?.length ?? 0} entities`);
   add('Target keywords set', (post.targetKeywords?.length ?? 0) >= 2, 8);
   add('H2 sections (3+)', (content.match(/^## /gm) ?? []).length >= 3, 10);
-  add('Word count (900+)', content.split(/\s+/).length >= 900, 10);
+  add('Word count (2000+)', countWords(content) >= BLOG_TARGET_WORD_COUNT, 10, `${countWords(content)} words`);
   add('Internal links (2+)', (post.internalLinks?.length ?? 0) >= 2, 8);
   add('Schema markup', Boolean(post.schema?.article), 6);
 
@@ -114,6 +115,10 @@ export function runQualityGate(post: Partial<BlogPost>, seoValidation: {
   }
   if ((post.faq?.length ?? 0) < 3) blockers.push('FAQ section needs at least 3 items');
   if (!post.directAnswer) blockers.push('Missing direct answer block');
+  const wordCount = countWords(post.content ?? '');
+  if (wordCount < BLOG_TARGET_WORD_COUNT) {
+    blockers.push(`Content too short (${wordCount} words, minimum ${BLOG_TARGET_WORD_COUNT})`);
+  }
 
   return {
     passed: blockers.length === 0,

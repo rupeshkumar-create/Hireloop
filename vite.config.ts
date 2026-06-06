@@ -21,24 +21,40 @@ function readJsonBody(req: any): Promise<any> {
   });
 }
 
+type ApiMount = {
+  prefix: string;
+  module: string;
+  routeParam?: boolean;
+};
+
+const API_MOUNTS: ApiMount[] = [
+  { prefix: '/api/admin', module: '/api/admin/[[...route]].ts', routeParam: true },
+  { prefix: '/api/blog', module: '/api/blog/[[...route]].ts', routeParam: true },
+  { prefix: '/api/jobs', module: '/api/jobs/index.ts' },
+  { prefix: '/api/openai', module: '/api/openai.ts' },
+  { prefix: '/api/cron/process-user', module: '/api/cron/process-user.ts' },
+];
+
 function localApiVercelPlugin() {
   return {
     name: 'local-api-vercel',
     configureServer(server: any) {
-      // Map routes to their local files
-      const routeMap: Record<string, string> = {
-        '/api/jobs': '/api/jobs/index.ts',
-        '/api/openai': '/api/openai.ts',
-        '/api/cron/process-user': '/api/cron/process-user.ts',
-      };
-
       server.middlewares.use(async (req: any, res: any, next: any) => {
-        const route = Object.keys(routeMap).find(r => req.url.startsWith(r));
-        if (!route) return next();
+        const url = req.url?.split('?')[0] ?? '';
+        const mount = API_MOUNTS.find((m) => url === m.prefix || url.startsWith(`${m.prefix}/`));
+        if (!mount) return next();
 
         try {
           req.body = await readJsonBody(req);
-          const apiModule = await server.ssrLoadModule(routeMap[route]);
+          const fullUrl = new URL(req.url, 'http://localhost');
+
+          if (mount.routeParam) {
+            const subPath = fullUrl.pathname.replace(new RegExp(`^${mount.prefix}/?`), '');
+            req.query = { ...(req.query ?? {}), ...Object.fromEntries(fullUrl.searchParams.entries()) };
+            if (subPath) req.query.route = subPath;
+          }
+
+          const apiModule = await server.ssrLoadModule(mount.module);
           const vercelLikeRes = Object.assign(res, {
             status(code: number) {
               res.statusCode = code;
@@ -58,7 +74,7 @@ function localApiVercelPlugin() {
           await apiModule.default(req, vercelLikeRes);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          console.error(`[local-api] Error in ${route}:`, message);
+          console.error(`[local-api] Error in ${mount.prefix}:`, message);
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ error: message }));

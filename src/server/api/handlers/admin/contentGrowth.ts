@@ -4,7 +4,7 @@
  * GET  /api/admin/content-growth           → dashboard data
  * POST /api/admin/content-growth?action=  → trigger pipeline steps
  *
- * Actions: publish, dry-run, keywords, competitors, learning, refresh, health
+ * Actions: publish, dry-run, keywords, competitors, learning, refresh, expand-posts, seed-evergreen, health
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getBearerToken, verifySuperAdmin } from '../../../adminAuth.js';
@@ -16,7 +16,9 @@ import {
   runCompetitorAnalysis,
   runMonthlyLearningLoop,
   refreshContent,
+  expandShortBlogPosts,
 } from '../../../contentGrowth/orchestrator.js';
+import { seedEvergreenPosts } from '../../../contentGrowth/seedEvergreen.js';
 import { saveGrowthState } from '../../../contentGrowth/storage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,8 +28,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await verifySuperAdmin(token);
   } catch (err: unknown) {
-    const status = (err as { status?: number }).status ?? 401;
     const message = err instanceof Error ? err.message : 'Unauthorized';
+    if (message.includes('FIREBASE_SERVICE_ACCOUNT_KEY') || message.includes('Failed to parse')) {
+      return res.status(503).json({ error: message });
+    }
+    const status = (err as { status?: number }).status ?? 401;
     return res.status(status).json({ error: message });
   }
 
@@ -97,6 +102,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!body.slug) return res.status(400).json({ error: 'slug required' });
           await refreshContent(body.slug, body.reason || 'Manual refresh from Super Admin');
           return res.status(200).json({ success: true, action, slug: body.slug });
+        }
+        case 'expand-posts': {
+          const result = await expandShortBlogPosts({
+            slug: body.slug,
+            limit: body.slug ? 1 : 5,
+          });
+          return res.status(200).json({ success: true, action, ...result });
+        }
+        case 'seed-evergreen': {
+          const result = await seedEvergreenPosts({ force: body.force === 'true' });
+          return res.status(200).json({ success: true, action, ...result });
         }
         case 'config': {
           await saveGrowthState({

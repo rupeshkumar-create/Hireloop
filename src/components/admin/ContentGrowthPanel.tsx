@@ -59,6 +59,7 @@ interface PostSummary {
   internalLinksCount: number;
   pageviews?: number;
   wordCount?: number;
+  meetsWordTarget?: boolean;
   status: string;
 }
 
@@ -114,6 +115,7 @@ interface GrowthDashboard {
     avgLlmScore: number;
   };
   posts: PostSummary[];
+  loadErrors?: string[];
   runs: { id: string; type: string; status: string; createdAt: string; details: Record<string, unknown> }[];
   keywords: { keyword: string; trend: string; clusterId: string }[];
   clusters: { id: string; name: string; postSlugs: string[]; authorityScore: number }[];
@@ -192,7 +194,7 @@ function PostDetailModal({ slug, onClose, getToken }: { slug: string; onClose: (
                 ['LLM Score', post.llmScore ?? '—'],
                 ['Pageviews', post.pageviews ?? 0],
                 ['FAQs', post.faqCount],
-                ['Words', post.wordCount ?? '—'],
+                ['Words', post.wordCount != null ? `${post.wordCount}${post.meetsWordTarget === false ? ' ⚠' : ''}` : '—'],
                 ['Links', post.internalLinksCount],
                 ['CTA Clicks', post.ctaClicks ?? 0],
               ].map(([k, v]) => (
@@ -307,16 +309,27 @@ export function ContentGrowthPanel() {
     return realUser.getIdToken();
   }, [realUser]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadDashboard = useCallback(async () => {
     if (!realUser) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const token = await getToken();
       const res = await fetch('/api/admin/content-growth', { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(await res.text());
-      setData(await res.json());
-    } catch {
-      toast.error('Failed to load content growth data');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === 'string' ? data.error : `Request failed (${res.status})`);
+      }
+      setData(data);
+      if (Array.isArray(data.loadErrors) && data.loadErrors.length > 0) {
+        toast.warning(`Some dashboard data could not load (${data.loadErrors.length} issue(s))`);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load content growth data';
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -335,7 +348,15 @@ export function ContentGrowthPanel() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Action failed');
-      toast.success(action === 'dry-run' ? `Dry run done — grade ${result.result?.llmGrade}` : `${action} completed`);
+      toast.success(
+        action === 'dry-run'
+          ? `Dry run done — grade ${result.result?.llmGrade}`
+          : action === 'expand-posts'
+            ? `Expanded ${result.expanded?.length ?? 0} post(s)`
+            : action === 'seed-evergreen'
+              ? result.message ?? `Seeded ${result.created?.length ?? 0} evergreen posts`
+              : `${action} completed`
+      );
       await loadDashboard();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
@@ -351,7 +372,17 @@ export function ContentGrowthPanel() {
   if (!data) {
     return (
       <div className="rounded-xl border border-border p-8 text-center">
-        <p className="text-foreground-muted">Could not load dashboard.</p>
+        <p className="text-foreground-muted">{loadError ?? 'Could not load dashboard.'}</p>
+        {loadError?.includes('FIREBASE_SERVICE_ACCOUNT_KEY') && (
+          <p className="mt-2 text-xs text-foreground-muted">
+            Add FIREBASE_SERVICE_ACCOUNT_KEY in Vercel → Settings → Environment Variables, then redeploy.
+          </p>
+        )}
+        {loadError?.includes('super admin') && (
+          <p className="mt-2 text-xs text-foreground-muted">
+            Sign in with an allowlisted admin email ({'rupesh7126@gmail.com'} or kv3244@gmail.com).
+          </p>
+        )}
         <Button variant="outline" size="sm" className="mt-4" onClick={loadDashboard}>Retry</Button>
       </div>
     );
@@ -384,6 +415,17 @@ export function ContentGrowthPanel() {
           <Button variant="outline" size="sm" onClick={loadDashboard} disabled={loading}>Refresh</Button>
         </div>
       </div>
+
+      {data.loadErrors && data.loadErrors.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+          <p className="font-medium">Partial data loaded</p>
+          <ul className="mt-1 list-inside list-disc text-xs">
+            {data.loadErrors.slice(0, 3).map((err) => (
+              <li key={err}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {data.state.lastError && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -484,6 +526,8 @@ export function ContentGrowthPanel() {
                 ['keywords', 'Discover Keywords'],
                 ['competitors', 'Analyze Competitors'],
                 ['learning', 'Monthly Learning'],
+                ['expand-posts', 'Expand Short Posts'],
+                ['seed-evergreen', 'Seed 10 Evergreen Posts'],
               ].map(([action, label]) => (
                 <Button key={action} variant="outline" size="sm" disabled={actionLoading !== null} onClick={() => runAction(action)}>
                   {actionLoading === action ? 'Running…' : label}
@@ -502,10 +546,10 @@ export function ContentGrowthPanel() {
           {data.strategy?.stats.nextTopic && (
             <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
               <h3 className="text-sm font-medium">Next Scheduled Publish</h3>
-              <p className="mt-1 text-sm">{data.strategy.stats.nextTopic.title}</p>
-              <p className="mt-1 text-xs text-foreground-muted">{data.strategy.stats.nextTopic.angle}</p>
+              <p className="mt-1 text-sm">{data.strategy?.stats.nextTopic.title}</p>
+              <p className="mt-1 text-xs text-foreground-muted">{data.strategy?.stats.nextTopic.angle}</p>
               <p className="mt-2 text-xs text-foreground-muted">
-                Keywords: {data.strategy.stats.nextTopic.targetKeywords.join(', ')}
+                Keywords: {data.strategy?.stats.nextTopic.targetKeywords.join(', ')}
               </p>
             </section>
           )}

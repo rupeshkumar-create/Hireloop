@@ -13,6 +13,7 @@ const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
   cover: () => import('../../src/server/api/handlers/blog/cover.js'),
   'rss.xml': () => import('../../src/server/api/handlers/blog/rss.js'),
   'seed-strategy': () => import('../../src/server/api/handlers/blog/seedStrategy.js'),
+  'seed-evergreen': () => import('../../src/server/api/handlers/blog/seedEvergreen.js'),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

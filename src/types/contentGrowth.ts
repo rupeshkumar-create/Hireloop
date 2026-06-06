@@ -127,6 +127,8 @@ export interface ContentGrowthState {
   activeClusters: number;
   systemStatus: 'idle' | 'running' | 'error';
   lastError: string | null;
+  evergreenSeeded?: boolean;
+  evergreenSeededAt?: string | null;
   ga4PropertyId?: string;
   gscSiteUrl?: string;
   updatedAt: string;
@@ -170,6 +172,8 @@ export interface ContentGrowthRunLog {
     | 'daily_publish'
     | 'monthly_learning'
     | 'content_refresh'
+    | 'content_expand'
+    | 'evergreen_seed'
     | 'strategy_update'
     | 'analytics_sync';
   status: 'success' | 'error' | 'partial';

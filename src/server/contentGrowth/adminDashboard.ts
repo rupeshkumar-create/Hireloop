@@ -5,6 +5,7 @@
 import type { BlogPost, MarketingStrategy } from '../marketingEngine.js';
 import type { ContentGrowthState } from '../../types/contentGrowth.js';
 import type { ContentStrategyPlan } from '../../types/contentGrowth.js';
+import { BLOG_TARGET_WORD_COUNT, countWords, meetsMinimumWordCount } from './wordCount.js';
 
 export interface PostAdminSummary {
   slug: string;
@@ -41,6 +42,7 @@ export interface PostAdminSummary {
   pageviews?: number;
   ctaClicks?: number;
   wordCount?: number;
+  meetsWordTarget?: boolean;
 }
 
 export function buildPostAdminSummary(
@@ -49,7 +51,7 @@ export function buildPostAdminSummary(
   ctaClicks = 0
 ): PostAdminSummary {
   const wordCount = post.content
-    ? post.content.split(/\s+/).length
+    ? countWords(post.content)
     : (post.excerpt?.split(/\s+/).length ?? 0) * 5;
 
   return {
@@ -87,6 +89,7 @@ export function buildPostAdminSummary(
     pageviews,
     ctaClicks,
     wordCount,
+    meetsWordTarget: post.content ? meetsMinimumWordCount(post.content) : undefined,
   };
 }
 
@@ -125,12 +128,14 @@ export function buildOperationalChecks(
   });
 
   checks.push({
-    id: 'cron_secret',
-    label: 'Cron secret',
+    id: 'cron_job',
+    label: 'External cron configured',
     passed: env.cronSecret,
     severity: 'critical',
-    detail: env.cronSecret ? 'CRON_SECRET set' : 'Missing CRON_SECRET',
-    action: 'Add CRON_SECRET in Vercel env (Vercel crons use this automatically on Pro)',
+    detail: env.cronSecret
+      ? 'CRON_SECRET set — use cron-job.org → POST /api/cron/tick daily'
+      : 'Missing CRON_SECRET',
+    action: 'Add CRON_SECRET in Vercel and create one cron-job.org job (see docs/CRON_SETUP.md)',
   });
 
   checks.push({
@@ -176,12 +181,12 @@ export function buildOperationalChecks(
   });
 
   checks.push({
-    id: 'vercel_pro',
-    label: 'Vercel Pro crons enabled',
+    id: 'external_cron',
+    label: 'Daily scheduler (cron-job.org)',
     passed: true,
     severity: 'info',
-    detail: 'Crons defined in vercel.json — requires Vercel Pro plan',
-    action: 'Confirm Vercel Pro is active and crons show in Vercel dashboard → Cron Jobs',
+    detail: 'POST https://hireschema.com/api/cron/tick daily at 08:00 UTC',
+    action: 'See docs/CRON_SETUP.md — one job runs Scout + blog automation',
   });
 
   const criticalFailed = checks.filter((c) => c.severity === 'critical' && !c.passed);

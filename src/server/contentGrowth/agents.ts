@@ -18,6 +18,7 @@ import type {
   TopicalCluster,
 } from '../../types/contentGrowth.js';
 import type { BlogPost, MarketingStrategy, TopicIdea } from '../marketingEngine.js';
+import { BLOG_TARGET_WORD_COUNT, countWords, meetsMinimumWordCount } from './wordCount.js';
 
 const COMPETITORS = [
   'Wellfound (AngelList Talent)',
@@ -218,7 +219,7 @@ Writing rules:
 - Include H2/H3 hierarchy — never H1 in body (title is separate).
 - End with "### FAQ" using **Q:** and **A:** pairs (5 questions).
 - Mention HireSchema naturally 1-2 times where it fits.
-- 1100-1600 words.
+- Minimum ${BLOG_TARGET_WORD_COUNT} words in the markdown body (aim for ${BLOG_TARGET_WORD_COUNT}–2200).
 - Entity-rich: name companies, tools, job titles, locations.`,
     `Write a hiring guide article.
 
@@ -264,7 +265,10 @@ export function runSeoValidationAgent(post: Partial<BlogPost>): SeoValidationRes
   if (!post.slug || post.slug.length < 5) issues.push('Slug too short');
   if (!post.targetKeywords?.length) issues.push('No target keywords');
   if (!post.faq?.length || post.faq.length < 3) issues.push('FAQ section needs at least 3 items');
-  if (!post.content || post.content.length < 2000) warnings.push('Content may be thin for competitive keywords');
+  const wordCount = countWords(post.content ?? '');
+  if (wordCount < BLOG_TARGET_WORD_COUNT) {
+    issues.push(`Content too short (${wordCount} words, minimum ${BLOG_TARGET_WORD_COUNT})`);
+  }
 
   const score = Math.max(0, 100 - issues.length * 15 - warnings.length * 5);
 
@@ -455,6 +459,37 @@ Provide 3-5 refresh suggestions, 2-3 cluster opportunities, 4-6 strategy updates
   };
 }
 
+// ─── Content Expansion Agent ───────────────────────────────────────────────────
+
+export async function runContentExpansionAgent(
+  post: { title: string; content: string; targetKeywords: string[] },
+  targetWordCount = BLOG_TARGET_WORD_COUNT
+): Promise<string> {
+  const currentWords = countWords(post.content);
+  const needed = Math.max(0, targetWordCount - currentWords);
+
+  const expanded = await chat(
+    MODELS.writing,
+    `You expand hiring guides to meet a strict word minimum without filler. Sound human, use recruiter language, no AI slop.`,
+    `Expand this article to at least ${targetWordCount} words (currently ~${currentWords}; add ~${needed} substantive words).
+
+Title: ${post.title}
+Keywords: ${post.targetKeywords.join(', ')}
+
+Rules:
+- Keep existing structure, headings, FAQ format, tables, and internal links
+- Add depth: examples, step-by-step advice, recruiter tips, regional nuance
+- Do NOT add filler, repetition, or generic intros
+- Preserve ### FAQ with **Q:** / **A:** pairs (5+ questions)
+- Return ONLY the full updated markdown (no JSON, no commentary)
+
+Current content:
+${post.content.slice(0, 12000)}`
+  );
+
+  return expanded.trim();
+}
+
 // ─── Content Refresh Agent ───────────────────────────────────────────────────
 
 export async function runContentRefreshAgent(
@@ -476,12 +511,21 @@ ${post.content.slice(0, 8000)}
 
 Rules:
 - Update statistics and trends
+- Minimum ${BLOG_TARGET_WORD_COUNT} words total
 - Keep FAQ section, add 1 new question if relevant
 - Preserve internal links
 - Return ONLY the updated markdown content (no JSON)`
   );
 
-  return refreshed;
+  let refreshedContent = refreshed.trim();
+  if (!meetsMinimumWordCount(refreshedContent)) {
+    refreshedContent = await runContentExpansionAgent(
+      { title: post.title, content: refreshedContent, targetKeywords: post.targetKeywords },
+      BLOG_TARGET_WORD_COUNT
+    );
+  }
+
+  return refreshedContent;
 }
 
 // ─── Cluster Builder ─────────────────────────────────────────────────────────

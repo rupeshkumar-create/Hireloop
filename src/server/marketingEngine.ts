@@ -13,6 +13,7 @@
 
 import { getAdminDb } from './firebaseAdmin.js';
 import { chat, chatJSON, MODELS } from './contentGrowth/ai.js';
+import { BLOG_TARGET_WORD_COUNT } from './contentGrowth/wordCount.js';
 
 const STRATEGY_DOC = 'marketing/strategy';
 const BLOG_COLLECTION = 'blog_posts';
@@ -277,7 +278,7 @@ Writing rules:
 - End every post with a 3-5 item FAQ section using ### FAQ format with **Q:** and **A:** pairs
 - No corporate buzzwords ("leverage", "synergy", "game-changer"), no "In today's world" intros
 - Write for humans, structure for LLMs: clear entities, direct answers, specific advice
-- Length: 900-1400 words of main content`,
+- Length: ${BLOG_TARGET_WORD_COUNT}-${BLOG_TARGET_WORD_COUNT + 200} words of main content`,
     `Write a blog post for HireSchema's blog.
 
 Topic: "${topic.title}"
@@ -364,19 +365,33 @@ export async function saveBlogPost(post: BlogPost): Promise<string> {
 
 export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content'>[]> {
   const db = getAdminDb();
-  const snap = await db
-    .collection(BLOG_COLLECTION)
-    .where('status', '==', 'published')
-    .orderBy('publishedAt', 'desc')
-    .limit(limit)
-    .get();
 
-  return snap.docs.map((d) => {
-    const data = d.data() as BlogPost;
+  const mapDoc = (d: { data: () => BlogPost }) => {
+    const data = d.data();
     const { content: _content, ...rest } = data;
     void _content;
     return rest;
-  });
+  };
+
+  try {
+    const snap = await db
+      .collection(BLOG_COLLECTION)
+      .where('status', '==', 'published')
+      .orderBy('publishedAt', 'desc')
+      .limit(limit)
+      .get();
+    return snap.docs.map(mapDoc);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const needsIndex = message.includes('index') || message.includes('FAILED_PRECONDITION');
+    if (!needsIndex) throw error;
+
+    console.warn('[listBlogPosts] Composite index missing — using fallback query. Deploy firestore.indexes.json.');
+    const snap = await db.collection(BLOG_COLLECTION).where('status', '==', 'published').limit(limit).get();
+    return snap.docs.map(mapDoc).sort(
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+  }
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {

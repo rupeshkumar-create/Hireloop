@@ -23,6 +23,7 @@ import {
   runCompetitorAnalysisAgent,
   runStrategyAgent,
   runContentGenerationAgent,
+  runContentExpansionAgent,
   runSeoValidationAgent,
   buildInternalLinks,
   runSchemaAgent,
@@ -61,6 +62,12 @@ import {
   buildOperationalChecks,
   buildStrategyAdminView,
 } from './adminDashboard.js';
+import {
+  BLOG_TARGET_WORD_COUNT,
+  countWords,
+  meetsMinimumWordCount,
+} from './wordCount.js';
+import { safeFirestoreQuery } from './safeFirestore.js';
 
 function toSlug(title: string, date: string): string {
   const kebab = title
@@ -74,7 +81,35 @@ function toSlug(title: string, date: string): string {
 }
 
 function estimateReadTime(content: string): number {
-  return Math.max(1, Math.round(content.split(/\s+/).length / 200));
+  return Math.max(1, Math.round(countWords(content) / 200));
+}
+
+async function ensureMinimumWordCount(
+  content: string,
+  context: { title: string; targetKeywords: string[] },
+  maxAttempts = 2
+): Promise<{ content: string; expansionCalls: number }> {
+  let current = content;
+  let expansionCalls = 0;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (meetsMinimumWordCount(current)) {
+      return { content: current, expansionCalls };
+    }
+    current = await runContentExpansionAgent(
+      { title: context.title, content: current, targetKeywords: context.targetKeywords },
+      BLOG_TARGET_WORD_COUNT
+    );
+    expansionCalls++;
+  }
+
+  if (!meetsMinimumWordCount(current)) {
+    throw new Error(
+      `Blog post too short (${countWords(current)} words). Minimum is ${BLOG_TARGET_WORD_COUNT}.`
+    );
+  }
+
+  return { content: current, expansionCalls };
 }
 
 function extractFaq(content: string): { question: string; answer: string }[] {
@@ -147,6 +182,17 @@ export async function runDailyContentPipeline(options: PublishOptions = {}): Pro
     if (!content.startsWith('#')) {
       content = `# ${generated.title}\n\n${content}`;
     }
+
+    tracker.start('expand');
+    const expanded = await ensureMinimumWordCount(content, {
+      title: generated.title,
+      targetKeywords: topic.targetKeywords,
+    });
+    content = expanded.content;
+    tracker.complete('expand', {
+      wordCount: countWords(content),
+      expansionCalls: expanded.expansionCalls,
+    });
 
     const today = new Date().toISOString().split('T')[0];
     const slug = toSlug(generated.title, today);
@@ -516,39 +562,165 @@ export async function refreshContent(slug: string, reason: string): Promise<void
   const post = await getBlogPostBySlug(slug);
   if (!post) throw new Error(`Post not found: ${slug}`);
 
-  const refreshedContent = await runContentRefreshAgent(post, reason);
-  const faq = extractFaq(refreshedContent);
+  let refreshedContent = await runContentRefreshAgent(post, reason);
+  if (!meetsMinimumWordCount(refreshedContent)) {
+    const expanded = await ensureMinimumWordCount(refreshedContent, {
+      title: post.title,
+      targetKeywords: post.targetKeywords ?? [],
+    });
+    refreshedContent = expanded.content;
+  }
+
+  await saveExpandedPost(post, refreshedContent, 'content_refresh', reason);
+}
+
+export async function expandBlogPost(slug: string): Promise<{ slug: string; wordCount: number }> {
+  const post = await getBlogPostBySlug(slug);
+  if (!post) throw new Error(`Post not found: ${slug}`);
+  if (!post.content) throw new Error(`Post has no content: ${slug}`);
+  if (meetsMinimumWordCount(post.content)) {
+    return { slug, wordCount: countWords(post.content) };
+  }
+
+  const before = countWords(post.content);
+  const expanded = await ensureMinimumWordCount(post.content, {
+    title: post.title,
+    targetKeywords: post.targetKeywords ?? [],
+  });
+
+  await saveExpandedPost(
+    post,
+    expanded.content,
+    'content_expand',
+    `Expanded from ${before} to ${countWords(expanded.content)} words`
+  );
+
+  return { slug, wordCount: countWords(expanded.content) };
+}
+
+async function saveExpandedPost(
+  post: BlogPost,
+  content: string,
+  runType: 'content_refresh' | 'content_expand',
+  reason: string
+): Promise<void> {
+  const faq = extractFaq(content);
   const enhanced = post as EnhancedBlogPost;
 
   const updated: EnhancedBlogPost = {
     ...enhanced,
-    content: refreshedContent,
+    content,
     faq,
+    readTimeMinutes: estimateReadTime(content),
     refreshedAt: new Date().toISOString(),
-    schema: runSchemaAgent({ ...post, content: refreshedContent, faq, refreshedAt: new Date().toISOString() }),
-    seoValidation: runSeoValidationAgent({ ...post, content: refreshedContent, faq }),
+    schema: runSchemaAgent({ ...post, content, faq, refreshedAt: new Date().toISOString() }),
+    seoValidation: runSeoValidationAgent({ ...post, content, faq }),
   };
 
   await saveBlogPost(updated as BlogPost);
-  await logGrowthRun({ type: 'content_refresh', status: 'success', details: { slug, reason } });
+  await logGrowthRun({
+    type: runType,
+    status: 'success',
+    details: { slug: post.slug, reason, wordCount: countWords(content) },
+  });
+}
+
+/** Expand published posts that are below the word minimum. */
+export async function expandShortBlogPosts(options: { slug?: string; limit?: number } = {}): Promise<{
+  expanded: string[];
+  skipped: string[];
+  errors: { slug: string; error: string }[];
+}> {
+  const limit = options.limit ?? 5;
+  const posts = options.slug
+    ? ([await getBlogPostBySlug(options.slug)].filter(Boolean) as BlogPost[])
+    : await listBlogPosts(100);
+
+  const shortPosts = posts.filter((p) => p.content && !meetsMinimumWordCount(p.content)).slice(0, limit);
+  const expanded: string[] = [];
+  const skipped: string[] = [];
+  const errors: { slug: string; error: string }[] = [];
+
+  for (const post of shortPosts) {
+    try {
+      await expandBlogPost(post.slug);
+      expanded.push(post.slug);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ slug: post.slug, error: message });
+    }
+  }
+
+  for (const post of posts) {
+    if (post.content && meetsMinimumWordCount(post.content) && !expanded.includes(post.slug)) {
+      skipped.push(post.slug);
+    }
+  }
+
+  return { expanded, skipped, errors };
 }
 
 // ─── Admin Dashboard Data ─────────────────────────────────────────────────────
 
 export async function getContentGrowthDashboard() {
-  const [state, keywords, competitors, clusters, metrics, runs, reports, plan, posts, strategy] =
-    await Promise.all([
-      loadGrowthState(),
-      listKeywords(50),
-      listCompetitors(),
-      listClusters(),
-      listPageMetrics(30),
-      listGrowthRuns(30),
-      listLearningReports(6),
-      getLatestStrategyPlan(),
-      listBlogPosts(50),
-      loadStrategy(),
-    ]);
+  const [
+    stateResult,
+    keywordsResult,
+    competitorsResult,
+    clustersResult,
+    metricsResult,
+    runsResult,
+    reportsResult,
+    planResult,
+    postsResult,
+    strategy,
+  ] = await Promise.all([
+    safeFirestoreQuery('growth state', () => loadGrowthState(), {
+      lastKeywordDiscovery: null,
+      lastCompetitorAnalysis: null,
+      lastMonthlyLearning: null,
+      lastDailyPublish: null,
+      totalPostsPublished: 0,
+      activeClusters: 0,
+      systemStatus: 'idle' as const,
+      lastError: null,
+      updatedAt: new Date().toISOString(),
+    }),
+    safeFirestoreQuery('keywords', () => listKeywords(50), []),
+    safeFirestoreQuery('competitors', () => listCompetitors(), []),
+    safeFirestoreQuery('clusters', () => listClusters(), []),
+    safeFirestoreQuery('metrics', () => listPageMetrics(30), []),
+    safeFirestoreQuery('runs', () => listGrowthRuns(30), []),
+    safeFirestoreQuery('learning reports', () => listLearningReports(6), []),
+    safeFirestoreQuery('strategy plan', () => getLatestStrategyPlan(), null),
+    safeFirestoreQuery('blog posts', () => listBlogPosts(50), []),
+    loadStrategy().catch((error) => {
+      console.error('[contentGrowth] strategy load failed:', error);
+      return null;
+    }),
+  ]);
+
+  const state = stateResult.data;
+  const keywords = keywordsResult.data;
+  const competitors = competitorsResult.data;
+  const clusters = clustersResult.data;
+  const metrics = metricsResult.data;
+  const runs = runsResult.data;
+  const reports = reportsResult.data;
+  const plan = planResult.data;
+  const posts = postsResult.data;
+
+  const loadErrors = [
+    stateResult.error,
+    keywordsResult.error,
+    competitorsResult.error,
+    clustersResult.error,
+    metricsResult.error,
+    runsResult.error,
+    reportsResult.error,
+    planResult.error,
+    postsResult.error,
+  ].filter(Boolean) as string[];
 
   const metricsBySlug = new Map(metrics.map((m) => [m.slug, m]));
   const performanceScores = buildPerformanceScores(metrics, posts);
@@ -569,6 +741,7 @@ export async function getContentGrowthDashboard() {
 
   return {
     state,
+    loadErrors,
     schedule: getCronSchedule(),
     operational,
     strategy: buildStrategyAdminView(strategy, plan),
@@ -586,6 +759,8 @@ export async function getContentGrowthDashboard() {
       totalKeywords: keywords.length,
       totalClusters: clusters.length,
       totalPosts: posts.length,
+      postsUnderWordTarget: postSummaries.filter((p) => p.meetsWordTarget === false).length,
+      blogWordTarget: BLOG_TARGET_WORD_COUNT,
       pendingTopics: strategy?.pendingTopics?.length ?? 0,
       avgSeoScore: postSummaries.length
         ? Math.round(
