@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
+import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -84,16 +85,10 @@ const LP_STYLE = `
     height:60px; max-width:1200px; margin:0 auto; padding:0 32px;
   }
   .lp-wordmark {
-    font-family:var(--lp-font-d); font-size:18px; font-weight:400;
-    letter-spacing:-.01em; color:var(--lp-fg); text-decoration:none;
-    position:relative;
+    display:inline-flex; align-items:center; text-decoration:none;
+    transition:opacity 220ms ease;
   }
-  .lp-wordmark::after {
-    content:''; position:absolute; bottom:-2px; left:0; right:100%;
-    height:1px; background:var(--lp-accent);
-    transition:right 400ms cubic-bezier(.22,1,.36,1);
-  }
-  .lp-wordmark:hover::after { right:0; }
+  .lp-wordmark:hover { opacity:0.82; }
   .lp-nav-actions { display:flex; align-items:center; gap:24px; }
   .lp-nav-link {
     font-size:14px; color:var(--lp-muted); text-decoration:none;
@@ -452,7 +447,7 @@ const LP_STYLE = `
     display:grid; grid-template-columns:2.2fr 1fr 1fr 1fr; gap:48px; align-items:start;
   }
   /* brand column */
-  .lp-footer-logo { font-family:var(--lp-font-d); font-size:20px; font-weight:400; color:var(--lp-fg); text-decoration:none; display:block; margin-bottom:12px; }
+  .lp-footer-logo { display:inline-flex; text-decoration:none; margin-bottom:12px; }
   .lp-footer-tagline { font-size:13px; line-height:1.6; color:var(--lp-muted); max-width:210px; margin-bottom:28px; }
   .lp-footer-socials { display:flex; gap:10px; }
   .lp-footer-social {
@@ -747,7 +742,9 @@ export function LandingPage() {
       {/* ── Nav ── */}
       <nav ref={navRef} className="lp-nav">
         <div className="lp-nav-inner">
-          <Link to="/" className="lp-wordmark">Hireschema</Link>
+          <Link to="/" className="lp-wordmark">
+            <HireschemaLogo height={26} />
+          </Link>
           <div className="lp-nav-actions">
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
@@ -1048,7 +1045,9 @@ export function LandingPage() {
 
               {/* Brand column */}
               <div>
-                <Link to="/" className="lp-footer-logo">Hireschema</Link>
+                <Link to="/" className="lp-footer-logo">
+                  <HireschemaLogo height={30} />
+                </Link>
                 <p className="lp-footer-tagline">Your autonomous job-search agent. Daily matches, zero noise.</p>
                 <div className="lp-status-badge">
                   <span className="lp-status-dot" />

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from './ui/button';
-import { Briefcase } from 'lucide-react';
+import { HireschemaLogo } from './brand/HireschemaLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ui/theme-toggle';
 
@@ -12,16 +11,8 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-background font-sans text-foreground">
       <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface-hover">
-              <Briefcase className="h-4 w-4 text-foreground" />
-            </div>
-            <div>
-              <span className="text-xl font-medium leading-none tracking-[-0.02em]">Hireschema</span>
-              <p className="mt-0.5 hidden text-[11px] uppercase tracking-[0.16em] text-foreground-muted md:block">
-                Remote Job Agent
-              </p>
-            </div>
+          <Link to="/" className="inline-flex items-center no-underline">
+            <HireschemaLogo height={28} />
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/blog" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
@@ -53,11 +44,8 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
       <footer className="mt-auto border-t border-border bg-surface/40 py-14">
         <div className="mx-auto mb-12 grid max-w-7xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
           <div className="col-span-2">
-            <Link to="/" className="mb-4 inline-flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-hover">
-                <Briefcase className="h-3 w-3 text-foreground" />
-              </div>
-              <span className="text-xl font-medium tracking-[-0.02em]">Hireschema</span>
+            <Link to="/" className="mb-4 inline-flex no-underline">
+              <HireschemaLogo height={26} />
             </Link>
             <p className="max-w-sm text-sm leading-6 text-foreground-muted">
               The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles from anywhere in the world.

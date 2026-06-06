@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
+import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
 
 const FLOW_STEPS = [
@@ -24,7 +25,9 @@ export function Login() {
     <div className="hs-landing min-h-screen flex flex-col">
       <nav className="hs-land-nav">
         <div className="hs-land-container hs-land-nav-inner">
-          <Link to="/" className="hs-land-wordmark text-lg text-[var(--hs-land-fg)] no-underline">Hireschema</Link>
+          <Link to="/" className="inline-flex no-underline">
+            <HireschemaLogo height={26} />
+          </Link>
           <Link to="/" className="flex items-center gap-2 text-sm text-[var(--hs-land-muted)] no-underline transition hover:text-[var(--hs-land-fg)]">
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to home

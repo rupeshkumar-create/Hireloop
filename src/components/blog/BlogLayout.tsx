@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { HireschemaLogo } from '../brand/HireschemaLogo';
 import '../../styles/blogLanding.css';
 
 interface BlogLayoutProps {
@@ -15,7 +16,7 @@ export function BlogLayout({ children }: BlogLayoutProps) {
       <nav className="blog-lp-nav">
         <div className="blog-lp-nav-inner">
           <Link to="/" className="blog-lp-wordmark">
-            Hireschema
+            <HireschemaLogo height={26} />
           </Link>
           <div className="blog-lp-nav-actions">
             <Link to="/blog" className="blog-lp-nav-link">

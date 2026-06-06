@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { HireschemaLogo } from './brand/HireschemaLogo';
 import { cn } from '../lib/utils';
 import { isAdminEmail } from '../lib/adminEmails';
 
@@ -88,7 +89,7 @@ export function Sidebar() {
   return (
     <aside className="hs-sidebar">
       <Link to="/dashboard" className="hs-sidebar-logo">
-        <span className="hs-wordmark">Hireschema</span>
+        <HireschemaLogo height={22} />
         <span className="hs-badge">{plan}</span>
       </Link>
 

@@ -17,6 +17,7 @@ import { Toaster } from 'sonner';
 import { ArrowRight, Search } from 'lucide-react';
 import { isAdminEmail } from './lib/adminEmails';
 import { isOnboardingComplete } from './lib/onboarding';
+import { HireschemaLogo } from './components/brand/HireschemaLogo';
 
 const JobTracker = lazy(() => import('./pages/JobTracker').then((m) => ({ default: m.JobTracker })));
 const ResumeProfile = lazy(() => import('./pages/ResumeProfile').then((m) => ({ default: m.ResumeProfile })));
@@ -85,8 +86,8 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] px-6 py-4">
-        <Link to="/" className="font-display text-lg font-semibold text-[var(--hs-app-fg)] no-underline">
-          Hireschema
+        <Link to="/" className="inline-flex no-underline">
+          <HireschemaLogo height={26} />
         </Link>
         <p className="mt-1 text-xs text-[var(--hs-app-muted)]">
           About 2 minutes to your first matched roles

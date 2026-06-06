@@ -44,12 +44,14 @@
 }
 
 .blog-lp-wordmark {
-  font-family: var(--lp-font-d);
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  color: var(--lp-fg);
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
+  transition: opacity 220ms ease;
+}
+
+.blog-lp-wordmark:hover {
+  opacity: 0.82;
 }
 
 .blog-lp-nav-actions {

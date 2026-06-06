@@ -299,7 +299,7 @@ export function runSchemaAgent(
       '@type': 'Organization',
       name: 'HireSchema',
       url: 'https://hireschema.com',
-      logo: { '@type': 'ImageObject', url: 'https://hireschema.com/favicon.svg' },
+      logo: { '@type': 'ImageObject', url: 'https://hireschema.com/favicon-512.png' },
     },
     datePublished: published,
     dateModified: post.refreshedAt || published,
