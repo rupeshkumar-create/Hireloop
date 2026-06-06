@@ -17,14 +17,17 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
     const storedTheme = window.localStorage.getItem(STORAGE_KEY);
     const initialTheme: Theme = storedTheme === 'dark' ? 'dark' : 'light';
-    setThemeState(initialTheme);
     applyTheme(initialTheme);
-  }, []);
+    return initialTheme;
+  });
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const setTheme = useCallback((nextTheme: Theme) => {
     setThemeState(nextTheme);

@@ -26,6 +26,13 @@
       gtag('js', new Date());
       gtag('config', 'G-M99635SH9J');
     </script>
+    <script>
+      try {
+        if (localStorage.getItem('hireschema-theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
