@@ -14,6 +14,10 @@
 import { getAdminDb } from './firebaseAdmin.js';
 import { chat, chatJSON, MODELS } from './contentGrowth/ai.js';
 import { BLOG_TARGET_WORD_COUNT } from './contentGrowth/wordCount.js';
+import {
+  getEvergreenPostBySlug,
+  getEvergreenPostSummaries,
+} from './contentGrowth/evergreen/publicListing.js';
 
 const STRATEGY_DOC = 'marketing/strategy';
 const BLOG_COLLECTION = 'blog_posts';
@@ -374,30 +378,45 @@ export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content
   };
 
   try {
-    const snap = await db
-      .collection(BLOG_COLLECTION)
-      .where('status', '==', 'published')
-      .orderBy('publishedAt', 'desc')
-      .limit(limit)
-      .get();
-    return snap.docs.map(mapDoc);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const needsIndex = message.includes('index') || message.includes('FAILED_PRECONDITION');
-    if (!needsIndex) throw error;
+    let fromDb: Omit<BlogPost, 'content'>[] = [];
 
-    console.warn('[listBlogPosts] Composite index missing — using fallback query. Deploy firestore.indexes.json.');
-    const snap = await db.collection(BLOG_COLLECTION).where('status', '==', 'published').limit(limit).get();
-    return snap.docs.map(mapDoc).sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    try {
+      const snap = await db
+        .collection(BLOG_COLLECTION)
+        .where('status', '==', 'published')
+        .orderBy('publishedAt', 'desc')
+        .limit(limit)
+        .get();
+      fromDb = snap.docs.map(mapDoc);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const needsIndex = message.includes('index') || message.includes('FAILED_PRECONDITION');
+      if (!needsIndex) throw error;
+
+      console.warn('[listBlogPosts] Composite index missing — using fallback query. Deploy firestore.indexes.json.');
+      const snap = await db.collection(BLOG_COLLECTION).where('status', '==', 'published').limit(limit).get();
+      fromDb = snap.docs.map(mapDoc).sort(
+        (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      );
+    }
+
+    if (fromDb.length > 0) return fromDb;
+    return getEvergreenPostSummaries(limit);
+  } catch (error) {
+    console.warn('[listBlogPosts] Firestore unavailable — serving evergreen guides:', error);
+    return getEvergreenPostSummaries(limit);
   }
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
-  const db = getAdminDb();
-  const doc = await db.collection(BLOG_COLLECTION).doc(slug).get();
-  return doc.exists ? (doc.data() as BlogPost) : null;
+  try {
+    const db = getAdminDb();
+    const doc = await db.collection(BLOG_COLLECTION).doc(slug).get();
+    if (doc.exists) return doc.data() as BlogPost;
+  } catch (error) {
+    console.warn('[getBlogPostBySlug] Firestore unavailable — trying evergreen catalog:', error);
+  }
+  return getEvergreenPostBySlug(slug);
 }
 
 // ─── Weekly Analysis ──────────────────────────────────────────────────────────

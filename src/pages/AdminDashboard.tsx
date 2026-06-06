@@ -75,6 +75,37 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+class ContentGrowthErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+          <p className="text-sm font-medium text-red-400">Content Growth panel crashed</p>
+          <p className="mt-2 font-mono text-xs text-foreground-muted break-all">{this.state.error.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => this.setState({ error: null })}
+          >
+            Try again
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AdminModalFrame({
   children,
   onClose,
@@ -685,7 +716,9 @@ export function AdminDashboard() {
       </div>
 
       {activeTab === 'content' ? (
-        <ContentGrowthPanel />
+        <ContentGrowthErrorBoundary>
+          <ContentGrowthPanel />
+        </ContentGrowthErrorBoundary>
       ) : (
         <>
       {/* Stats */}

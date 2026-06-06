@@ -124,6 +124,57 @@ interface GrowthDashboard {
 
 type Tab = 'overview' | 'strategy' | 'posts' | 'activity';
 
+const EMPTY_DASHBOARD: GrowthDashboard = {
+  state: {
+    systemStatus: 'idle',
+    lastDailyPublish: null,
+    lastKeywordDiscovery: null,
+    lastCompetitorAnalysis: null,
+    lastMonthlyLearning: null,
+    totalPostsPublished: 0,
+    activeClusters: 0,
+    lastError: null,
+  },
+  operational: { ready: false, checks: [] },
+  strategy: null,
+  schedule: [],
+  models: { research: '—', writing: '—', dailyAiCalls: 0, coverImages: '—' },
+  summary: {
+    totalPosts: 0,
+    pendingTopics: 0,
+    totalKeywords: 0,
+    totalClusters: 0,
+    totalPageviews: 0,
+    avgSeoScore: 0,
+    avgLlmScore: 0,
+  },
+  posts: [],
+  runs: [],
+  keywords: [],
+  clusters: [],
+  learningReports: [],
+};
+
+function normalizeDashboard(raw: unknown): GrowthDashboard | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<GrowthDashboard>;
+  if (!r.state && !r.operational && !r.schedule) return null;
+  return {
+    ...EMPTY_DASHBOARD,
+    ...r,
+    state: { ...EMPTY_DASHBOARD.state, ...r.state },
+    operational: { ...EMPTY_DASHBOARD.operational, ...r.operational },
+    models: { ...EMPTY_DASHBOARD.models, ...r.models },
+    summary: { ...EMPTY_DASHBOARD.summary, ...r.summary },
+    posts: Array.isArray(r.posts) ? r.posts : [],
+    runs: Array.isArray(r.runs) ? r.runs : [],
+    keywords: Array.isArray(r.keywords) ? r.keywords : [],
+    clusters: Array.isArray(r.clusters) ? r.clusters : [],
+    learningReports: Array.isArray(r.learningReports) ? r.learningReports : [],
+    schedule: Array.isArray(r.schedule) ? r.schedule : [],
+  };
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string | null | undefined): string {
@@ -318,13 +369,21 @@ export function ContentGrowthPanel() {
     try {
       const token = await getToken();
       const res = await fetch('/api/admin/content-growth', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get('content-type') ?? '';
+      const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : `Request failed (${res.status})`);
+        throw new Error(typeof payload.error === 'string' ? payload.error : `Request failed (${res.status})`);
       }
-      setData(data);
-      if (Array.isArray(data.loadErrors) && data.loadErrors.length > 0) {
-        toast.warning(`Some dashboard data could not load (${data.loadErrors.length} issue(s))`);
+      if (!contentType.includes('application/json')) {
+        throw new Error('Admin API returned an invalid response. Redeploy the latest code and try again.');
+      }
+      const normalized = normalizeDashboard(payload);
+      if (!normalized) {
+        throw new Error('Could not parse dashboard data. The admin API may be misconfigured.');
+      }
+      setData(normalized);
+      if (Array.isArray(normalized.loadErrors) && normalized.loadErrors.length > 0) {
+        toast.warning(`Some dashboard data could not load (${normalized.loadErrors.length} issue(s))`);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load content growth data';

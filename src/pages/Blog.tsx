@@ -62,24 +62,23 @@ export function Blog() {
     <>
       <SeoHead
         title="Hiring Guides & Remote Job Insights | HireSchema"
-        description="Daily recruiter-focused hiring guides on remote job search, AI matching, salary benchmarks, and interview prep. Updated automatically."
+        description="Practical guides for remote job seekers — search strategies, resume tips, salary data, and interview prep."
         canonicalUrl="https://hireschema.com/blog"
         ogType="website"
-        keywords={['remote job search', 'hiring guides', 'AI job matching', 'salary benchmarks']}
+        keywords={['remote job search', 'hiring guides', 'resume tips', 'salary negotiation', 'interview prep']}
       />
 
       <div className="mx-auto max-w-4xl px-6 py-16">
         <div className="mb-14 text-center">
           <div className="mb-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-foreground-muted">
             <Sparkles className="h-3 w-3" />
-            Daily Hiring Guides
+            Hiring Guides
           </div>
           <h1 className="text-4xl font-normal tracking-[-0.02em] md:text-5xl">
-            Remote Job Search, Salary Data &amp; Hiring Trends
+            Remote Job Search, Salary Data &amp; Career Tips
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-foreground-muted">
-            Recruiter-focused guides published daily — optimized for Google, ChatGPT, Claude, Gemini, and Perplexity.
-            Built by our autonomous content growth system.
+            Actionable guides to help you find remote roles, tailor your applications, negotiate pay, and prepare for interviews.
           </p>
         </div>
 
@@ -119,9 +118,13 @@ export function Blog() {
 
         {!loading && !error && filtered.length === 0 && (
           <div className="py-24 text-center">
-            <p className="text-lg font-medium">No guides yet — check back tomorrow.</p>
+            <p className="text-lg font-medium">No guides in this category yet.</p>
             <p className="mt-2 text-sm text-foreground-muted">
-              Our content growth system publishes a new hiring guide every day at 8:00 UTC.
+              Try another topic above, or{' '}
+              <Link to="/signup" className="underline underline-offset-2 hover:text-foreground">
+                start matching with remote jobs
+              </Link>
+              .
             </p>
           </div>
         )}
