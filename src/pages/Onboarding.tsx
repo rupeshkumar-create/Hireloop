@@ -13,6 +13,7 @@ import {
   Rocket,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isOnboardingComplete, deriveOnboardingStep, nextStepAfterUpload } from '../lib/onboarding';
 import { ResumeUploader } from '../components/dashboard/ResumeUploader';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
@@ -37,7 +38,7 @@ type Step = 'upload' | 'paths' | 'scout' | 'matches';
 const STEP_ORDER: Step[] = ['upload', 'paths', 'scout', 'matches'];
 const STEP_LABELS: Record<Step, string> = {
   upload: 'Upload resume',
-  paths: 'Confirm 3 paths',
+  paths: 'Career paths',
   scout: 'Scout running',
   matches: 'First matches',
 };
@@ -45,11 +46,7 @@ const STEP_LABELS: Record<Step, string> = {
 // Derive the natural starting step from profile state so a refresh mid-wizard
 // resumes where the user left off.
 function deriveInitialStep(profile: any): Step {
-  if (!profile?.resumeText) return 'upload';
-  if (!profile?.careerPaths || profile.careerPaths.length === 0) return 'paths';
-  // careerPaths populated → user can still review/confirm them
-  // We'll only auto-advance past 'paths' once the user explicitly continues.
-  return 'paths';
+  return deriveOnboardingStep(profile);
 }
 
 export function Onboarding() {
@@ -70,21 +67,14 @@ export function Onboarding() {
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
   }
-  // Treat as already-onboarded if the explicit flag is set, OR if the user
-  // is a legacy account that pre-dates the wizard (has a resume, paths, and
-  // jobs already delivered — clearly through the funnel).
-  const isLegacyOnboarded =
-    !!profile?.resumeText &&
-    (profile?.careerPaths?.length || 0) > 0 &&
-    (profile?.dailyJobs?.length || 0) > 0;
-  if (profile?.onboardingCompletedAt || isLegacyOnboarded) {
+  if (isOnboardingComplete(profile)) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const goNext = (next: Step) => setStep(next);
   const finish = async () => {
     await updateProfile({ onboardingCompletedAt: new Date().toISOString() });
-    navigate('/dashboard');
+    navigate('/dashboard?welcome=1');
   };
 
   return (
@@ -105,7 +95,7 @@ export function Onboarding() {
                 <UploadStep
                   profile={profile}
                   updateProfile={updateProfile}
-                  onDone={() => goNext('paths')}
+                  onDone={() => goNext(nextStepAfterUpload(profile))}
                 />
               )}
               {step === 'paths' && (
@@ -113,12 +103,14 @@ export function Onboarding() {
                   profile={profile}
                   updateProfile={updateProfile}
                   onDone={() => goNext('scout')}
+                  onSkipScout={finish}
                 />
               )}
               {step === 'scout' && (
                 <ScoutStep
                   profile={profile}
                   onDone={() => goNext('matches')}
+                  onFinishEarly={finish}
                 />
               )}
               {step === 'matches' && (
@@ -148,7 +140,7 @@ function WizardHeader({ currentStep }: { currentStep: Step }) {
         Calibrate your AI Scout.
       </h1>
       <p className="mt-2 text-foreground-muted">
-        Four short steps. By the end you'll see your first matched jobs.
+        Upload once, confirm your paths, then Scout finds remote roles matched to your resume.
       </p>
 
       <ol className="mt-8 flex flex-wrap items-center gap-2">
@@ -210,6 +202,7 @@ function UploadStep({
           profile={profile}
           updateProfile={updateProfile}
           onSuccess={onDone}
+          quiet
         />
       </div>
 
@@ -234,10 +227,12 @@ function PathsStep({
   profile,
   updateProfile,
   onDone,
+  onSkipScout,
 }: {
   profile: any;
   updateProfile: (data: any) => Promise<void>;
   onDone: () => void;
+  onSkipScout: () => Promise<void>;
 }) {
   // Start from existing careerPaths if any, otherwise from suggestions.
   const seed: string[] = useMemo(() => {
@@ -251,12 +246,19 @@ function PathsStep({
   const [paths, setPaths] = useState<string[]>(seed);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [seededSuggestions, setSeededSuggestions] = useState(false);
 
   const suggestions = (profile?.careerPathSuggestions || []) as Array<{
     id: string;
     title: string;
     rationale?: string;
   }>;
+
+  useEffect(() => {
+    if (seededSuggestions || paths.length > 0 || suggestions.length === 0) return;
+    setPaths(suggestions.slice(0, 3).map((s) => s.title));
+    setSeededSuggestions(true);
+  }, [paths.length, seededSuggestions, suggestions]);
 
   const addPath = (title: string) => {
     const t = title.trim();
@@ -271,6 +273,21 @@ function PathsStep({
   };
 
   const removePath = (title: string) => setPaths(paths.filter((p) => p !== title));
+
+  const handleSkip = async () => {
+    if (paths.length > 0) {
+      setSaving(true);
+      try {
+        await updateProfile({ careerPaths: paths });
+      } catch (e: any) {
+        toast.error(e?.message || 'Could not save career paths.');
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+    await onSkipScout();
+  };
 
   const handleContinue = async () => {
     if (paths.length === 0) {
@@ -307,8 +324,8 @@ function PathsStep({
       <StepHeading
         icon={Compass}
         eyebrow="Step 2 of 4"
-        title="Confirm your 3 career paths"
-        body="We auto-detected these from your resume. Keep the ones that fit, swap any that don't. Scout uses these to search."
+        title="Confirm your career paths"
+        body="We picked these from your resume. Keep 1–3 roles Scout should search for — you can edit anytime in Settings."
       />
 
       {countryLabel && (
@@ -420,14 +437,19 @@ function PathsStep({
       </div>
 
       {/* Footer */}
-      <div className="mt-10 flex items-center justify-between">
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-foreground-muted">
-          Pick at least 1. Up to 3 paths gives Scout the best signal.
+          Pick at least 1 path. Scout starts as soon as you continue.
         </span>
-        <Button onClick={handleContinue} disabled={saving || paths.length === 0}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Continue <ArrowRight className="ml-1.5 h-4 w-4" />
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void handleSkip()} disabled={saving}>
+            Skip for now
+          </Button>
+          <Button onClick={handleContinue} disabled={saving || paths.length === 0}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Start Scout <ArrowRight className="ml-1.5 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </section>
   );
@@ -437,7 +459,7 @@ function PathsStep({
 // it can be triggered from step 2's "Continue" handler — that way the engine
 // is already running by the time the user lands on step 3. Idempotent on the
 // API side (the user-triggered dispatcher dedupes); harmless if called twice.
-async function triggerScoutRun(): Promise<void> {
+async function triggerScoutRun(): Promise<'dispatched' | 'ready'> {
   const { getAuth } = await import('firebase/auth');
   const auth = getAuth();
   const user = auth.currentUser;
@@ -448,37 +470,53 @@ async function triggerScoutRun(): Promise<void> {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify({ mode: 'request' }),
   });
-  if (!res.ok && res.status !== 202) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Scout request failed (${res.status}). ${text}`);
+  if (res.status === 202 || res.status === 409 || res.ok) {
+    return res.status === 202 ? 'dispatched' : 'ready';
   }
+  const text = await res.text().catch(() => '');
+  throw new Error(`Scout request failed (${res.status}). ${text}`);
 }
 
 // ─── Step 3 — Scout runs ──────────────────────────────────────────────────────
 
 const SCOUT_STAGES = [
   { id: 'queue',     label: 'Briefing Scout on your profile',     hint: 'Loading your resume + career paths' },
-  { id: 'search',    label: 'Searching ATS feeds and live web',   hint: 'Greenhouse · Lever · Perplexity' },
+  { id: 'search',    label: 'Searching ATS feeds and live job boards', hint: 'Greenhouse · Lever · Apify' },
   { id: 'validate',  label: 'Filtering by your region + freshness', hint: 'Removing region-restricted roles' },
-  { id: 'rank',      label: 'AI scoring resume fit',              hint: 'Gemini ranks the strongest matches' },
+  { id: 'rank',      label: 'Scoring resume fit',              hint: 'OpenRouter ranks the strongest matches' },
   { id: 'deliver',   label: 'Preparing your first matches',       hint: 'Almost there…' },
 ];
 
-function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
+function ScoutStep({
+  profile,
+  onDone,
+  onFinishEarly,
+}: {
+  profile: any;
+  onDone: () => void;
+  onFinishEarly: () => Promise<void>;
+}) {
   const [stageIdx, setStageIdx] = useState(0);
   const [triggered, setTriggered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [dispatched, setDispatched] = useState(false);
 
-  // Step 2 already fired Scout — this effect is a safety-net retry in case
-  // the user reloaded mid-flow and arrived on step 3 with no run pending.
   useEffect(() => {
     let cancelled = false;
     if (triggered) return;
     setTriggered(true);
 
-    triggerScoutRun().catch((e: any) => {
-      if (!cancelled) setError(e?.message || 'Could not start Scout. You can try again from the dashboard.');
-    });
+    triggerScoutRun()
+      .then((status) => {
+        if (!cancelled) {
+          setDispatched(status === 'dispatched');
+          if (status === 'ready') onDone();
+        }
+      })
+      .catch((e: any) => {
+        if (!cancelled) setError(e?.message || 'Could not start Scout. You can try again from the dashboard.');
+      });
 
     return () => {
       cancelled = true;
@@ -486,21 +524,23 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Animate stages forward roughly every 6s as a perceived-progress affordance.
-  // We don't have per-stage backend events; this gives the user a sense the
-  // engine is working through the pipeline. The reactive jobs effect below is
-  // what actually advances out of this step.
+  useEffect(() => {
+    const timer = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     if (stageIdx >= SCOUT_STAGES.length - 1) return;
-    const t = setTimeout(() => setStageIdx((i) => Math.min(i + 1, SCOUT_STAGES.length - 1)), 6000);
+    const t = setTimeout(() => setStageIdx((i) => Math.min(i + 1, SCOUT_STAGES.length - 1)), 5000);
     return () => clearTimeout(t);
   }, [stageIdx]);
 
-  // Reactive: as soon as the profile snapshot delivers today's dailyJobs, advance.
   const jobsReady = (profile?.dailyJobs?.length || 0) > 0;
   useEffect(() => {
     if (jobsReady) onDone();
   }, [jobsReady, onDone]);
+
+  const canOpenDashboard = elapsedSec >= 20;
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
@@ -508,8 +548,17 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
         icon={Rocket}
         eyebrow="Step 3 of 4"
         title="Scout is searching for your matches"
-        body="This usually takes 30–90 seconds. We're scoring jobs against your resume now — no need to refresh."
+        body={
+          dispatched
+            ? 'Running in the background — usually 1–2 minutes. Stay here or open your dashboard; matches appear automatically.'
+            : 'Scoring jobs against your resume now — no need to refresh.'
+        }
       />
+
+      <div className="mt-4 flex items-center justify-between text-xs text-foreground-muted">
+        <span>Elapsed {elapsedSec}s</span>
+        {dispatched ? <span>Background job started</span> : null}
+      </div>
 
       {error ? (
         <div className="mt-8 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
@@ -560,8 +609,16 @@ function ScoutStep({ profile, onDone }: { profile: any; onDone: () => void }) {
 
       <p className="mt-8 text-xs text-foreground-muted">
         <Sparkles className="inline h-3 w-3 mr-1 text-[var(--hs-app-accent)]" />
-        Tip: while you wait, the same matches will be emailed to you every morning going forward.
+        Scout also runs every morning at your preferred delivery hour.
       </p>
+
+      {canOpenDashboard ? (
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => void onFinishEarly()}>
+            Open dashboard while Scout finishes
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -582,8 +639,13 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
       />
 
       {jobs.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-border bg-background px-4 py-6 text-sm text-foreground-muted">
-          Scout didn't surface anything this run. That's usually a thin ATS day for your paths — try Scout again tomorrow morning, or add another career path in settings.
+        <div className="mt-8 space-y-4">
+          <div className="rounded-lg border border-dashed border-border bg-background px-4 py-6 text-sm text-foreground-muted">
+            Scout is still working or today&apos;s market is thin for your paths. Your dashboard will update automatically when matches land.
+          </div>
+          <p className="text-xs text-foreground-muted">
+            Tip: add another career path in Settings if you want a wider search tomorrow.
+          </p>
         </div>
       ) : (
         <ul className="mt-8 space-y-3">
@@ -635,7 +697,7 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
 
       <div className="mt-10 flex items-center justify-end">
         <Button onClick={onFinish}>
-          Open dashboard <ArrowRight className="ml-1.5 h-4 w-4" />
+          {jobs.length > 0 ? 'See all matches on dashboard' : 'Open dashboard'} <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
       </div>
     </section>

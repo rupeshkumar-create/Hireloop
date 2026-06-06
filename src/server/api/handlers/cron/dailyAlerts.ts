@@ -6,6 +6,7 @@
  *
  * A user is "active" when:
  *   - plan is set (any value) AND receiveDailyAlerts !== false
+ *   - lastActiveAt within the last 3 days
  *
  * Pro users  → 10 jobs/day
  * Free users →  1 job/day
@@ -14,9 +15,9 @@
  * received jobs recently are always prioritised in each batch.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../../src/server/firebaseAdmin.js';
-import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { evaluateDueUsers, queueCronRun } from '../../src/services/cronEngine.js';
+import { getAdminDb } from '../../../firebaseAdmin.js';
+import { requireCronSecret } from '../../../cronAuth.js';
+import { evaluateDueUsers, queueCronRun, shouldPauseForInactivity } from '../../../../services/cronEngine.js';
 
 const DISPATCH_BATCH_SIZE = 50;
 
@@ -55,7 +56,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let queued = 0;
     let skipped = skippedUsers.length;
     let duplicates = 0;
+    let pausedInactive = 0;
     const errors: string[] = [];
+
+    for (const loadedUser of skippedUsers) {
+      if (!shouldPauseForInactivity(loadedUser.data, now)) continue;
+      try {
+        await db.collection('users').doc(loadedUser.id).set(
+          {
+            receiveDailyAlerts: false,
+            automationPausedAt: now.toISOString(),
+            automationPausedReason: 'inactive_3d',
+            updatedAt: now.toISOString(),
+          },
+          { merge: true }
+        );
+        pausedInactive++;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push(`pause:${loadedUser.id}: ${message}`);
+      }
+    }
 
     for (const loadedUser of due) {
       const profile = loadedUser.data;
@@ -107,6 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       queued,
       skipped,
       duplicates,
+      pausedInactive,
       runDate: due[0]?.data.deliveryLocalDate || null,
       errors,
     });

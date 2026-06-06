@@ -3,10 +3,15 @@ import { Navigate, Link } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { isOnboardingComplete, isFreshlyOnboarded } from '../lib/onboarding';
 import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { useDailyMatchHistory } from '../hooks/useDailyMatchHistory';
 import { useDashboardAI } from '../hooks/useDashboardAI';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { GettingStartedCard } from '../components/dashboard/GettingStartedCard';
+import { DailyMatchHistoryTab } from '../components/dashboard/DailyMatchHistoryTab';
+import { LockedMatchCard } from '../components/dashboard/LockedMatchCard';
+import { buildMatchFeedItems } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit } from '../lib/planLimits';
@@ -65,6 +70,7 @@ function formatPosted(job: Job) {
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
+  const [dashboardTab, setDashboardTab] = useState<'today' | 'history'>('today');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
   const [savingJobFingerprints, setSavingJobFingerprints] = useState<string[]>([]);
@@ -85,6 +91,9 @@ export function Dashboard() {
     regionFilteredCount,
   } = useDashboardJobs(user, profile, updateProfile);
 
+  const { days: historyDays, loading: historyLoading, totals: historyTotals } =
+    useDailyMatchHistory(user);
+
   const {
     aiAction,
     aiResult,
@@ -94,13 +103,50 @@ export function Dashboard() {
     downloadResume,
   } = useDashboardAI(profile);
 
+  const [awaitingPaymentUpgrade, setAwaitingPaymentUpgrade] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      toast.success('Payment processing. Your account will be upgraded shortly.');
+    if (params.get('welcome') === '1') {
+      setShowWelcome(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+    if (params.get('payment') === 'success') {
+      setAwaitingPaymentUpgrade(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      toast.info('Payment received. Activating Pro…');
+    }
   }, []);
+
+  useEffect(() => {
+    if (!awaitingPaymentUpgrade) return;
+    if (profile?.plan?.toLowerCase() === 'pro') {
+      setAwaitingPaymentUpgrade(false);
+      toast.success('Welcome to Pro! Scout now delivers 10 matches daily.');
+    }
+  }, [awaitingPaymentUpgrade, profile?.plan]);
+
+  useEffect(() => {
+    if (window.location.hash === '#matches') {
+      document.getElementById('matches')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loadingJobs]);
+
+  useEffect(() => {
+    if (!showWelcome && !isFreshlyOnboarded(profile)) return;
+    if (filteredAndSortedJobs.length > 0 || generatingJobs || loadingJobs) return;
+    void requestJobs();
+  }, [showWelcome, profile?.onboardingCompletedAt, filteredAndSortedJobs.length, generatingJobs, loadingJobs, requestJobs]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('scout') !== '1') return;
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (!generatingJobs && !loadingJobs) {
+      void requestJobs();
+    }
+  }, [generatingJobs, loadingJobs, requestJobs]);
 
   // First-dashboard-visit booster: if the user just completed onboarding
   // (within the last 5 minutes), auto-open the top match's details panel.
@@ -126,6 +172,10 @@ export function Dashboard() {
   // for Pro). Earlier this was hardcoded to 4 and silently hid 6 of a
   // Pro user's matches even though the stat tile said "10 new matches".
   const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
+  const matchFeedItems = useMemo(
+    () => buildMatchFeedItems(topJobs, profile?.plan),
+    [topJobs, profile?.plan]
+  );
   const bestScore = topJobs.reduce((max, job) => Math.max(max, job.matchScore || job.finalScore || 0), 0);
   const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const nextRun = nextJobDeliveryAt ? new Date(nextJobDeliveryAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'tomorrow morning';
@@ -177,12 +227,59 @@ export function Dashboard() {
     }
   };
 
-  if (!profile?.resumeText) {
+  if (!isOnboardingComplete(profile)) {
     return <Navigate to="/onboarding" />;
   }
 
   return (
     <div className="hs-view space-y-7">
+      <div className="flex gap-2 border-b border-[var(--hs-app-border)]">
+        {([
+          ['today', "Today's matches"],
+          ['history', 'Match history'],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setDashboardTab(id)}
+            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              dashboardTab === id
+                ? 'border-[var(--hs-app-accent)] text-[var(--hs-app-fg)]'
+                : 'border-transparent text-[var(--hs-app-muted)] hover:text-[var(--hs-app-fg)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {profile?.automationPausedReason === 'inactive_3d' && profile.receiveDailyAlerts === false ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12px] text-amber-700">
+          Daily Scout was paused after 3 days of inactivity. Open the app again to resume — your next visit re-enables automation.
+        </div>
+      ) : null}
+
+      {(showWelcome || isFreshlyOnboarded(profile)) && (
+        <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">
+          <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
+            {filteredAndSortedJobs.length > 0
+              ? `You're set up — ${filteredAndSortedJobs.length} ${filteredAndSortedJobs.length === 1 ? 'match' : 'matches'} ready today.`
+              : generatingJobs
+              ? 'Scout is finding your first matches…'
+              : 'Welcome — Scout is preparing your first batch.'}
+          </div>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
+            {filteredAndSortedJobs.length > 0
+              ? 'Click a role below to see why it fits, then save it to unlock the AI Copilot.'
+              : 'This usually takes 1–2 minutes. Matches appear here automatically — no refresh needed.'}
+          </p>
+        </div>
+      )}
+
+      {dashboardTab === 'history' ? (
+        <DailyMatchHistoryTab days={historyDays} loading={historyLoading} totals={historyTotals} />
+      ) : (
+        <>
       {/* Region banner moved above Getting Started — it answers "why don't
           I see X jobs?" which is the first question a new user asks. */}
       {userCountry !== 'UNKNOWN' && regionFilteredCount > 0 && (
@@ -234,7 +331,7 @@ export function Dashboard() {
       </div>
 
       <div className="hs-grid">
-        <section className="hs-block">
+        <section id="matches" className="hs-block">
           <div className="hs-block-header">
             <div>
               <div className="hs-label mb-1">Today's Scout run</div>
@@ -248,35 +345,54 @@ export function Dashboard() {
 
           {loadingJobs ? (
             <div className="p-10 text-center text-sm text-[var(--hs-app-muted)]">Loading your latest Scout run...</div>
-          ) : topJobs.length > 0 ? (
-            topJobs.map((job) => {
-              const score = job.matchScore || job.finalScore || 0;
-              return (
-                <article key={job.id || job.fingerprint} className="hs-card-row" onClick={() => setSelectedJob(job)}>
-                  <div className="min-w-0">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="hs-company-mark">{companyInitials(job.company)}</span>
-                      <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
-                        {job.company} · {job.location || 'Remote'}
-                      </span>
-                    </div>
-                    <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
-                    <div className="hs-tags mb-3">
-                      {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
-                      {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
-                    </div>
-                    <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
-                      {job.aiSummary || job.aiInsight || job.description}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="hs-score" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
-                    <span className="font-mono text-[9px] text-[var(--hs-app-muted)]">{formatPosted(job)}</span>
-                    {job.isHotJob ? <span className="hs-pill hs-pill-success text-[9px]">Hot</span> : null}
-                  </div>
-                </article>
-              );
-            })
+          ) : generatingJobs ? (
+            <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--hs-app-accent)]" />
+              <div className="text-[15px] font-semibold text-[var(--hs-app-fg)]">Scout is searching for your matches</div>
+              <p className="max-w-sm text-sm text-[var(--hs-app-muted)]">
+                Checking ATS feeds and job boards against your resume. This usually takes 1–2 minutes.
+              </p>
+            </div>
+          ) : matchFeedItems.length > 0 ? (
+            matchFeedItems.map((item) =>
+              item.kind === 'locked' ? (
+                <LockedMatchCard key={item.id} slot={item.slot} />
+              ) : (
+                (() => {
+                  const job = item.job;
+                  const score = job.matchScore || job.finalScore || 0;
+                  return (
+                    <article
+                      key={item.id}
+                      className="hs-card-row"
+                      onClick={() => setSelectedJob(job)}
+                    >
+                      <div className="min-w-0">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="hs-company-mark">{companyInitials(job.company)}</span>
+                          <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
+                            {job.company} · {job.location || 'Remote'}
+                          </span>
+                        </div>
+                        <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
+                        <div className="hs-tags mb-3">
+                          {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
+                          {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
+                        </div>
+                        <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
+                          {job.aiSummary || job.aiInsight || job.description}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="hs-score" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
+                        <span className="font-mono text-[9px] text-[var(--hs-app-muted)]">{formatPosted(job)}</span>
+                        {job.isHotJob ? <span className="hs-pill hs-pill-success text-[9px]">Hot</span> : null}
+                      </div>
+                    </article>
+                  );
+                })()
+              )
+            )
           ) : (
             <div className="p-10 text-center">
               <Briefcase className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-muted)]" />
@@ -346,6 +462,8 @@ export function Dashboard() {
           isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
           isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
         />
+      )}
+        </>
       )}
     </div>
   );

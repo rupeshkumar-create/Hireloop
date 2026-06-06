@@ -10,6 +10,7 @@ import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator.js';
 import { verifyHttpUrl } from '../../src/services/urlVerifier.js';
 import { formatLocalDate } from '../../src/lib/localDate.js';
 import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
+import { evaluateScoutDedup } from '../../src/server/scoutDedup.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -398,6 +399,20 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const profile = userSnap.data() || {};
   const careerPaths = resolveCareerPaths(profile);
   const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
+
+  const dedup = evaluateScoutDedup(profile);
+  if (dedup.blocked) {
+    const jobs = await readStoredJobs(uid, runDate);
+    return res.status(409).json({
+      error: 'Scout has already found your matches for today.',
+      status: 'already_generated',
+      runDate,
+      jobCount: jobs.length,
+      planCap: dedup.planCap,
+      jobs,
+    });
+  }
+
   const readiness = computeMatchReadiness({ resumeText: profile.resumeText, careerPaths });
   if (readiness.status === 'blocked') {
     return res.status(400).json({
@@ -500,6 +515,18 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
   const userSnap = await db.collection('users').doc(uid).get();
   const profile = userSnap.exists ? userSnap.data() || {} : {};
   const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
+
+  const dedup = evaluateScoutDedup(profile);
+  if (dedup.blocked) {
+    const jobs = await readStoredJobs(uid, runDate);
+    return res.status(409).json({
+      error: 'Scout has already found your matches for today.',
+      status: 'already_generated',
+      jobs,
+      planCap: dedup.planCap,
+    });
+  }
+
   const pipelineResult = await runPipeline(uid, runDate, req);
   const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
   const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');

@@ -17,6 +17,8 @@ import {
 import { Job } from '../../types/dashboard';
 import { AiActionType } from '../../hooks/useDashboardAI';
 import { useAuth } from '../../contexts/AuthContext';
+import { isProPlan } from '../../lib/planLimits';
+import { ProFeatureOverlay } from '../ui/ProFeatureOverlay';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
 import { AiResultModal } from './AiResultModal';
@@ -275,7 +277,10 @@ export function JobDetailsPanel({
                 you." Surfacing the four assistants here for unsaved jobs
                 spreads attention and weakens the save action. */}
             {isSaved ? (
-              <div className="rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
+              <div className="relative rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
+                {!isProPlan(profile?.plan) ? (
+                  <ProFeatureOverlay message="AI Copilot is a Pro feature" />
+                ) : null}
                 <h4 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--hs-app-muted)]">
                   AI Copilot
                 </h4>
@@ -283,6 +288,7 @@ export function JobDetailsPanel({
                   <button
                     type="button"
                     className="hs-btn justify-center"
+                    disabled={!isProPlan(profile?.plan)}
                     onClick={() => runAiAction('email', selectedJob)}
                   >
                     <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
@@ -290,6 +296,7 @@ export function JobDetailsPanel({
                   <button
                     type="button"
                     className="hs-btn justify-center"
+                    disabled={!isProPlan(profile?.plan)}
                     onClick={() => runAiAction('resume', selectedJob)}
                   >
                     <FileText className="h-3.5 w-3.5" /> Tailor Resume
@@ -297,6 +304,7 @@ export function JobDetailsPanel({
                   <button
                     type="button"
                     className="hs-btn justify-center"
+                    disabled={!isProPlan(profile?.plan)}
                     onClick={() => runAiAction('interview', selectedJob)}
                   >
                     <MessageSquare className="h-3.5 w-3.5" /> Interview Prep
@@ -304,6 +312,7 @@ export function JobDetailsPanel({
                   <button
                     type="button"
                     className="hs-btn justify-center"
+                    disabled={!isProPlan(profile?.plan)}
                     onClick={() => runAiAction('salary', selectedJob)}
                   >
                     <TrendingUp className="h-3.5 w-3.5" /> Salary Data

@@ -2,7 +2,7 @@
  * GET /api/sitemap.xml — Auto-generated sitemap for blog posts and core pages.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listBlogPosts } from '../../src/server/marketingEngine.js';
+import { listBlogPosts } from '../../../marketingEngine.js';
 
 const BASE = 'https://hireschema.com';
 

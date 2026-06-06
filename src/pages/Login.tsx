@@ -1,19 +1,23 @@
 import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Briefcase, Sparkles } from 'lucide-react';
+import { isOnboardingComplete } from '../lib/onboarding';
+import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
+
+const FLOW_STEPS = [
+  { icon: Upload, label: 'Upload resume', detail: 'We extract skills and suggest career paths' },
+  { icon: Compass, label: 'Confirm paths', detail: 'Pick 1–3 roles Scout should search' },
+  { icon: Rocket, label: 'See matches', detail: 'Scout finds remote roles scored to your profile' },
+];
 
 export function Login() {
   const { user, profile, loading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const isNewUser = !profile?.resumeText && !isOnboardingComplete(profile);
 
   useEffect(() => {
     if (loading || !user) return;
-    if (!profile?.onboardingCompletedAt && !profile?.resumeText?.trim()) {
-      navigate('/onboarding');
-      return;
-    }
-    navigate('/dashboard');
+    navigate(isOnboardingComplete(profile) ? '/dashboard' : '/onboarding');
   }, [user, profile, loading, navigate]);
 
   return (
@@ -29,17 +33,23 @@ export function Login() {
       </nav>
 
       <main className="flex-1 flex items-center justify-center py-20">
-        <div className="hs-land-container max-w-[480px]">
-          <div className="text-center mb-12">
-            <div className="hs-land-eyebrow mb-6 text-[var(--hs-land-accent)]">Sign in to Scout</div>
-            <h1 className="hs-display text-4xl mb-6">Welcome back.</h1>
+        <div className="hs-land-container max-w-[520px]">
+          <div className="text-center mb-10">
+            <div className="hs-land-eyebrow mb-6 text-[var(--hs-land-accent)]">
+              {isNewUser ? 'Get started free' : 'Sign in to Scout'}
+            </div>
+            <h1 className="hs-display text-4xl mb-6">
+              {isNewUser ? 'Your first matches in ~2 minutes.' : 'Welcome back.'}
+            </h1>
             <p className="text-[17px] leading-relaxed text-[var(--hs-land-muted)]">
-              Continue your remote job search with a warmer, more deliberate AI workflow.
+              {isNewUser
+                ? 'Sign in with Google, upload your resume once, and Scout delivers remote roles matched to your profile.'
+                : 'Continue your remote job search with a warmer, more deliberate AI workflow.'}
             </p>
           </div>
 
           <div className="space-y-6">
-            <button 
+            <button
               onClick={signInWithGoogle}
               className="hs-land-cta w-full flex items-center justify-center gap-3 !py-4 hover:scale-[1.02] active:scale-[0.98]"
             >
@@ -67,19 +77,41 @@ export function Login() {
               Continue with Google
             </button>
 
-            <div className="grid grid-cols-1 gap-4 pt-6">
-              {[
-                { icon: Briefcase, text: 'Curated daily job feed' },
-                { icon: Sparkles, text: 'AI-tailored cover letters' },
-              ].map((item) => (
-                <div key={item.text} className="flex items-center gap-4 p-4 rounded-xl border border-[var(--hs-land-border)] bg-[var(--hs-land-surface)]">
-                  <div className="p-2 rounded-lg bg-[var(--hs-land-bg)]">
-                    <item.icon className="h-4 w-4 text-[var(--hs-land-muted)]" />
+            {isNewUser ? (
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                {FLOW_STEPS.map((step, index) => (
+                  <div
+                    key={step.label}
+                    className="flex items-start gap-4 rounded-xl border border-[var(--hs-land-border)] bg-[var(--hs-land-surface)] p-4 text-left"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--hs-land-bg)] font-mono text-xs font-bold text-[var(--hs-land-muted)]">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-medium text-[var(--hs-land-fg)]">
+                        <step.icon className="h-4 w-4 text-[var(--hs-land-muted)]" />
+                        {step.label}
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--hs-land-muted)]">{step.detail}</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium text-[var(--hs-land-fg)]">{item.text}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 pt-6">
+                {[
+                  { icon: Briefcase, text: 'Curated daily job feed' },
+                  { icon: Sparkles, text: 'AI-tailored cover letters' },
+                ].map((item) => (
+                  <div key={item.text} className="flex items-center gap-4 p-4 rounded-xl border border-[var(--hs-land-border)] bg-[var(--hs-land-surface)]">
+                    <div className="p-2 rounded-lg bg-[var(--hs-land-bg)]">
+                      <item.icon className="h-4 w-4 text-[var(--hs-land-muted)]" />
+                    </div>
+                    <span className="text-sm font-medium text-[var(--hs-land-fg)]">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <p className="mt-12 text-center text-xs text-[var(--hs-land-muted)] leading-relaxed">

@@ -1,16 +1,11 @@
-import React from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { WebsiteLayout } from './components/WebsiteLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { JobTracker } from './pages/JobTracker';
 import { Settings } from './pages/Settings';
-import { ResumeProfile } from './pages/ResumeProfile';
-import { CoverLetters } from './pages/CoverLetters';
-import { InterviewPrep } from './pages/InterviewPrep';
-import { AdminDashboard } from './pages/AdminDashboard';
 import { Onboarding } from './pages/Onboarding';
 import { LandingPage } from './pages/LandingPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -18,18 +13,49 @@ import { TermsOfService } from './pages/TermsOfService';
 import { Blog } from './pages/Blog';
 import { BlogPost } from './pages/BlogPost';
 import { Toaster } from 'sonner';
-import { useState, useEffect } from 'react';
 import { ArrowRight, Search } from 'lucide-react';
 import { isAdminEmail } from './lib/adminEmails';
+import { isOnboardingComplete } from './lib/onboarding';
+
+const JobTracker = lazy(() => import('./pages/JobTracker').then((m) => ({ default: m.JobTracker })));
+const ResumeProfile = lazy(() => import('./pages/ResumeProfile').then((m) => ({ default: m.ResumeProfile })));
+const CoverLetters = lazy(() => import('./pages/CoverLetters').then((m) => ({ default: m.CoverLetters })));
+const InterviewPrep = lazy(() => import('./pages/InterviewPrep').then((m) => ({ default: m.InterviewPrep })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+
+function PageLoader() {
+  return (
+    <div className="flex h-full min-h-[40vh] items-center justify-center p-10 text-sm text-[var(--hs-app-muted)]">
+      Loading…
+    </div>
+  );
+}
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const location = useLocation();
+  const onOnboarding = location.pathname === '/onboarding';
+  const onboardingDone = isOnboardingComplete(profile);
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-background">Loading...</div>;
   }
 
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" />;
+
+  if (!onOnboarding && !onboardingDone) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (onOnboarding && onboardingDone) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -52,6 +78,22 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   }
   if (status === 'denied') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
+}
+
+function OnboardingLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] px-6 py-4">
+        <Link to="/" className="font-display text-lg font-semibold text-[var(--hs-app-fg)] no-underline">
+          Hireschema
+        </Link>
+        <p className="mt-1 text-xs text-[var(--hs-app-muted)]">
+          About 2 minutes to your first matched roles
+        </p>
+      </header>
+      <main>{children}</main>
+    </div>
+  );
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -79,11 +121,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="hs-topbar-title">{current.title}</div>
           </div>
           <div className="hs-actions flex items-center gap-2">
-            <Link to="/dashboard" className="hs-btn">
+            <Link to="/dashboard#matches" className="hs-btn">
               <Search className="h-3.5 w-3.5" />
               Search all matches
             </Link>
-            <Link to="/dashboard" className="hs-btn hs-btn-primary">
+            <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
               Run Scout now
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
@@ -117,9 +159,9 @@ export default function App() {
           } />
           <Route path="/onboarding" element={
             <PrivateRoute>
-              <AppLayout>
+              <OnboardingLayout>
                 <Onboarding />
-              </AppLayout>
+              </OnboardingLayout>
             </PrivateRoute>
           } />
 
@@ -135,7 +177,7 @@ export default function App() {
           <Route path="/jobs" element={
             <PrivateRoute>
               <AppLayout>
-                <JobTracker />
+                <LazyPage><JobTracker /></LazyPage>
               </AppLayout>
             </PrivateRoute>
           } />
@@ -144,7 +186,7 @@ export default function App() {
           <Route path="/resume" element={
             <PrivateRoute>
               <AppLayout>
-                <ResumeProfile />
+                <LazyPage><ResumeProfile /></LazyPage>
               </AppLayout>
             </PrivateRoute>
           } />
@@ -152,7 +194,7 @@ export default function App() {
           <Route path="/cover-letters" element={
             <PrivateRoute>
               <AppLayout>
-                <CoverLetters />
+                <LazyPage><CoverLetters /></LazyPage>
               </AppLayout>
             </PrivateRoute>
           } />
@@ -160,7 +202,7 @@ export default function App() {
           <Route path="/interview-prep" element={
             <PrivateRoute>
               <AppLayout>
-                <InterviewPrep />
+                <LazyPage><InterviewPrep /></LazyPage>
               </AppLayout>
             </PrivateRoute>
           } />
@@ -168,7 +210,7 @@ export default function App() {
           <Route path="/kingdomofkumar" element={
             <AdminRoute>
               <AppLayout>
-                <AdminDashboard />
+                <LazyPage><AdminDashboard /></LazyPage>
               </AppLayout>
             </AdminRoute>
           } />
@@ -176,7 +218,7 @@ export default function App() {
           <Route path="/superadmin" element={
             <AdminRoute>
               <AppLayout>
-                <AdminDashboard />
+                <LazyPage><AdminDashboard /></LazyPage>
               </AppLayout>
             </AdminRoute>
           } />

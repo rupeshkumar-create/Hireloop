@@ -13,6 +13,7 @@ interface ProcessResumeTextOptions {
   onSuccess?: () => void;
   successMessage?: string;
   showSuccessToast?: boolean;
+  quiet?: boolean;
   careerPathsOverride?: string[];
   preferencesOverride?: NormalizedUserPreferences;
 }
@@ -25,6 +26,15 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
     options?: ProcessResumeTextOptions
   ): Promise<boolean> => {
     setAnalyzingResume(true);
+    const quiet = options?.quiet === true;
+    const notify = {
+      info: (message: string) => {
+        if (!quiet) toast.info(message);
+      },
+      success: (message: string) => {
+        if (!quiet) toast.success(message);
+      },
+    };
 
     try {
       const resumeRaw = rawText;
@@ -44,7 +54,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       let structuredProfile = profile?.structuredProfile;
       let resumeSummary = profile?.resumeSummary || '';
 
-      toast.info("Analyzing resume for structured profile and preferences...");
+      notify.info('Analyzing your resume…');
       const {
         analyzeResume,
         extractJobPreferences,
@@ -78,19 +88,19 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         });
       const legacyPreferenceFields =
         syncLegacyPreferenceFields(normalizedPreferences);
-      toast.success("Job preferences automatically configured!");
+      notify.success('Job preferences configured.');
 
       let extractedStructuredProfile = await extractResume(resumeCleaned);
       let displayName = profile?.displayName;
 
       if (extractedStructuredProfile) {
         structuredProfile = extractedStructuredProfile;
-        toast.success("Structured resume profile created!");
+        notify.success('Resume profile created.');
         
         // Use extracted name as source of truth if available
         if (extractedStructuredProfile.fullName && extractedStructuredProfile.fullName.length > 2) {
           displayName = extractedStructuredProfile.fullName;
-          toast.success(`Profile name updated to: ${displayName}`);
+          notify.success(`Profile name updated to ${displayName}.`);
         }
       }
 
@@ -116,17 +126,17 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
           careerPathSuggestions = suggestedPaths;
           selectedCareerPathId = suggestedPaths[0].id;
           console.log('Updated paths list:', paths);
-          toast.success("Career paths automatically detected!");
+          notify.success('Career paths detected from your resume.');
         } else {
           console.warn('No career paths were suggested by the AI.');
-          toast.info("Could not auto-generate career paths. You can add them manually in settings.");
+          if (!quiet) toast.info('Could not auto-generate career paths. You can add them on the next step.');
         }
       }
 
       const resumeAnalysis = await analyzeResume(resumeCleaned, paths);
       if (resumeAnalysis) {
         analysis = resumeAnalysis;
-        toast.success("Resume analysis complete!");
+        notify.success('Resume analysis complete.');
       }
 
       console.log('Final profile update payload:', {
@@ -156,7 +166,10 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       });
 
       if (options?.showSuccessToast !== false) {
-        toast.success(options?.successMessage || "Resume processed successfully!");
+        toast.success(
+          options?.successMessage ||
+            (quiet ? 'Resume ready — confirming your career paths next.' : 'Resume processed successfully!')
+        );
       }
       options?.onSuccess?.();
       return true;
@@ -173,7 +186,11 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
     }
   };
 
-  const handleFileUpload = async (file: File | undefined, onSuccess: () => void) => {
+  const handleFileUpload = async (
+    file: File | undefined,
+    onSuccess: () => void,
+    options?: Pick<ProcessResumeTextOptions, 'quiet' | 'successMessage'>
+  ) => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -231,7 +248,8 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
 
     await processResumeText(text, {
       onSuccess,
-      successMessage: 'Resume uploaded successfully!',
+      quiet: options?.quiet,
+      successMessage: options?.successMessage || 'Resume uploaded successfully!',
     });
   };
 

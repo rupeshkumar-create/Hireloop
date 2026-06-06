@@ -1,11 +1,21 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
-import { getBearerToken } from '../src/server/adminAuth.js';
-import { verifyAiAccess } from '../src/server/apiAuth.js';
+import { getBearerToken } from '../../adminAuth.js';
+import { verifyAiAccess } from '../../apiAuth.js';
+
+function resolveOpenRouterApiKey(): string | undefined {
+  const serverKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (serverKey) return serverKey;
+
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if (isProduction) return undefined;
+
+  return process.env.VITE_OPENROUTER_API_KEY?.trim() || undefined;
+}
 
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY,
+  apiKey: resolveOpenRouterApiKey() || 'not-configured',
   defaultHeaders: {
     'HTTP-Referer': 'https://hireschema.com',
     'X-Title': 'Hireschema',
@@ -28,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(status).json({ error: message });
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
+  const apiKey = resolveOpenRouterApiKey();
   if (!apiKey) {
     console.error('OPENROUTER_API_KEY is missing');
     return res.status(500).json({ error: 'AI Configuration Error: API key is missing' });

@@ -47,6 +47,7 @@ import {
   type LearningSignals,
 } from '../services/learningSignals';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
+import { isRecentlyActiveUser } from '../services/cronEngine';
 import { resolveJobApplicationUrl } from '../lib/jobLinks';
 import { resolveDeliveryTimeZone, resolveLocalDateForLastFetch, resolveTodayLocalDateKey } from '../lib/localDate';
 
@@ -102,6 +103,8 @@ function shouldAutoTriggerScout(profile: any, today: string, now: Date): boolean
   if (!profile) return false;
   // Honor the user's "pause daily matches" toggle
   if (profile.receiveDailyAlerts === false) return false;
+  // Skip auto-runs for users inactive 3+ days (cron does the same)
+  if (!isRecentlyActiveUser(profile, now)) return false;
   // Profile not ready for matching — never trigger, would just fail
   if (profile.matchReadiness?.status === 'blocked') return false;
   if (!profile.resumeText || profile.resumeText.trim().length < 50) return false;
@@ -390,6 +393,30 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         );
         // Safety valve: clear spinner after 6 minutes regardless
         setTimeout(() => setGeneratingJobs(false), 6 * 60 * 1000);
+        return;
+      }
+
+      if (requestResponse.status === 409) {
+        const payload = await requestResponse.json().catch(() => ({}));
+        const fetchedJobs: DailyJob[] = Array.isArray((payload as any).jobs)
+          ? (payload as any).jobs.slice(0, getDailyMatchLimit(profile?.plan))
+          : jobs;
+
+        if (fetchedJobs.length > 0) {
+          setJobs(fetchedJobs);
+          setDailyJobsMeta({
+            requestedLimit: (payload as any).planCap ?? getDailyMatchLimit(profile?.plan),
+            returnedCount: fetchedJobs.length,
+            deliveryLocalDate: (payload as any).runDate,
+            deliveryTimezone: resolveDeliveryTimeZone(profile),
+            qualityLimited: fetchedJobs.length < getDailyMatchLimit(profile?.plan),
+          });
+        }
+
+        toast.info(
+          (payload as any).error ||
+            "Scout has already found your matches for today. Come back tomorrow for a fresh batch!"
+        );
         return;
       }
 

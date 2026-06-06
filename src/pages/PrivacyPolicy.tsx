@@ -33,13 +33,17 @@ export function PrivacyPolicy() {
           <li>To send you daily job alert emails.</li>
         </ul>
 
-        <h2>4. Data Security</h2>
+        <h2 id="security">4. Data Security</h2>
         <p>We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorized way, altered or disclosed. In addition, we limit access to your personal data to those employees, agents, contractors and other third parties who have a business need to know.</p>
+        <p>Authentication is handled through Google Sign-In. Payment data is processed by our payment provider; we do not store full card numbers on our servers. API keys and service credentials are kept server-side and are never exposed in client bundles.</p>
 
-        <h2>5. Your Legal Rights</h2>
+        <h2 id="cookies">5. Cookies & Local Storage</h2>
+        <p>We use essential cookies and browser storage to keep you signed in, remember theme preferences, and maintain session state during onboarding. We do not use third-party advertising cookies. You can clear cookies through your browser settings, though doing so will sign you out of the app.</p>
+
+        <h2>6. Your Legal Rights</h2>
         <p>Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to request access, correction, erasure, restriction, transfer, to object to processing, to portability of data and (where the lawful ground of processing is consent) to withdraw consent.</p>
 
-        <h2>6. Contact Us</h2>
+        <h2>7. Contact Us</h2>
         <p>If you have any questions about this privacy policy or our privacy practices, please contact us at support@hireschema.com.</p>
       </div>
     </div>

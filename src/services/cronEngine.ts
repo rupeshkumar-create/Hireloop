@@ -1,9 +1,13 @@
 import { getDailyMatchLimit } from '../lib/planLimits.js';
 import { computeMatchReadiness, evaluateDueDailyRun } from './jobDeliveryProfile.js';
 
+export const CRON_INACTIVITY_DAYS = 3;
+const MS_PER_DAY = 86_400_000;
+
 export interface CronEligibleUser {
   plan?: string;
   receiveDailyAlerts?: boolean;
+  lastActiveAt?: string;
   deliveryTimezone?: string;
   preferredDeliveryHour?: number;
   nextJobDeliveryAt?: string;
@@ -58,8 +62,36 @@ export interface QueueCronRunInput {
   email?: string;
 }
 
-export function isActiveCronUser(user: CronEligibleUser): boolean {
-  return Boolean(user.plan) && user.receiveDailyAlerts !== false;
+export function getLastActiveMs(lastActiveAt?: string | null): number | null {
+  if (!lastActiveAt) return null;
+  const parsed = new Date(lastActiveAt).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+export function isRecentlyActiveUser(
+  user: Pick<CronEligibleUser, 'lastActiveAt'>,
+  now: Date = new Date(),
+  maxInactiveDays: number = CRON_INACTIVITY_DAYS
+): boolean {
+  const lastActiveMs = getLastActiveMs(user.lastActiveAt);
+  if (lastActiveMs === null) return false;
+  const cutoff = now.getTime() - maxInactiveDays * MS_PER_DAY;
+  return lastActiveMs >= cutoff;
+}
+
+export function shouldPauseForInactivity(
+  user: CronEligibleUser,
+  now: Date = new Date()
+): boolean {
+  return user.receiveDailyAlerts !== false && !isRecentlyActiveUser(user, now);
+}
+
+export function isActiveCronUser(user: CronEligibleUser, now: Date = new Date()): boolean {
+  return (
+    Boolean(user.plan) &&
+    user.receiveDailyAlerts !== false &&
+    isRecentlyActiveUser(user, now)
+  );
 }
 
 export function getCronRunDateIST(now: Date = new Date()): string {

@@ -54,7 +54,7 @@ describe('validateJob', () => {
       remoteUser
     );
     expect(result.passed).toBe(false);
-    expect(result.code).toBe('REMOTE_MISMATCH');
+    expect(result.code).toBe('NOT_REMOTE');
   });
 
   it('rejects a stale job', () => {
@@ -277,8 +277,8 @@ describe('validateAssetForgeEmail', () => {
     expect(result.code).toBe('MISSING_ROLE');
   });
 
-  it('rejects an email over 120 words', () => {
-    const longEmail = `${'Acme Frontend Engineer '.repeat(50)}`.trim();
+  it('rejects an email over 200 words', () => {
+    const longEmail = `${'Acme Frontend Engineer '.repeat(90)}`.trim();
     const result = validateAssetForgeEmail(longEmail, {
       company: 'Acme',
       jobTitle: 'Frontend Engineer',

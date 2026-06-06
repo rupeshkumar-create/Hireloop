@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import dailyAlertsHandler from '../../../api/cron/daily-alerts';
-import processUserHandler from '../../../api/cron/process-user';
+import dailyAlertsHandler from '../../../src/server/api/handlers/cron/dailyAlerts';
+import processUserHandler from '../../../src/server/api/handlers/cron/processUser';
+import tickHandler from '../../../src/server/api/handlers/cron/tick';
 
 function createRes() {
   const res: any = {
@@ -46,6 +47,15 @@ describe('cron route auth', () => {
     const res = createRes();
 
     await processUserHandler(req, res);
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('rejects tick requests without the cron secret', async () => {
+    const req: any = { method: 'POST', headers: {} };
+    const res = createRes();
+
+    await tickHandler(req, res);
 
     expect(res.statusCode).toBe(401);
   });

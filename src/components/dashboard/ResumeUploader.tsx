@@ -9,9 +9,10 @@ interface ResumeUploaderProps {
   updateProfile: (data: any) => Promise<void>;
   profile: any;
   onSuccess: () => void;
+  quiet?: boolean;
 }
 
-export function ResumeUploader({ updateProfile, profile, onSuccess }: ResumeUploaderProps) {
+export function ResumeUploader({ updateProfile, profile, onSuccess, quiet }: ResumeUploaderProps) {
   const { analyzingResume, handleFileUpload } = useResumeParser(updateProfile, profile);
 
   return (
@@ -44,7 +45,7 @@ export function ResumeUploader({ updateProfile, profile, onSuccess }: ResumeUplo
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt"
-                  onChange={(e) => handleFileUpload(e.target.files?.[0], onSuccess)}
+                  onChange={(e) => handleFileUpload(e.target.files?.[0], onSuccess, { quiet })}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <Button className="pointer-events-none">Select File</Button>

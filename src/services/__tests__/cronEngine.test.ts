@@ -4,17 +4,22 @@ import {
   evaluateDueUsers,
   getCronRunDateIST,
   isActiveCronUser,
+  isRecentlyActiveUser,
   processUserCronRun,
   queueCronRun,
+  shouldPauseForInactivity,
   type CronRunRecord,
 } from '../cronEngine';
 
+const recentActiveAt = new Date().toISOString();
+
 describe('isActiveCronUser', () => {
-  it('returns true when plan is present and alerts are enabled', () => {
+  it('returns true when plan is present, alerts are enabled, and user is recently active', () => {
     expect(
       isActiveCronUser({
         plan: 'pro',
         receiveDailyAlerts: true,
+        lastActiveAt: recentActiveAt,
       })
     ).toBe(true);
   });
@@ -23,6 +28,7 @@ describe('isActiveCronUser', () => {
     expect(
       isActiveCronUser({
         receiveDailyAlerts: true,
+        lastActiveAt: recentActiveAt,
       })
     ).toBe(false);
   });
@@ -32,8 +38,39 @@ describe('isActiveCronUser', () => {
       isActiveCronUser({
         plan: 'free',
         receiveDailyAlerts: false,
+        lastActiveAt: recentActiveAt,
       })
     ).toBe(false);
+  });
+
+  it('returns false when the user has been inactive for more than 3 days', () => {
+    const stale = new Date(Date.now() - 4 * 86_400_000).toISOString();
+    expect(
+      isActiveCronUser({
+        plan: 'pro',
+        receiveDailyAlerts: true,
+        lastActiveAt: stale,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('isRecentlyActiveUser', () => {
+  it('returns false when lastActiveAt is missing', () => {
+    expect(isRecentlyActiveUser({})).toBe(false);
+  });
+});
+
+describe('shouldPauseForInactivity', () => {
+  it('returns true when alerts are on but the user is stale', () => {
+    const stale = new Date(Date.now() - 4 * 86_400_000).toISOString();
+    expect(
+      shouldPauseForInactivity({
+        plan: 'pro',
+        receiveDailyAlerts: true,
+        lastActiveAt: stale,
+      })
+    ).toBe(true);
   });
 });
 
@@ -77,6 +114,7 @@ describe('evaluateDueUsers', () => {
           data: {
             plan: 'pro',
             receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
             deliveryTimezone: 'Asia/Kolkata',
             preferredDeliveryHour: 8,
             nextJobDeliveryAt: '2026-04-24T02:30:00.000Z',
@@ -87,6 +125,7 @@ describe('evaluateDueUsers', () => {
           data: {
             plan: 'pro',
             receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
             deliveryTimezone: 'America/New_York',
             preferredDeliveryHour: 12,
             nextJobDeliveryAt: '2026-04-24T16:00:00.000Z',
@@ -109,6 +148,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'pro',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           deliveryTimezone: 'Asia/Kolkata',
           preferredDeliveryHour: 8,
           matchReadiness: {
@@ -145,6 +185,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'pro',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: ['Customer Success Manager'],
           resumeText: '',
@@ -192,6 +233,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'pro',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: [],
           resumeText: '',
@@ -222,6 +264,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'pro',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: [],
           structuredProfile: {
@@ -261,6 +304,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'free',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: [],
           resumeText: 'Senior frontend engineer with React, TypeScript, and design systems experience.',
@@ -300,6 +344,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'pro',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: ['Frontend Engineer'],
           jobType: 'both',
@@ -361,6 +406,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'free',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'free@example.com',
           careerPaths: ['Frontend Engineer'],
           seenJobFingerprints: [],
@@ -408,6 +454,7 @@ describe('processUserCronRun', () => {
         data: {
           plan: 'free',
           receiveDailyAlerts: true,
+            lastActiveAt: recentActiveAt,
           email: 'person@example.com',
           careerPaths: ['Frontend Engineer'],
           seenJobFingerprints: [],

@@ -11,6 +11,7 @@ Rule:
 Read the user plan first.
 Do not process users without an active plan.
 Do not process users with daily alerts disabled.
+Skip users whose `lastActiveAt` is older than 3 days (automation paused as `inactive_3d`).
 
 ### 2. Validate User Readiness
 

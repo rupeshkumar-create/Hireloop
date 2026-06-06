@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Circle, X, Sparkles, ChevronRight } from 'lucide-react';
 import { useAuth, type UserProfile } from '../../contexts/AuthContext';
+import { isFreshlyOnboarded } from '../../lib/onboarding';
 import { Button } from '../ui/button';
 
 interface Props {
@@ -32,7 +33,8 @@ function buildSteps(
   hasMatches: boolean,
   savedCount: number,
   onRunScout: () => void,
-  isRunningScout: boolean
+  isRunningScout: boolean,
+  skipSetupSteps: boolean
 ): Step[] {
   const resumeDone = !!profile?.resumeText;
   const pathsDone = (profile?.careerPaths?.length || 0) > 0;
@@ -40,30 +42,36 @@ function buildSteps(
   const assetDone = !!profile?.activatedAt;
   const alertsOn = profile?.receiveDailyAlerts === true;
 
+  const setupSteps: Step[] = skipSetupSteps
+    ? []
+    : [
+        {
+          key: 'resume',
+          label: 'Upload your resume',
+          description: 'We extract skills, experience, and suggest paths automatically.',
+          done: resumeDone,
+          cta: resumeDone ? undefined : { kind: 'link', label: 'Upload', to: '/onboarding' },
+        },
+        {
+          key: 'paths',
+          label: 'Confirm career paths',
+          description: 'Scout searches against these. Keep 1–3 sharp roles.',
+          done: pathsDone,
+          cta: pathsDone ? undefined : { kind: 'link', label: 'Set paths', to: '/onboarding' },
+        },
+        {
+          key: 'firstMatches',
+          label: 'See your first matches',
+          description: 'Scout runs on demand and every morning.',
+          done: hasMatches,
+          cta: hasMatches
+            ? undefined
+            : { kind: 'button', label: isRunningScout ? 'Running…' : 'Run Scout now', onClick: onRunScout, disabled: isRunningScout },
+        },
+      ];
+
   return [
-    {
-      key: 'resume',
-      label: 'Upload your resume',
-      description: 'We extract skills, experience, and suggest paths automatically.',
-      done: resumeDone,
-      cta: resumeDone ? undefined : { kind: 'link', label: 'Upload', to: '/onboarding' },
-    },
-    {
-      key: 'paths',
-      label: 'Confirm 3 career paths',
-      description: 'Scout searches against these. Keep 1–3 sharp roles.',
-      done: pathsDone,
-      cta: pathsDone ? undefined : { kind: 'link', label: 'Set paths', to: '/onboarding' },
-    },
-    {
-      key: 'firstMatches',
-      label: 'See your first matches',
-      description: 'Scout runs on demand and every morning at 7 AM.',
-      done: hasMatches,
-      cta: hasMatches
-        ? undefined
-        : { kind: 'button', label: isRunningScout ? 'Running…' : 'Run Scout now', onClick: onRunScout, disabled: isRunningScout },
-    },
+    ...setupSteps,
     {
       key: 'firstSave',
       label: 'Save your first match',
@@ -90,9 +98,10 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
   const { profile, updateProfile } = useAuth();
   const [dismissing, setDismissing] = useState(false);
 
+  const skipSetupSteps = isFreshlyOnboarded(profile);
   const steps = useMemo(
-    () => buildSteps(profile, hasMatches, savedCount, onRunScout, isRunningScout),
-    [profile, hasMatches, savedCount, onRunScout, isRunningScout]
+    () => buildSteps(profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps),
+    [profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps]
   );
 
   // Hidden once the user dismisses OR every step is done.
@@ -120,13 +129,17 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-3">
-              <h3 className="text-base font-semibold text-[var(--hs-app-fg)]">Get to your first interview</h3>
+              <h3 className="text-base font-semibold text-[var(--hs-app-fg)]">
+                {skipSetupSteps ? 'Make your first move' : 'Get to your first interview'}
+              </h3>
               <span className="text-[11px] font-semibold text-[var(--hs-app-muted)]">
                 {doneCount} / {steps.length} done
               </span>
             </div>
             <p className="text-xs text-[var(--hs-app-muted)] mt-0.5">
-              These steps unlock the full Scout loop. Skip any you've already handled.
+              {skipSetupSteps
+                ? 'Save a match, generate an asset, and turn on daily Scout.'
+                : 'These steps unlock the full Scout loop. Skip any you have already handled.'}
             </p>
           </div>
         </div>

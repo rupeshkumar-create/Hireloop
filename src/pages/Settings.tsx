@@ -166,15 +166,6 @@ export function Settings() {
     }
   };
 
-  const handleUpgrade = async () => {
-    // In a real app, this would redirect to Dodo Payments checkout.
-    // For now, we simulate opening a checkout window or redirect.
-    toast.info('Redirecting to Dodo Payments checkout...');
-    
-    // Example format for Dodo payments:
-    // window.location.href = "https://checkout.dodopayments.com/buy/pdt_0Ncd0EFikepaQdgRk8tUR?email=" + profile?.email;
-  };
-
   return (
     <div className="hs-view h-full overflow-y-auto pb-12">
       <PageShell
@@ -316,6 +307,52 @@ export function Settings() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-border pt-4">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="receiveDailyAlerts"
+                  name="receiveDailyAlerts"
+                  checked={formData.receiveDailyAlerts}
+                  onChange={handleChange}
+                  className="mt-1 h-4 w-4 rounded border-border"
+                />
+                <div>
+                  <label htmlFor="receiveDailyAlerts" className="text-sm font-medium text-foreground">
+                    Daily Scout automation
+                  </label>
+                  <p className="mt-1 text-sm text-foreground-muted">
+                    When enabled, Scout runs on your schedule and delivers fresh matches. Turn off to pause all automated runs.
+                  </p>
+                </div>
+              </div>
+
+              {profile?.automationPausedReason === 'inactive_3d' ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+                  Scout was paused after 3 days without a visit. Opening Hireschema again re-enables automation — save preferences here to confirm your delivery settings.
+                </div>
+              ) : null}
+
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="antiSlopEnabled"
+                  name="antiSlopEnabled"
+                  checked={formData.antiSlopEnabled}
+                  onChange={handleChange}
+                  className="mt-1 h-4 w-4 rounded border-border"
+                />
+                <div>
+                  <label htmlFor="antiSlopEnabled" className="text-sm font-medium text-foreground">
+                    Human-sounding AI copy
+                  </label>
+                  <p className="mt-1 text-sm text-foreground-muted">
+                    Applies anti-slop filters to generated emails, resumes, and interview prep.
+                  </p>
+                </div>
               </div>
             </div>
 

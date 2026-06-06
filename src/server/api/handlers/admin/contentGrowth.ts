@@ -7,7 +7,7 @@
  * Actions: publish, dry-run, keywords, competitors, learning, refresh, health
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getBearerToken, verifySuperAdmin } from '../../src/server/adminAuth.js';
+import { getBearerToken, verifySuperAdmin } from '../../../adminAuth.js';
 import {
   getContentGrowthDashboard,
   getPostAdminDetail,
@@ -16,8 +16,8 @@ import {
   runCompetitorAnalysis,
   runMonthlyLearningLoop,
   refreshContent,
-} from '../../src/server/contentGrowth/orchestrator.js';
-import { saveGrowthState } from '../../src/server/contentGrowth/storage.js';
+} from '../../../contentGrowth/orchestrator.js';
+import { saveGrowthState } from '../../../contentGrowth/storage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = getBearerToken(req);

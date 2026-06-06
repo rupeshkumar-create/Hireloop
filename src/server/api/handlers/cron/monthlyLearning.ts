@@ -6,8 +6,8 @@
  * and updates the monthly content strategy.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireCronSecret } from '../../src/server/cronAuth.js';
-import { runMonthlyLearningLoop } from '../../src/server/contentGrowth/orchestrator.js';
+import { requireCronSecret } from '../../../cronAuth.js';
+import { runMonthlyLearningLoop } from '../../../contentGrowth/orchestrator.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;

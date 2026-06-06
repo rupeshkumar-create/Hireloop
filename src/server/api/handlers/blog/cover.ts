@@ -3,8 +3,8 @@
  * Serves deterministic SVG cover — zero AI, cacheable URL for og:image.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getBlogPostBySlug } from '../../src/server/marketingEngine.js';
-import { generateCoverSvg } from '../../src/server/contentGrowth/coverImage.js';
+import { getBlogPostBySlug } from '../../../marketingEngine.js';
+import { generateCoverSvg } from '../../../contentGrowth/coverImage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end('Method not allowed');

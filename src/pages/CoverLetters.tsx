@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobs } from '../hooks/useDashboardJobs';
 import { generateCoverLetter } from '../services/aiService';
+import { isProPlan } from '../lib/planLimits';
+import { showProRequiredToast } from '../lib/proUpgrade';
+import { ProFeatureOverlay } from '../components/ui/ProFeatureOverlay';
 
 export function CoverLetters() {
   const { user, profile, updateProfile } = useAuth();
@@ -18,6 +21,10 @@ export function CoverLetters() {
   const name = profile?.displayName || 'Your Name';
 
   const generate = useCallback(async () => {
+    if (!isProPlan(profile?.plan)) {
+      showProRequiredToast('Upgrade to Pro to generate cover letters.');
+      return;
+    }
     if (!selectedJob && filteredAndSortedJobs.length === 0) {
       toast.error('Generate daily jobs first, then come back here.');
       return;
@@ -33,7 +40,9 @@ export function CoverLetters() {
       );
       setGeneratedLetter(letter);
     } catch (e: any) {
-      if (e.message === 'AI_QUOTA_EXCEEDED') {
+      if (e.message === 'AI_PRO_REQUIRED') {
+        showProRequiredToast('Upgrade to Pro to generate cover letters.');
+      } else if (e.message === 'AI_QUOTA_EXCEEDED') {
         toast.error('AI quota exceeded. Please add credits to your OpenRouter account.', { duration: 6000 });
       } else {
         toast.error(e?.message || 'Failed to generate cover letter.');
@@ -109,7 +118,7 @@ export function CoverLetters() {
               type="button"
               className="hs-btn hs-btn-primary mt-5 w-full justify-center"
               onClick={generate}
-              disabled={isGenerating}
+              disabled={isGenerating || !isProPlan(profile?.plan)}
             >
               {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               {generatedLetter ? 'Regenerate' : 'Generate letter'}
@@ -117,7 +126,10 @@ export function CoverLetters() {
           )}
         </aside>
 
-        <section className="hs-block">
+        <section className="relative hs-block">
+          {!isProPlan(profile?.plan) ? (
+            <ProFeatureOverlay message="Cover letters are a Pro feature" />
+          ) : null}
           <div className="hs-block-header">
             <div className="font-display text-[16px] font-semibold">
               Cover Letter — {selectedJob?.company || 'Select a role'}

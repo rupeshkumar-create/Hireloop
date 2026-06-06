@@ -10,7 +10,6 @@ import {
   Moon,
   Settings,
   Sun,
-  Timer,
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +30,8 @@ function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: bo
       items: [
         { name: 'Pipeline', path: '/jobs', icon: Bookmark, count: savedCount },
         { name: 'Resume', path: '/resume', icon: FileText },
+        { name: 'Cover Letters', path: '/cover-letters', icon: MessageSquareText },
+        { name: 'Interview Prep', path: '/interview-prep', icon: ClipboardCheck },
       ],
     },
     {
@@ -156,7 +157,7 @@ export function Sidebar() {
           )}
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-semibold text-[var(--hs-app-fg)]">
-              {profile?.displayName || 'Rupesh Kumar'}
+              {profile?.displayName || profile?.email?.split('@')[0] || 'Account'}
             </div>
             <div className="truncate font-mono text-[10px] text-[var(--hs-app-muted)]">{plan} Plan</div>
           </div>

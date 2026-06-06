@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { showProRequiredToast } from '../lib/proUpgrade';
 import { Job } from '../types/dashboard';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -55,7 +56,9 @@ export function useDashboardAI(profile: any) {
         void markActivatedIfNeeded();
       }
     } catch (error: any) {
-      if (error.message === 'AI_QUOTA_EXCEEDED') {
+      if (error.message === 'AI_PRO_REQUIRED') {
+        showProRequiredToast('Upgrade to Pro to use AI Copilot features.');
+      } else if (error.message === 'AI_QUOTA_EXCEEDED') {
         toast.error('AI Quota Exceeded: Your OpenRouter account has run out of credits. Please add funds to continue using AI features.', { duration: 6000 });
       } else if (action === 'interview') {
         toast.error(error.message || 'Failed to generate interview Q/A.');

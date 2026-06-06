@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getBearerToken } from '../src/server/adminAuth.js';
-import { verifyAiAccess } from '../src/server/apiAuth.js';
+import { getBearerToken } from '../../adminAuth.js';
+import { verifyAiAccess } from '../../apiAuth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

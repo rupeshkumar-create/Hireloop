@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
 import { stripUndefinedDeep } from '../lib/firestoreSanitizer';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 
@@ -99,6 +99,8 @@ export interface UserProfile {
   activatedAt?: string;
   plan?: 'free' | 'pro';
   receiveDailyAlerts?: boolean;
+  automationPausedAt?: string;
+  automationPausedReason?: string;
   antiSlopEnabled?: boolean;
   dailyJobs?: any[];
   dailyJobsMeta?: Record<string, any>;
@@ -179,7 +181,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 !docSnap.data().lastActiveAt || 
                 new Date().getTime() - new Date(docSnap.data().lastActiveAt).getTime() > 1000 * 60 * 60
               ) {
-                setDoc(doc(db, 'users', currentUser.uid), { lastActiveAt: new Date().toISOString() }, { merge: true });
+                const nowIso = new Date().toISOString();
+                const resumeAutomation =
+                  docSnap.data().automationPausedReason === 'inactive_3d'
+                    ? {
+                        receiveDailyAlerts: true,
+                        automationPausedAt: deleteField(),
+                        automationPausedReason: deleteField(),
+                      }
+                    : {};
+                setDoc(
+                  doc(db, 'users', currentUser.uid),
+                  { lastActiveAt: nowIso, updatedAt: nowIso, ...resumeAutomation },
+                  { merge: true }
+                );
               }
             } else {
               // Create initial profile

@@ -18,8 +18,8 @@
  * Returns: { jobs, sources, totalFound, deduplicated }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth } from '../../src/server/firebaseAdmin.js';
-import { researchJobs } from '../../src/services/jobResearcher.js';
+import { getAdminAuth } from '../../../firebaseAdmin.js';
+import { researchJobs } from '../../../../services/jobResearcher.js';
 
 const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
 

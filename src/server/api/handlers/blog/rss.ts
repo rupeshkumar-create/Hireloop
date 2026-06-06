@@ -2,7 +2,7 @@
  * GET /api/blog/rss.xml — RSS feed for hiring guides (distribution + crawlers).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listBlogPosts } from '../../src/server/marketingEngine.js';
+import { listBlogPosts } from '../../../marketingEngine.js';
 
 const BASE = 'https://hireschema.com';
 

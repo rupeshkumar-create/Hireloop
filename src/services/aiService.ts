@@ -51,6 +51,9 @@ export async function callOpenAI(
 
   if (!response.ok) {
     const error = data;
+    if (response.status === 403 || error.error?.toLowerCase?.().includes('pro plan')) {
+      throw new Error('AI_PRO_REQUIRED');
+    }
     if (
       error.status === 402 ||
       error.status === 429 ||

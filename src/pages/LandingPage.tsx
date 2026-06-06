@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { isOnboardingComplete } from '../lib/onboarding';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -616,7 +617,7 @@ const PRO_FEATURES = [
   '10 matched jobs per day',
   'AI cover letter and resume tailoring',
   'Interview prep questions per role',
-  'Career path recommendations',
+  'Cold email drafts per saved role',
   'Priority learning loop updates',
 ];
 
@@ -629,7 +630,7 @@ function ArrowIcon() {
 }
 
 export function LandingPage() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const rootRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -735,7 +736,9 @@ export function LandingPage() {
     };
   }, []);
 
-  if (!loading && user) return <Navigate to="/dashboard" replace />;
+  if (!loading && user) {
+    return <Navigate to={isOnboardingComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
+  }
 
   return (
     <div ref={rootRef} className="lp-root">
@@ -757,7 +760,7 @@ export function LandingPage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="lp-hero">
+      <section id="about" className="lp-hero">
         <div className="lp-container">
           <div className="lp-hero-grid">
             <div className="lp-hero-left">
@@ -1059,8 +1062,9 @@ export function LandingPage() {
                 <ul className="lp-footer-col-list">
                   <li><Link to="/dashboard">Dashboard</Link></li>
                   <li><Link to="/jobs">Job Tracker</Link></li>
-                  <li><Link to="/dashboard">Resume Builder</Link></li>
-                  <li><Link to="/dashboard">Interview Prep</Link></li>
+                  <li><Link to="/resume">Resume Profile</Link></li>
+                  <li><Link to="/cover-letters">Cover Letters</Link></li>
+                  <li><Link to="/interview-prep">Interview Prep</Link></li>
                   <li><Link to="/settings">Settings</Link></li>
                 </ul>
               </div>
@@ -1071,7 +1075,7 @@ export function LandingPage() {
                 <ul className="lp-footer-col-list">
                   <li><a href="#about">About</a></li>
                   <li><a href="#pricing">Pricing</a></li>
-                  <li><a href="#changelog">Changelog</a></li>
+                  <li><a href="#blog">Updates</a></li>
                   <li><a href="mailto:hello@hireschema.com">Contact</a></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>
                 </ul>
@@ -1083,8 +1087,8 @@ export function LandingPage() {
                 <ul className="lp-footer-col-list">
                   <li><Link to="/privacy">Privacy Policy</Link></li>
                   <li><Link to="/terms">Terms of Service</Link></li>
-                  <li><Link to="/cookies">Cookie Policy</Link></li>
-                  <li><Link to="/security">Security</Link></li>
+                  <li><Link to="/privacy#cookies">Cookie Policy</Link></li>
+                  <li><Link to="/privacy#security">Security</Link></li>
                 </ul>
               </div>
 
@@ -1102,7 +1106,7 @@ export function LandingPage() {
               <ul className="lp-footer-legal">
                 <li><Link to="/privacy">Privacy</Link></li>
                 <li><Link to="/terms">Terms</Link></li>
-                <li><Link to="/cookies">Cookies</Link></li>
+                <li><Link to="/privacy#cookies">Cookies</Link></li>
                 <li><a href="mailto:hello@hireschema.com">Contact</a></li>
               </ul>
             </div>
