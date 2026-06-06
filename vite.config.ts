@@ -34,8 +34,8 @@ const API_MOUNTS: ApiMount[] = [
   { prefix: '/api/blog', module: '/api/blog/[[...route]].ts', routeParam: true },
   { prefix: '/api/public', module: '/api/public/[[...route]].ts', routeParam: true },
   { prefix: '/api/jobs', module: '/api/jobs/index.ts' },
-  { prefix: '/api/openai', module: '/api/ai/[[...route]].ts', fixedRoute: 'openai' },
-  { prefix: '/api/apollo', module: '/api/ai/[[...route]].ts', fixedRoute: 'apollo' },
+  { prefix: '/api/openai', module: '/api/openai.ts' },
+  { prefix: '/api/apollo', module: '/api/apollo.ts' },
   { prefix: '/api/ai', module: '/api/ai/[[...route]].ts', routeParam: true },
   { prefix: '/api/cron/process-user', module: '/api/cron/process-user.ts' },
 ];

@@ -2,13 +2,13 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 describe('AI API route wiring', () => {
-  it('exports openai handler from server module', async () => {
-    const mod = await import('../api/handlers/openai.js');
+  it('exports explicit /api/openai handler', async () => {
+    const mod = await import('../../../api/openai.ts');
     expect(typeof mod.default).toBe('function');
   });
 
-  it('exports apollo handler from server module', async () => {
-    const mod = await import('../api/handlers/apollo.js');
+  it('exports explicit /api/apollo handler', async () => {
+    const mod = await import('../../../api/apollo.ts');
     expect(typeof mod.default).toBe('function');
   });
 
@@ -17,12 +17,13 @@ describe('AI API route wiring', () => {
     expect(typeof mod.default).toBe('function');
   });
 
-  it('ai catch-all dispatches /api/ai/openai to openai handler', async () => {
+  it('ai catch-all dispatches /api/ai/openai via URL path fallback', async () => {
     const aiCatchAll = (await import('../../../api/ai/[[...route]].ts')).default;
     const req = {
       method: 'POST',
       headers: {},
-      query: { route: 'openai' },
+      url: '/api/ai/openai',
+      query: {},
       body: { messages: [{ role: 'user', content: 'hi' }] },
     } as VercelRequest;
     const res = {

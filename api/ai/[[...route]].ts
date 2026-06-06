@@ -4,8 +4,19 @@ type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
 
 function routeKey(req: VercelRequest): string {
   const route = req.query.route;
-  if (!route) return '';
-  return Array.isArray(route) ? route.join('/') : route;
+  if (route) {
+    return Array.isArray(route) ? route.join('/') : route;
+  }
+
+  // Vercel rewrites and some deploys do not populate req.query.route for catch-alls.
+  const pathOnly = (req.url ?? '').split('?')[0];
+  if (pathOnly.startsWith('/api/ai/')) {
+    return pathOnly.slice('/api/ai/'.length);
+  }
+  if (pathOnly === '/api/openai') return 'openai';
+  if (pathOnly === '/api/apollo') return 'apollo';
+
+  return '';
 }
 
 const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
