@@ -25,13 +25,18 @@ type ApiMount = {
   prefix: string;
   module: string;
   routeParam?: boolean;
+  /** Map a flat path (e.g. /api/openai) onto a catch-all sub-route */
+  fixedRoute?: string;
 };
 
 const API_MOUNTS: ApiMount[] = [
   { prefix: '/api/admin', module: '/api/admin/[[...route]].ts', routeParam: true },
   { prefix: '/api/blog', module: '/api/blog/[[...route]].ts', routeParam: true },
+  { prefix: '/api/public', module: '/api/public/[[...route]].ts', routeParam: true },
   { prefix: '/api/jobs', module: '/api/jobs/index.ts' },
-  { prefix: '/api/openai', module: '/api/openai.ts' },
+  { prefix: '/api/openai', module: '/api/ai/[[...route]].ts', fixedRoute: 'openai' },
+  { prefix: '/api/apollo', module: '/api/ai/[[...route]].ts', fixedRoute: 'apollo' },
+  { prefix: '/api/ai', module: '/api/ai/[[...route]].ts', routeParam: true },
   { prefix: '/api/cron/process-user', module: '/api/cron/process-user.ts' },
 ];
 
@@ -47,10 +52,12 @@ function localApiVercelPlugin() {
         try {
           req.body = await readJsonBody(req);
           const fullUrl = new URL(req.url, 'http://localhost');
+          req.query = { ...(req.query ?? {}), ...Object.fromEntries(fullUrl.searchParams.entries()) };
 
-          if (mount.routeParam) {
+          if (mount.fixedRoute) {
+            req.query.route = mount.fixedRoute;
+          } else if (mount.routeParam) {
             const subPath = fullUrl.pathname.replace(new RegExp(`^${mount.prefix}/?`), '');
-            req.query = { ...(req.query ?? {}), ...Object.fromEntries(fullUrl.searchParams.entries()) };
             if (subPath) req.query.route = subPath;
           }
 

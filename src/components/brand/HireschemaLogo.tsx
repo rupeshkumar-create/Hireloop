@@ -2,7 +2,10 @@ import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
 export const HIRESCHEMA_LOGO_SRC = '/hireschema-logo.png';
+export const HIRESCHEMA_LOGO_DARK_SRC = '/hireschema-logo-dark.png';
 export const HIRESCHEMA_ICON_SRC = '/hireschema-icon.png';
+
+const LOGO_ASPECT = 1024 / 180;
 
 type HireschemaLogoProps = {
   className?: string;
@@ -10,28 +13,43 @@ type HireschemaLogoProps = {
   to?: string;
 };
 
-export function HireschemaLogo({ className, height = 28, to }: HireschemaLogoProps) {
-  const img = (
-    <img
-      src={HIRESCHEMA_LOGO_SRC}
-      alt="Hireschema"
-      height={height}
-      width={Math.round(height * (1024 / 180))}
-      className={cn('hs-brand-logo', className)}
-      style={{ height, width: 'auto', maxWidth: 'none' }}
-      decoding="async"
-    />
+function BrandLogoImages({ className, height }: { className?: string; height: number }) {
+  const shared = {
+    alt: 'Hireschema',
+    height,
+    width: Math.round(height * LOGO_ASPECT),
+    style: { height, width: 'auto', maxWidth: 'none' } as const,
+    decoding: 'async' as const,
+  };
+
+  return (
+    <>
+      <img
+        {...shared}
+        src={HIRESCHEMA_LOGO_SRC}
+        className={cn('hs-brand-logo dark:hidden', className)}
+      />
+      <img
+        {...shared}
+        src={HIRESCHEMA_LOGO_DARK_SRC}
+        className={cn('hs-brand-logo hidden dark:block', className)}
+      />
+    </>
   );
+}
+
+export function HireschemaLogo({ className, height = 28, to }: HireschemaLogoProps) {
+  const logos = <BrandLogoImages className={className} height={height} />;
 
   if (to) {
     return (
       <Link to={to} className="hs-brand-logo-link inline-flex shrink-0 items-center no-underline">
-        {img}
+        {logos}
       </Link>
     );
   }
 
-  return img;
+  return logos;
 }
 
 type HireschemaIconProps = {

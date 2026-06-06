@@ -5,7 +5,7 @@ type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
 function routeKey(req: VercelRequest): string {
   const route = req.query.route;
   if (!route) return '';
-  return Array.isArray(route) ? route[0] : route;
+  return Array.isArray(route) ? route.join('/') : route;
 }
 
 const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {

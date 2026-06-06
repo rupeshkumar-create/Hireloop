@@ -277,7 +277,25 @@ export function Dashboard() {
       )}
 
       {dashboardTab === 'history' ? (
-        <DailyMatchHistoryTab days={historyDays} loading={historyLoading} totals={historyTotals} />
+        <DailyMatchHistoryTab
+          days={historyDays}
+          loading={historyLoading}
+          totals={historyTotals}
+          jobDetails={{
+            saveJob: handleSaveJob,
+            dismissJob,
+            trackJobClick,
+            markJobApplied,
+            handleAiAction,
+            aiAction,
+            aiResult,
+            setAiResult,
+            actionLoading,
+            downloadResume,
+            savedFingerprints: savedJobFingerprints,
+            savingFingerprints: savingJobFingerprints,
+          }}
+        />
       ) : (
         <>
       {/* Region banner moved above Getting Started — it answers "why don't
@@ -444,8 +462,10 @@ export function Dashboard() {
           </section>
         </aside>
       </div>
+        </>
+      )}
 
-      {selectedJob && (
+      {dashboardTab !== 'history' && selectedJob && (
         <JobDetailsPanel
           selectedJob={selectedJob}
           saveJob={handleSaveJob}
@@ -462,8 +482,6 @@ export function Dashboard() {
           isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
           isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
         />
-      )}
-        </>
       )}
     </div>
   );
