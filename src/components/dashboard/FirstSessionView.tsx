@@ -1,5 +1,6 @@
 import React from 'react';
-import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Briefcase, Loader2, RefreshCw, Settings } from 'lucide-react';
 import type { Job } from '../../types/dashboard';
 import type { DailyBatchSummary } from './matchPaywall';
 import { FreeMatchUpsell } from './FreeMatchUpsell';
@@ -29,6 +30,11 @@ export function FirstSessionView({
   formatPosted,
 }: Props) {
   const score = topJob ? topJob.matchScore || topJob.finalScore || 0 : 0;
+  const heading = generatingJobs
+    ? 'Scout is searching for your matches'
+    : topJob
+    ? 'Scout found your first matches'
+    : 'No matches yet — try adjusting your paths';
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -37,7 +43,7 @@ export function FirstSessionView({
           Step 1 of 3
         </p>
         <h1 className="mt-2 font-display text-2xl font-semibold text-[var(--hs-app-fg)] md:text-3xl">
-          Scout found your first matches
+          {heading}
         </h1>
         <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[var(--hs-app-muted)]">
           This page is your inbox for new jobs. Save a role to move it to{' '}
@@ -116,13 +122,22 @@ export function FirstSessionView({
           <Briefcase className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-muted)]" />
           <div className="text-[15px] font-semibold text-[var(--hs-app-fg)]">No matches yet</div>
           <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--hs-app-muted)]">
-            Scout may still be running, or today&apos;s market is thin for your paths. Try again or broaden career paths
-            in Settings.
+            Scout ran but didn&apos;t find roles strong enough for your profile today. Add 1–2 broader career
+            paths or retry — you can also open the full dashboard below.
           </p>
-          <Button className="mt-4" onClick={onRunScout} disabled={generatingJobs}>
-            {generatingJobs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Find jobs now
-          </Button>
+          <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+            <Button className="w-full sm:w-auto" onClick={() => onRunScout({ force: true })} disabled={generatingJobs}>
+              {generatingJobs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Search again
+            </Button>
+            <Link
+              to="/settings#job-preferences"
+              className="inline-flex h-9 w-full items-center justify-center rounded-full border border-border bg-transparent px-3 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-surface-hover sm:w-auto"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Edit career paths
+            </Link>
+          </div>
         </div>
       )}
 

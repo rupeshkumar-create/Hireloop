@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
+import { resolveTodayLocalDateKey } from '../lib/localDate';
 
 // ISO country code → display name for the eligibility banner. Falls back to
 // the code itself when an unmapped country comes through (rare; defensive).
@@ -125,6 +126,7 @@ export function Dashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [firstSessionExpanded, setFirstSessionExpanded] = useState(false);
   const [justCompletedFirstSave, setJustCompletedFirstSave] = useState(false);
+  const welcomeScoutStartedRef = useRef(false);
 
   const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const inFirstSession = isInFirstSession(profile, pipelineCount);
@@ -166,8 +168,14 @@ export function Dashboard() {
   useEffect(() => {
     if (!showWelcome && !isFreshlyOnboarded(profile)) return;
     if (filteredAndSortedJobs.length > 0 || generatingJobs || loadingJobs) return;
+
+    const today = resolveTodayLocalDateKey(new Date(), profile);
+    if (profile?.lastSuccessfulJobRunLocalDate === today) return;
+    if (welcomeScoutStartedRef.current) return;
+
+    welcomeScoutStartedRef.current = true;
     void requestJobs({ firstRun: true });
-  }, [showWelcome, profile?.onboardingCompletedAt, filteredAndSortedJobs.length, generatingJobs, loadingJobs, requestJobs]);
+  }, [showWelcome, profile?.onboardingCompletedAt, profile?.lastSuccessfulJobRunLocalDate, filteredAndSortedJobs.length, generatingJobs, loadingJobs, requestJobs]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

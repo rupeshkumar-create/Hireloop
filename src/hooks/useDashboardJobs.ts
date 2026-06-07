@@ -12,7 +12,7 @@
  * Falls back to the last-fetched cache on the user doc when today's record
  * does not yet exist (e.g. before midnight cron fires).
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import {
   collection,
@@ -286,6 +286,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   // ── On-demand job generation ────────────────────────────────────────────────
 
   const [generatingJobs, setGeneratingJobs] = useState(false);
+  const noJobsToastShownRef = useRef(false);
 
   // ── Reactive: show jobs as soon as Firestore delivers them ─────────────────
   // AuthContext's onSnapshot keeps `profile` in sync with Firestore.
@@ -297,6 +298,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const now = new Date();
     const today = resolveTodayLocalDateKey(now, profile);
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
+    const scoutFinishedToday =
+      profile.lastSuccessfulJobRunLocalDate === today ||
+      (fetchDate === today && typeof profile.lastJobFetchTime === 'string');
 
     if (fetchDate === today && profile.dailyJobs && profile.dailyJobs.length > 0) {
       const { visible, paywall } = splitJobsByPlan(profile.dailyJobs as DailyJob[], profile?.plan);
@@ -309,21 +313,28 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         setGeneratingJobs(false);
         toast.success(`${freshJobs.length} jobs curated for you!`);
       }
-    } else if (fetchDate === today && generatingJobs) {
-      // Pipeline completed today but stored 0 jobs — clear spinner and inform user.
+    } else if (scoutFinishedToday && generatingJobs) {
+      // Pipeline completed today but stored 0 jobs — clear spinner once.
       setGeneratingJobs(false);
-      toast.info(
-        "No matching jobs found this time. Try adding more career paths or uploading a more detailed resume.",
-        { duration: 8000 }
-      );
+      if (!noJobsToastShownRef.current) {
+        noJobsToastShownRef.current = true;
+        toast.info(
+          'No matching jobs found this time. Try adding more career paths or uploading a more detailed resume.',
+          { duration: 8000 }
+        );
+      }
     }
-  }, [profile?.lastJobFetchTime]);
+  }, [profile?.lastJobFetchTime, profile?.lastSuccessfulJobRunLocalDate, profile?.dailyJobs, generatingJobs]);
 
   // ── On-demand job generation ────────────────────────────────────────────────
 
   const requestJobs = async (opts?: { firstRun?: boolean; force?: boolean }) => {
     if (!user) return;
     if (generatingJobs && !opts?.force) return;
+
+    if (opts?.force) {
+      noJobsToastShownRef.current = false;
+    }
 
     const isFirstRun =
       opts?.firstRun === true || !profile?.lastSuccessfulJobRunLocalDate;
@@ -397,13 +408,15 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
         if (fetchedJobs.length > 0) {
           toast.success(`${fetchedJobs.length} jobs curated for you!`);
-        } else {
+        } else if (!noJobsToastShownRef.current) {
+          noJobsToastShownRef.current = true;
           toast.info(
             (payload as any).message ||
-            "No matching jobs found this time. Try broadening your career paths or work preferences.",
+            'No matching jobs found this time. Try broadening your career paths or work preferences.',
             { duration: 8000 }
           );
         }
+        setGeneratingJobs(false);
         return;
       }
 

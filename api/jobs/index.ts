@@ -300,7 +300,7 @@ async function runPipeline(
             jobType,
             seenFingerprints,
             limit,
-            minMatchScore: fastMode ? 62 : undefined,
+            minMatchScore: fastMode ? 52 : undefined,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
