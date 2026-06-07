@@ -9,3 +9,5 @@ coverage/
 .vercel
 .env*.local
 .worktrees/
+# Legacy nested copy — deploy from repo root only
+Hireschema/
