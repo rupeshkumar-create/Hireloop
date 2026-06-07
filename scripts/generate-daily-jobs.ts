@@ -22,7 +22,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 // ── Pull in shared business-logic from src/ ──────────────────────────────────
 // These modules are pure TypeScript with no browser-specific imports.
 // `tsx` resolves them directly at runtime.
-import { researchJobs, jobFingerprint, type CallAIFn } from '../src/services/jobResearcher';
+import { createOpenRouterCaller } from '../src/services/openRouterCaller';
+import { researchJobs, jobFingerprint } from '../src/services/jobResearcher';
 import { matchAndRankJobs } from '../src/services/jobMatchingEngine';
 import {
   isActiveCronUser,
@@ -38,32 +39,8 @@ const BATCH_SIZE = 100;
 
 // ── OpenRouter AI caller ─────────────────────────────────────────────────────
 // matchAndRankJobs needs an AI scorer to rank Apify's broad pull by actual
-// fit to the user's resume + career paths. Without this, deterministic
-// keyword overlap promotes irrelevant titles like "Long Term Substitute"
-// to the top.
-const callOpenRouter: CallAIFn = async (messages, model) => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set');
-
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://hireschema.com',
-      'X-Title': 'Hireschema',
-    },
-    body: JSON.stringify({ model, messages }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 300)}`);
-  }
-
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content || '';
-};
+// fit to the user's resume + career paths.
+const callOpenRouter = createOpenRouterCaller();
 
 // ── Firebase Admin init ──────────────────────────────────────────────────────
 
@@ -151,8 +128,9 @@ async function processUser(
             seenFingerprints,
             limit,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
+            structuredProfile: profile.structuredProfile,
           },
-          callOpenRouter
+          callOpenRouter,
         );
         console.log(`  matched ${matchResult.jobs.length} jobs`);
 

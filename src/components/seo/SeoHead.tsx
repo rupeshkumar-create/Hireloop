@@ -9,6 +9,9 @@ interface SeoHeadProps {
     article?: Record<string, unknown>;
     faqPage?: Record<string, unknown>;
     breadcrumb?: Record<string, unknown>;
+    organization?: Record<string, unknown>;
+    website?: Record<string, unknown>;
+    softwareApplication?: Record<string, unknown>;
   };
   keywords?: string[];
   ogImage?: string;
@@ -49,6 +52,12 @@ function removeJsonLd(id: string) {
   document.getElementById(id)?.remove();
 }
 
+const EXTRA_SCHEMA_KEYS = [
+  'schema-organization',
+  'schema-website',
+  'schema-software',
+] as const;
+
 export function SeoHead({
   title,
   description,
@@ -87,10 +96,20 @@ export function SeoHead({
     if (schema?.breadcrumb) upsertJsonLd('schema-breadcrumb', schema.breadcrumb);
     else removeJsonLd('schema-breadcrumb');
 
+    if (schema?.organization) upsertJsonLd('schema-organization', schema.organization);
+    else removeJsonLd('schema-organization');
+
+    if (schema?.website) upsertJsonLd('schema-website', schema.website);
+    else removeJsonLd('schema-website');
+
+    if (schema?.softwareApplication) upsertJsonLd('schema-software', schema.softwareApplication);
+    else removeJsonLd('schema-software');
+
     return () => {
       removeJsonLd('schema-article');
       removeJsonLd('schema-faq');
       removeJsonLd('schema-breadcrumb');
+      for (const id of EXTRA_SCHEMA_KEYS) removeJsonLd(id);
     };
   }, [title, description, canonicalUrl, ogType, schema, keywords, ogImage]);
 

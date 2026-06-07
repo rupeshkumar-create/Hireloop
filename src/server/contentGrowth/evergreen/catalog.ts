@@ -141,7 +141,7 @@ export const EVERGREEN_SPECS: EvergreenSpec[] = [
     ],
     salaryRows: sharedSalary,
     trends: [
-      { trend: 'Skills-based screening', impact: 'Portfolio and assessments weigh more than pedigree alone.', timeframe: '2025–2026' },
+      { trend: 'Skills-based screening', impact: 'Portfolio and assessments weigh more than pedigree alone.', timeframe: '2026' },
       { trend: 'Geo-adjusted pay bands', impact: 'Candidates must clarify location and compensation expectations early.', timeframe: '2026' },
       { trend: 'Async hiring loops', impact: 'Take-home and written exercises replace some live interview stages.', timeframe: '2026' },
       { trend: 'AI-assisted sourcing', impact: 'Recruiters use matching tools to shortlist faster — profiles must be keyword-clear.', timeframe: '2026' },
@@ -281,7 +281,7 @@ export const EVERGREEN_SPECS: EvergreenSpec[] = [
     trends: [
       { trend: 'Explainable recommendations', impact: 'Candidates expect match reasons, not black-box lists.', timeframe: '2026' },
       { trend: 'Agentic job search', impact: 'Tools draft applications and outreach from matched roles.', timeframe: '2026' },
-      { trend: 'Skills graphs', impact: 'Related skills improve recall for pivot candidates.', timeframe: '2025–2026' },
+      { trend: 'Skills graphs', impact: 'Related skills improve recall for pivot candidates.', timeframe: '2026' },
       { trend: 'Privacy-aware matching', impact: 'Profiles minimize sensitive data while preserving ranking quality.', timeframe: '2026' },
     ],
     comparisonHeaders: ['Method', 'Discovery effort', 'Relevance', 'Daily upkeep'],
@@ -345,7 +345,7 @@ function buildRemainingEvergreenSpecs(): EvergreenSpec[] {
     trends: [
       { trend: 'Async-first hiring', impact: 'More written exercises and take-home assessments.', timeframe: '2026' },
       { trend: 'Geo pay transparency', impact: 'Salary bands published upfront in more remote postings.', timeframe: '2026' },
-      { trend: 'Skills verification', impact: 'Portfolio and tests validate claims before final rounds.', timeframe: '2025–2026' },
+      { trend: 'Skills verification', impact: 'Portfolio and tests validate claims before final rounds.', timeframe: '2026' },
       { trend: 'AI-assisted screening', impact: 'Keyword clarity on resumes matters more than ever.', timeframe: '2026' },
     ],
     comparisonHeaders: ['Tactic', 'Speed', 'Quality', 'Sustainability'],

@@ -4,7 +4,7 @@
  * GET  /api/admin/content-growth           → dashboard data
  * POST /api/admin/content-growth?action=  → trigger pipeline steps
  *
- * Actions: publish, dry-run, keywords, competitors, learning, refresh, expand-posts, seed-evergreen, reformat-posts, health
+ * Actions: publish, dry-run, keywords, competitors, learning, refresh, expand-posts, seed-evergreen, seed-competitors, seed-geo-posts, seed-library, weekly-trends, reformat-posts, health
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getBearerToken, verifySuperAdmin } from '../../../adminAuth.js';
@@ -20,6 +20,10 @@ import {
 } from '../../../contentGrowth/orchestrator.js';
 import { dispatchContentCron, type ContentCronJob } from '../../../githubDispatch.js';
 import { seedEvergreenPosts } from '../../../contentGrowth/seedEvergreen.js';
+import { seedCompetitorPosts } from '../../../contentGrowth/seedCompetitors.js';
+import { seedGeoPosts } from '../../../contentGrowth/seedGeoPosts.js';
+import { seedProgrammaticLibrary } from '../../../contentGrowth/seedProgrammaticLibrary.js';
+import { runWeeklyTrendPipeline } from '../../../contentGrowth/weeklyTrendPipeline.js';
 import { reformatBlogPosts } from '../../../contentGrowth/reformatPosts.js';
 import { backfillAllPostInternalLinks } from '../../../contentGrowth/enrichPostLinks.js';
 import { saveGrowthState } from '../../../contentGrowth/storage.js';
@@ -153,6 +157,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const result = await seedEvergreenPosts({ force: body.force === 'true' });
           return res.status(200).json({ success: true, action, ...result });
         }
+        case 'seed-competitors': {
+          const result = await seedCompetitorPosts({ force: body.force === 'true' });
+          return res.status(200).json({ success: true, action, ...result });
+        }
+        case 'seed-geo-posts': {
+          const result = await seedGeoPosts({ force: body.force === 'true' });
+          return res.status(200).json({ success: true, action, ...result });
+        }
+        case 'seed-library': {
+          const result = await seedProgrammaticLibrary({
+            force: body.force === 'true',
+            offset: body.offset ? Number(body.offset) : 0,
+            limit: body.limit ? Number(body.limit) : undefined,
+          });
+          return res.status(200).json({ success: true, action, ...result });
+        }
+        case 'weekly-trends': {
+          const result = await runWeeklyTrendPipeline({
+            dryRun: body.dryRun === 'true',
+            maxPosts: body.maxPosts ? Number(body.maxPosts) : 3,
+          });
+          return res.status(200).json({ success: true, action, ...result });
+        }
         case 'reformat-posts': {
           const result = await reformatBlogPosts({
             slug: body.slug,
@@ -168,7 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'backfill-links': {
           const result = await backfillAllPostInternalLinks({
             slug: body.slug,
-            limit: body.slug ? 1 : 100,
+            limit: body.slug ? 1 : 500,
           });
           return res.status(200).json({
             success: true,

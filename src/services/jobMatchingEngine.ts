@@ -24,6 +24,125 @@ const SENIORITY_LEVELS: Record<string, number> = {
   manager: 4, head: 5, director: 5, vp: 6, cxo: 6, chief: 6, ceo: 6, cto: 6, cfo: 6,
 };
 
+/** Maps title tokens to a coarse role function so we can reject cross-function noise. */
+const ROLE_FUNCTION_KEYWORDS: Record<string, string[]> = {
+  software: [
+    'engineer', 'developer', 'programmer', 'architect', 'software', 'frontend', 'backend',
+    'fullstack', 'full-stack', 'devops', 'sre', 'platform', 'infra', 'infrastructure',
+    'mobile', 'ios', 'android', 'embedded', 'firmware', 'qa', 'sdet', 'security',
+  ],
+  product: ['product', 'pm', 'owner', 'program'],
+  design: ['design', 'designer', 'ux', 'ui', 'creative', 'visual', 'brand'],
+  data: ['data', 'analyst', 'analytics', 'scientist', 'ml', 'machine', 'learning', 'research'],
+  marketing: ['marketing', 'growth', 'seo', 'content', 'communications', 'demand'],
+  sales: ['sales', 'account', 'revenue', 'sdr', 'bdr'],
+  operations: ['operations', 'ops', 'supply', 'logistics', 'facilities'],
+  finance: ['finance', 'financial', 'accounting', 'accountant', 'controller', 'treasury'],
+  hr: ['recruiter', 'recruiting', 'talent', 'people', 'hr'],
+  legal: ['legal', 'counsel', 'attorney', 'paralegal', 'compliance'],
+  support: ['support', 'customer', 'success', 'cx', 'service'],
+};
+
+const DEFAULT_MIN_MATCH_SCORE = 78;
+const MIN_DETERMINISTIC_FOR_POOL = 38;
+const MIN_DETERMINISTIC_WITHOUT_AI = 52;
+
+type AiVerdict = 'perfect' | 'strong' | 'reasonable' | 'stretch' | 'wrong';
+
+function inferRoleFunctions(text: string): Set<string> {
+  const tokens = tokenize(text);
+  const haystack = normalizePhrase(text);
+  const found = new Set<string>();
+  for (const [fn, keywords] of Object.entries(ROLE_FUNCTION_KEYWORDS)) {
+    if (keywords.some((kw) => tokens.includes(kw) || haystack.includes(kw))) {
+      found.add(fn);
+    }
+  }
+  return found;
+}
+
+function titlePhraseScore(jobTitle: string, careerPaths: string[]): number {
+  const titleNorm = normalizePhrase(jobTitle);
+  const titleTokens = tokenize(jobTitle);
+  let best = 0;
+
+  for (const path of careerPaths.map(normalizePhrase).filter(Boolean)) {
+    if (titleNorm === path) {
+      best = Math.max(best, 35);
+      continue;
+    }
+    if (titleNorm.includes(path) || path.includes(titleNorm)) {
+      best = Math.max(best, 28);
+      continue;
+    }
+    const pathTokens = tokenize(path);
+    const overlap = pathTokens.filter((t) => titleTokens.includes(t)).length;
+    if (pathTokens.length > 0) {
+      best = Math.max(best, Math.round((overlap / pathTokens.length) * 22));
+    }
+  }
+  return best;
+}
+
+/**
+ * Hard gate: job title must align with the user's chosen career path(s).
+ * Blocks cross-function noise (e.g. PM roles for SWE paths) and weak token overlap.
+ */
+export function passesCareerPathGate(input: {
+  job: DiscoveredJob;
+  careerPaths: string[];
+  structuredProfile?: DeterministicScoreInputs['structuredProfile'];
+}): boolean {
+  const { job, careerPaths, structuredProfile } = input;
+  if (careerPaths.length === 0) return true;
+
+  const phraseScore = titlePhraseScore(job.title, careerPaths);
+  if (phraseScore >= 22) return true;
+
+  const careerFunctions = new Set<string>();
+  for (const path of careerPaths) inferRoleFunctions(path).forEach((fn) => careerFunctions.add(fn));
+  for (const role of structuredProfile?.roles || []) {
+    inferRoleFunctions(role).forEach((fn) => careerFunctions.add(fn));
+  }
+
+  const jobFunctions = inferRoleFunctions(job.title);
+  const sharedFunctions = [...jobFunctions].filter((fn) => careerFunctions.has(fn));
+  if (sharedFunctions.length === 0) return false;
+
+  const careerTokens = unique(careerPaths.flatMap(tokenize));
+  const titleTokens = tokenize(job.title);
+  const tokenOverlap = careerTokens.filter((t) => titleTokens.includes(t)).length;
+
+  // Same function family + at least two meaningful title tokens from career paths.
+  return tokenOverlap >= 2 && phraseScore >= 10;
+}
+
+/** Reject entry-level listings for senior+ candidates targeting advanced roles. */
+export function passesSeniorityGate(input: {
+  job: DiscoveredJob;
+  careerPaths: string[];
+  structuredProfile?: DeterministicScoreInputs['structuredProfile'];
+}): boolean {
+  const { job, careerPaths, structuredProfile } = input;
+  const userLevel = Math.max(
+    detectSeniorityLevel(structuredProfile?.seniority || ''),
+    ...careerPaths.map((path) => detectSeniorityLevel(path)),
+  );
+  if (userLevel < 0) return true;
+
+  const jobLevel = detectSeniorityLevel(job.title);
+  if (jobLevel < 0) return true;
+
+  // Senior+ candidates should not see intern/junior/entry roles.
+  if (userLevel >= 3 && jobLevel <= 1) return false;
+  // Staff/principal+ should not see mid-level or below.
+  if (userLevel >= 4 && jobLevel <= 2) return false;
+  // More than two levels below is almost always noise.
+  if (userLevel - jobLevel >= 3) return false;
+
+  return true;
+}
+
 function tokenize(value: string): string[] {
   return (value.toLowerCase().match(/[a-z][a-z0-9.+#-]{1,}/g) || [])
     .filter((token) => !STOP_WORDS.has(token) && token.length >= 2);
@@ -196,7 +315,7 @@ async function scoreJobsWithAI(
   careerPaths: string[],
   callAI: CallAIFn,
   structuredProfile?: DeterministicScoreInputs['structuredProfile'],
-): Promise<Record<string, { aiScore: number; aiReason: string; aiInsight: string }>> {
+): Promise<Record<string, { aiScore: number; aiReason: string; aiInsight: string; verdict?: AiVerdict }>> {
   if (jobs.length === 0) return {};
 
   // Structured profile summary — gives the AI verified, dense signal instead
@@ -263,16 +382,18 @@ Respond ONLY with the raw JSON array. No markdown fences, no commentary.`;
     // is worth it — scoring runs at most a few times per user per day.
     const response = await callAI([{ role: 'user', content: prompt }], 'openai/gpt-4o');
     const parsed = parseAiJsonArray(response);
-    const results: Record<string, { aiScore: number; aiReason: string; aiInsight: string }> = {};
+    const results: Record<string, { aiScore: number; aiReason: string; aiInsight: string; verdict?: AiVerdict }> = {};
 
     if (Array.isArray(parsed)) {
       parsed.forEach((item: any) => {
         const job = jobs[item.index];
         if (job) {
+          const verdict = item.verdict as AiVerdict | undefined;
           results[job.fingerprint] = {
             aiScore: Math.min(100, Math.max(0, item.score ?? 50)),
             aiReason: item.reason || 'Matches your high-level profile.',
             aiInsight: item.insight || `${job.company} is hiring for ${job.title}.`,
+            verdict,
           };
         }
       });
@@ -396,7 +517,7 @@ export async function matchAndRankJobs(
     resumeText,
     seenFingerprints = [],
     limit = 10,
-    minMatchScore = 0, // Temporarily disabled for testing
+    minMatchScore = DEFAULT_MIN_MATCH_SCORE,
     matchingPreferences,
     deliveryTimezone,
     userCountry: explicitCountry,
@@ -425,12 +546,25 @@ export async function matchAndRankJobs(
   usedSeenFallback = unseenJobs.length < limit && seenJobs.length > 0;
 
   let preferenceFilteredCount = 0;
+  let careerPathFilteredCount = 0;
+  let seniorityFilteredCount = 0;
   const initialCandidates = candidateJobs
     .map((job) => ({
       job,
       detScore: deterministicMatchScore({ job, careerPaths, resumeText, structuredProfile }),
     }))
-    .filter(({ job }) => {
+    .filter(({ job, detScore }) => {
+      if (!passesCareerPathGate({ job, careerPaths, structuredProfile })) {
+        careerPathFilteredCount++;
+        return false;
+      }
+      if (!passesSeniorityGate({ job, careerPaths, structuredProfile })) {
+        seniorityFilteredCount++;
+        return false;
+      }
+      if (detScore < MIN_DETERMINISTIC_FOR_POOL) {
+        return false;
+      }
       const result = jobMatchesUserPreferences(
         {
           isRemote: job.workType === 'remote',
@@ -455,7 +589,7 @@ export async function matchAndRankJobs(
 
   // 2. Pick top candidates for AI scoring
   const topCandidates = initialCandidates.slice(0, 30);
-  let aiResults: Record<string, { aiScore: number; aiReason: string; aiInsight: string }> = {};
+  let aiResults: Record<string, { aiScore: number; aiReason: string; aiInsight: string; verdict?: AiVerdict }> = {};
   
   if (callAI && topCandidates.length > 0) {
     console.log(`[jobMatchingEngine] Requesting AI scoring for ${topCandidates.length} jobs using enriched descriptions...`);
@@ -468,10 +602,15 @@ export async function matchAndRankJobs(
     );
   }
 
-  // 3. Build final DailyJob objects and apply the > 85 threshold
+  const effectiveMinScore = callAI ? minMatchScore : Math.max(minMatchScore, MIN_DETERMINISTIC_WITHOUT_AI);
+
+  // 3. Build final DailyJob objects and apply quality threshold
   const scored = initialCandidates
     .map(({ job, detScore }) => {
       const aiData = aiResults[job.fingerprint];
+      if (aiData?.verdict === 'stretch' || aiData?.verdict === 'wrong') {
+        return null;
+      }
       // Weighted average: AI score (85%) + Deterministic score (15%) if AI available
       const finalMatchScore = aiData ? Math.round(aiData.aiScore * 0.85 + detScore * 0.15) : detScore;
       
@@ -481,7 +620,8 @@ export async function matchAndRankJobs(
         dailyJob: buildDailyJob(job, finalMatchScore, careerPaths, resumeText, aiData),
       };
     })
-    .filter(({ matchScore }) => matchScore >= minMatchScore) // Step 2: Threshold score > 85
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .filter(({ matchScore }) => matchScore >= effectiveMinScore)
     .sort((a, b) => b.dailyJob.finalScore - a.dailyJob.finalScore);
 
   // 4. Company-level Deduplication & Selection
@@ -497,6 +637,13 @@ export async function matchAndRankJobs(
       seenCompanies.add(companyKey);
       final.push(item.dailyJob);
     }
+  }
+
+  if (careerPathFilteredCount > 0 || seniorityFilteredCount > 0) {
+    console.log(
+      `[jobMatchingEngine] Career-path gate removed ${careerPathFilteredCount} jobs; ` +
+      `seniority gate removed ${seniorityFilteredCount} jobs.`
+    );
   }
 
   return {

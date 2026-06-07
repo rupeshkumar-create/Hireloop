@@ -1,0 +1,74 @@
+name: Seed Content Library
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run all 500 posts or a single batch'
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - single
+      offset:
+        description: 'Batch offset (single mode only)'
+        required: false
+        default: '0'
+      limit:
+        description: 'Batch size (single mode: default 100, all mode: 50 per batch)'
+        required: false
+        default: '100'
+      force:
+        description: 'Overwrite existing posts'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hireschema-seed-content
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Load environment from Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+        run: bash scripts/gha-source-env.sh
+
+      - name: Seed all 500 posts (10 batches)
+        if: github.event.inputs.mode == 'all'
+        run: npm run seed:all:full
+
+      - name: Seed single batch
+        if: github.event.inputs.mode == 'single'
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+          npm run seed:all -- --offset=${{ github.event.inputs.offset }} --limit=${{ github.event.inputs.limit }} $FORCE_FLAG

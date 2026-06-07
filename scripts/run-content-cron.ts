@@ -24,19 +24,25 @@ import {
   runCompetitorAnalysis,
   runMonthlyLearningLoop,
 } from '../src/server/contentGrowth/orchestrator.js';
+import { runWeeklyTrendPipeline } from '../src/server/contentGrowth/weeklyTrendPipeline.js';
 import { hasPublishedToday } from '../src/server/contentGrowth/ensureDailyPublishLogic.js';
 import { listBlogPosts } from '../src/server/marketingEngine.js';
 import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../src/server/marketingEngine.js';
 import { getAdminDb } from '../src/server/firebaseAdmin.js';
 
-type ContentCronJob = 'daily-blog' | 'weekly-analysis' | 'monthly-learning';
+type ContentCronJob = 'daily-blog' | 'weekly-trends' | 'weekly-analysis' | 'monthly-learning';
 
 function resolveJob(): ContentCronJob {
-  const raw = (process.env.JOB || 'daily-blog').trim();
-  if (raw === 'daily-blog' || raw === 'weekly-analysis' || raw === 'monthly-learning') {
+  const raw = (process.env.JOB || 'weekly-trends').trim();
+  if (
+    raw === 'daily-blog' ||
+    raw === 'weekly-trends' ||
+    raw === 'weekly-analysis' ||
+    raw === 'monthly-learning'
+  ) {
     return raw;
   }
-  throw new Error(`Unknown JOB "${raw}". Use daily-blog, weekly-analysis, or monthly-learning.`);
+  throw new Error(`Unknown JOB "${raw}". Use weekly-trends, weekly-analysis, or monthly-learning.`);
 }
 
 async function runWeeklyAnalysisJob() {
@@ -84,6 +90,11 @@ async function main() {
   const dryRun = process.env.DRY_RUN === 'true';
 
   switch (job) {
+    case 'weekly-trends': {
+      const result = await runWeeklyTrendPipeline({ dryRun });
+      console.log(JSON.stringify({ success: true, job, dryRun, result }, null, 2));
+      break;
+    }
     case 'daily-blog': {
       if (!dryRun && process.env.FORCE_PUBLISH !== 'true') {
         const recentPosts = await listBlogPosts(10);

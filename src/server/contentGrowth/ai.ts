@@ -4,16 +4,27 @@
  */
 import OpenAI from 'openai';
 
-const openrouter = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'https://hireschema.com',
-    'X-Title': 'Hireschema',
-  },
-});
+let openrouterClient: OpenAI | null = null;
+
+function getOpenRouterClient(): OpenAI {
+  if (openrouterClient) return openrouterClient;
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY is not configured');
+  }
+  openrouterClient = new OpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey,
+    defaultHeaders: {
+      'HTTP-Referer': 'https://hireschema.com',
+      'X-Title': 'Hireschema',
+    },
+  });
+  return openrouterClient;
+}
 
 export async function chat(model: string, system: string, user: string): Promise<string> {
+  const openrouter = getOpenRouterClient();
   const res = await openrouter.chat.completions.create({
     model,
     messages: [
@@ -25,6 +36,7 @@ export async function chat(model: string, system: string, user: string): Promise
 }
 
 export async function chatJSON<T>(model: string, system: string, user: string): Promise<T> {
+  const openrouter = getOpenRouterClient();
   const res = await openrouter.chat.completions.create({
     model,
     messages: [
@@ -52,6 +64,10 @@ export async function chatJSON<T>(model: string, system: string, user: string): 
  */
 export const MODELS = {
   research: 'perplexity/sonar-pro',
+  outline: 'anthropic/claude-sonnet-4-6',
   writing: 'anthropic/claude-opus-4-6',
+  humanizer: 'anthropic/claude-sonnet-4-6',
+  copyCheck: 'anthropic/claude-sonnet-4-6',
+  metadata: 'anthropic/claude-sonnet-4-6',
   strategy: 'anthropic/claude-opus-4-6',
 } as const;

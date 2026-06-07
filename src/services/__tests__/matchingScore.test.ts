@@ -11,7 +11,11 @@
 //      profile when provided.
 
 import { describe, expect, it } from 'vitest';
-import { deterministicMatchScore } from '../jobMatchingEngine';
+import {
+  deterministicMatchScore,
+  passesCareerPathGate,
+  passesSeniorityGate,
+} from '../jobMatchingEngine';
 
 function makeJob(overrides: Partial<any> = {}): any {
   return {
@@ -149,5 +153,56 @@ describe('deterministicMatchScore — score range hygiene', () => {
       expect(s).toBeGreaterThanOrEqual(0);
       expect(s).toBeLessThanOrEqual(100);
     }
+  });
+});
+
+describe('career path gate', () => {
+  it('allows jobs whose title matches the career path', () => {
+    expect(
+      passesCareerPathGate({
+        job: makeJob({ title: 'Senior Frontend Engineer' }),
+        careerPaths: ['Senior Frontend Engineer'],
+      }),
+    ).toBe(true);
+  });
+
+  it('blocks unrelated roles in a different function', () => {
+    expect(
+      passesCareerPathGate({
+        job: makeJob({ title: 'Long Term Substitute Teacher' }),
+        careerPaths: ['Senior Frontend Engineer'],
+      }),
+    ).toBe(false);
+  });
+
+  it('blocks product roles for software career paths without overlap', () => {
+    expect(
+      passesCareerPathGate({
+        job: makeJob({ title: 'Product Manager' }),
+        careerPaths: ['Senior Backend Engineer'],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('seniority gate', () => {
+  it('blocks junior roles for senior candidates', () => {
+    expect(
+      passesSeniorityGate({
+        job: makeJob({ title: 'Junior Frontend Engineer' }),
+        careerPaths: ['Senior Frontend Engineer'],
+        structuredProfile: { seniority: 'Senior', skills: [], techStack: [] },
+      }),
+    ).toBe(false);
+  });
+
+  it('allows on-level senior roles', () => {
+    expect(
+      passesSeniorityGate({
+        job: makeJob({ title: 'Senior Frontend Engineer' }),
+        careerPaths: ['Senior Frontend Engineer'],
+        structuredProfile: { seniority: 'Senior', skills: [], techStack: [] },
+      }),
+    ).toBe(true);
   });
 });

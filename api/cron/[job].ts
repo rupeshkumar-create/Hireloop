@@ -9,6 +9,7 @@ const JOBS: Record<string, () => Promise<{ default: Handler }>> = {
   'weekly-analysis': () => import('../../src/server/api/handlers/cron/weeklyAnalysis.js'),
   'monthly-learning': () => import('../../src/server/api/handlers/cron/monthlyLearning.js'),
   'process-user': () => import('../../src/server/api/handlers/cron/processUser.js'),
+  'seed-library': () => import('../../src/server/api/handlers/cron/seedLibrary.js'),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

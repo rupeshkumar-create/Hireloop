@@ -13,6 +13,7 @@
 
 import { getAdminDb } from './firebaseAdmin.js';
 import { chat, chatJSON, MODELS } from './contentGrowth/ai.js';
+import { CONTENT_YEAR, normalizeBlogPostYears } from './contentGrowth/contentStandards.js';
 import { BLOG_TARGET_WORD_COUNT } from './contentGrowth/wordCount.js';
 import {
   getEvergreenPostBySlug,
@@ -137,7 +138,7 @@ export async function initializeStrategy(): Promise<MarketingStrategy> {
     ],
     longTailKeywords: [
       'how to find remote jobs faster',
-      'best AI tools for job search 2025',
+      'best AI tools for job search 2026',
       'how to write a resume for remote jobs',
       'top remote companies hiring now',
       'how to negotiate salary for remote jobs',
@@ -149,9 +150,9 @@ export async function initializeStrategy(): Promise<MarketingStrategy> {
     ],
     pendingTopics: [
       {
-        title: 'The 7 Best Remote Job Boards in 2025 (Ranked by Quality)',
+        title: 'The 7 Best Remote Job Boards in 2026 (Ranked by Quality)',
         angle: 'Compare popular remote job boards, their pros/cons, and how HireSchema is different with AI matching',
-        targetKeywords: ['best remote job boards', 'remote job boards 2025', 'find remote jobs'],
+        targetKeywords: ['best remote job boards', 'remote job boards 2026', 'find remote jobs'],
         priority: 1,
       },
       {
@@ -161,15 +162,15 @@ export async function initializeStrategy(): Promise<MarketingStrategy> {
         priority: 1,
       },
       {
-        title: 'How to Write a Resume That Gets Remote Jobs in 2025',
+        title: 'How to Write a Resume That Gets Remote Jobs in 2026',
         angle: 'Specific resume tips for remote roles: keywords, async communication skills, remote-work proof points',
-        targetKeywords: ['remote job resume', 'how to write resume for remote jobs', 'resume tips 2025'],
+        targetKeywords: ['remote job resume', 'how to write resume for remote jobs', 'resume tips 2026'],
         priority: 2,
       },
       {
         title: '50 Top Companies Hiring for Remote Jobs Right Now',
         angle: 'Curated list of remote-first companies across tech, marketing, finance with hiring links',
-        targetKeywords: ['companies hiring remote', 'remote first companies', 'best remote companies 2025'],
+        targetKeywords: ['companies hiring remote', 'remote first companies', 'best remote companies 2026'],
         priority: 1,
       },
       {
@@ -203,9 +204,9 @@ export async function initializeStrategy(): Promise<MarketingStrategy> {
         priority: 2,
       },
       {
-        title: 'Remote Work Salary Guide 2025: What Companies Are Actually Paying',
+        title: 'Remote Work Salary Guide 2026: What Companies Are Actually Paying',
         angle: 'Salary data by role, experience level, and region for top remote roles with negotiation tips',
-        targetKeywords: ['remote work salary 2025', 'remote job salary guide', 'work from home salary'],
+        targetKeywords: ['remote work salary 2026', 'remote job salary guide', 'work from home salary'],
         priority: 1,
       },
     ],
@@ -235,7 +236,7 @@ Angle: ${topic.angle}
 Target keywords: ${topic.targetKeywords.join(', ')}
 
 Return a research brief covering:
-1. Current data points and statistics (2024-2025)
+1. Current data points and statistics (${CONTENT_YEAR})
 2. What top-ranking content covers on this topic
 3. Key facts, examples, and specific details to include
 4. Questions people are actually asking about this topic
@@ -361,14 +362,15 @@ Return JSON with:
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 export async function saveBlogPost(post: BlogPost): Promise<string> {
+  const normalized = normalizeBlogPostYears(post);
   const db = getAdminDb();
-  const ref = db.collection(BLOG_COLLECTION).doc(post.slug);
+  const ref = db.collection(BLOG_COLLECTION).doc(normalized.slug);
   const existing = await ref.get();
   const createdAt = existing.exists
-    ? ((existing.data()?.createdAt as string | undefined) ?? post.createdAt ?? new Date().toISOString())
-    : (post.createdAt ?? new Date().toISOString());
-  await ref.set({ ...post, createdAt, updatedAt: new Date().toISOString() });
-  return post.slug;
+    ? ((existing.data()?.createdAt as string | undefined) ?? normalized.createdAt ?? new Date().toISOString())
+    : (normalized.createdAt ?? new Date().toISOString());
+  await ref.set({ ...normalized, createdAt, updatedAt: new Date().toISOString() });
+  return normalized.slug;
 }
 
 export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content'>[]> {
@@ -447,7 +449,7 @@ Primary keywords: ${strategy.primaryKeywords.slice(0, 5).join(', ')}
 Find:
 1. What questions are people searching most right now about remote jobs and AI job search tools?
 2. What types of content are ranking on Google for "remote job search" and "AI job matching"?
-3. What are the top 3-5 trending topics in remote work and job searching right now (2025)?
+3. What are the top 3-5 trending topics in remote work and job searching right now (2026)?
 4. What content gaps exist — questions being asked that aren't well answered?
 5. Any new AI tools or job platforms in the news that affect this space?
 

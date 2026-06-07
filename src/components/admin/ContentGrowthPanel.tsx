@@ -418,7 +418,7 @@ export function ContentGrowthPanel() {
       if (!res.ok) throw new Error(result.error || 'Action failed');
       if (result.dispatched) {
         toast.success(result.message || `${action} started in GitHub Actions`);
-        return;
+        return result;
       }
       toast.success(
         action === 'dry-run'
@@ -427,15 +427,64 @@ export function ContentGrowthPanel() {
             ? `Expanded ${result.expanded?.length ?? 0} post(s)`
             : action === 'seed-evergreen'
               ? result.message ?? `Seeded ${result.created?.length ?? 0} evergreen posts`
+              : action === 'seed-competitors'
+                ? result.message ?? `Seeded ${result.created?.length ?? 0} competitor posts`
+              : action === 'seed-geo-posts'
+                ? result.message ?? `Seeded ${result.created?.length ?? 0} GEO guides`
+              : action === 'seed-library'
+                ? result.message ?? `Seeded ${result.created?.length ?? 0} programmatic posts`
+              : action === 'weekly-trends'
+                ? result.message ?? `Published ${result.published?.length ?? 0} trend posts`
               : action === 'reformat-posts'
                 ? result.message ?? `Reformatted ${result.reformatted?.length ?? 0} post(s)`
                 : action === 'backfill-links'
-                  ? result.message ?? `Updated links on ${result.updated?.length ?? 0} post(s)`
+                ? result.message ?? `Updated links and years on ${result.updated?.length ?? 0} post(s)`
                   : `${action} completed`
       );
       await loadDashboard();
+      return result;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
+      return null;
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const runSeedLibraryAll = async () => {
+    setActionLoading('seed-library-all');
+    const batchSize = 50;
+    const total = 500;
+    let totalCreated = 0;
+    try {
+      const token = await getToken();
+      for (let offset = 0; offset < total; offset += batchSize) {
+        const batchNum = offset / batchSize + 1;
+        const batchTotal = Math.ceil(total / batchSize);
+        toast.info(`Seeding batch ${batchNum}/${batchTotal}…`);
+        const res = await fetch(`/api/admin/content-growth?action=seed-library`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offset: String(offset), limit: String(batchSize) }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || `Batch ${batchNum} failed`);
+        totalCreated += result.created?.length ?? 0;
+      }
+      toast.info('Running internal link backfill…');
+      const backfillRes = await fetch(`/api/admin/content-growth?action=backfill-links`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const backfill = await backfillRes.json();
+      if (!backfillRes.ok) throw new Error(backfill.error || 'Backfill failed');
+      toast.success(
+        `Library seed complete — ${totalCreated} new posts, ${backfill.updated?.length ?? 0} posts linked`
+      );
+      await loadDashboard();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Seed all failed');
     } finally {
       setActionLoading(null);
     }
@@ -637,6 +686,24 @@ export function ContentGrowthPanel() {
                 ['learning', 'Monthly Learning'],
                 ['expand-posts', 'Expand Short Posts'],
                 ['seed-evergreen', 'Seed 10 Evergreen Posts'],
+                ['seed-competitors', 'Seed 25 Competitor Posts'],
+                ['seed-geo-posts', 'Seed 66 GEO Guides'],
+                ['seed-library', 'Seed 500 Post Library'],
+              ].map(([action, label]) => (
+                <Button key={action} variant="outline" size="sm" disabled={actionLoading !== null} onClick={() => runAction(action)}>
+                  {actionLoading === action ? 'Running…' : label}
+                </Button>
+              ))}
+              <Button
+                variant="default"
+                size="sm"
+                disabled={actionLoading !== null}
+                onClick={() => void runSeedLibraryAll()}
+              >
+                {actionLoading === 'seed-library-all' ? 'Seeding all 500…' : 'Seed All 500 (batched)'}
+              </Button>
+              {[
+                ['weekly-trends', 'Run Weekly Reddit Trends'],
                 ['reformat-posts', 'Reformat All Posts'],
                 ['backfill-links', 'Backfill Internal Links'],
               ].map(([action, label]) => (

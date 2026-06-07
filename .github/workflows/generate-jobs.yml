@@ -66,38 +66,3 @@ jobs:
             }}
         run: npx tsx scripts/generate-daily-jobs.ts
 
-  publish-blog:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.user_id == '')
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    concurrency:
-      group: hireschema-daily-blog
-      cancel-in-progress: false
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Load environment from Vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
-        run: bash scripts/gha-source-env.sh
-
-      - name: Publish daily blog (if missing today)
-        env:
-          JOB: daily-blog
-        run: npx tsx scripts/run-content-cron.ts

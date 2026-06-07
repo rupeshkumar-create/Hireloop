@@ -14,6 +14,11 @@ import {
   ensurePostLinkFields,
   extractInternalLinksFromMarkdown,
 } from './linking.js';
+import { normalizeBlogPostYears } from './contentStandards.js';
+import { pingBlogSlugs } from './indexNow.js';
+
+export const BLOG_LINK_CATALOG_LIMIT = 500;
+export const BLOG_BACKFILL_LIMIT = 500;
 
 export type PostLinkCatalogEntry = {
   slug: string;
@@ -52,7 +57,7 @@ export function buildInternalLinksForPost(
 
 export { contentHasRelatedSection, extractInternalLinksFromMarkdown, ensurePostLinkFields };
 
-export async function loadPostLinkCatalog(limit = 100): Promise<PostLinkCatalogEntry[]> {
+export async function loadPostLinkCatalog(limit = BLOG_LINK_CATALOG_LIMIT): Promise<PostLinkCatalogEntry[]> {
   const posts = await listBlogPosts(limit);
   return posts.map((p) => ({
     slug: p.slug,
@@ -64,16 +69,16 @@ export async function loadPostLinkCatalog(limit = 100): Promise<PostLinkCatalogE
 }
 
 export async function enrichBlogPostLinks(post: BlogPost): Promise<BlogPost> {
-  const catalog = await loadPostLinkCatalog(100);
-  if (catalog.length <= 1) return post;
-  return ensurePostLinkFields(post, catalog);
+  const catalog = await loadPostLinkCatalog(BLOG_LINK_CATALOG_LIMIT);
+  if (catalog.length <= 1) return normalizeBlogPostYears(post);
+  return normalizeBlogPostYears(ensurePostLinkFields(post, catalog));
 }
 
 export async function backfillAllPostInternalLinks(options: {
   slug?: string;
   limit?: number;
 } = {}): Promise<{ updated: string[]; skipped: string[]; errors: { slug: string; error: string }[] }> {
-  const catalog = await loadPostLinkCatalog(100);
+  const catalog = await loadPostLinkCatalog(BLOG_LINK_CATALOG_LIMIT);
   const updated: string[] = [];
   const skipped: string[] = [];
   const errors: { slug: string; error: string }[] = [];
@@ -86,8 +91,18 @@ export async function backfillAllPostInternalLinks(options: {
     posts = [post];
   } else {
     const db = getAdminDb();
-    const snap = await db.collection('blog_posts').limit(Math.min(options.limit ?? 100, 200)).get();
+    const snap = await db
+      .collection('blog_posts')
+      .where('status', '==', 'published')
+      .limit(Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT))
+      .get();
     posts = snap.docs.map((d) => d.data() as BlogPost);
+    if (posts.length === 0) {
+      const fallback = await db.collection('blog_posts').limit(Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT)).get();
+      posts = fallback.docs
+        .map((d) => d.data() as BlogPost)
+        .filter((p) => p.status !== 'draft');
+    }
   }
 
   if (catalog.length <= 1) {
@@ -100,12 +115,14 @@ export async function backfillAllPostInternalLinks(options: {
       continue;
     }
     try {
-      const enriched = ensurePostLinkFields(post, catalog);
+      const yearNormalized = normalizeBlogPostYears(post);
+      const enriched = ensurePostLinkFields(yearNormalized, catalog);
       const hadLinks = (post.internalLinks?.length ?? 0) > 0;
       const hadSection = contentHasRelatedSection(post.content);
       const changed =
         enriched.content !== post.content ||
-        (enriched.internalLinks?.length ?? 0) !== (post.internalLinks?.length ?? 0);
+        (enriched.internalLinks?.length ?? 0) !== (post.internalLinks?.length ?? 0) ||
+        enriched.title !== post.title;
 
       if (!changed && hadLinks && hadSection) {
         skipped.push(post.slug);
@@ -124,6 +141,10 @@ export async function backfillAllPostInternalLinks(options: {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  if (updated.length > 0) {
+    void pingBlogSlugs(updated).catch(() => {});
   }
 
   return { updated, skipped, errors };

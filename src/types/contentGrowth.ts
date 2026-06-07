@@ -135,6 +135,12 @@ export interface ContentGrowthState {
   lastAutoDispatchDate?: string | null;
   lastAutoDispatchAt?: string | null;
   lastAutoDispatchError?: string | null;
+  /** Weekly Reddit trend posts */
+  lastWeeklyTrendPublish?: string | null;
+  lastWeeklyTrendWeek?: string | null;
+  weeklyTrendCount?: number;
+  programmaticLibrarySeeded?: boolean;
+  programmaticLibrarySeededAt?: string | null;
   updatedAt: string;
 }
 

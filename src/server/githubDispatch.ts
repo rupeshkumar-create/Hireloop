@@ -3,7 +3,7 @@
  * Scout jobs use generate-jobs.yml; content growth uses content-cron.yml.
  */
 
-export type ContentCronJob = 'daily-blog' | 'weekly-analysis' | 'monthly-learning';
+export type ContentCronJob = 'daily-blog' | 'weekly-trends' | 'weekly-analysis' | 'monthly-learning';
 
 function normalizeGithubRepoValue(raw: string): string {
   const value = raw.trim();

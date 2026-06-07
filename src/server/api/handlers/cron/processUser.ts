@@ -21,6 +21,7 @@ import { processUserCronRun } from '../../../../services/cronEngine.js';
 import { computeNextJobDeliveryAt } from '../../../../services/jobDeliveryProfile.js';
 import { researchJobs, jobFingerprint } from '../../../../services/jobResearcher.js';
 import { matchAndRankJobs } from '../../../../services/jobMatchingEngine.js';
+import { createOpenRouterCaller } from '../../../../services/openRouterCaller.js';
 import type { DailyJob } from '../../../../types/dailyJob.js';
 import { stripUndefinedDeep } from '../../../../lib/firestoreSanitizer.js';
 
@@ -61,7 +62,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // ── Job generation ──────────────────────────────────────────────────
         generateJobs: async (profile, limit) => {
-          const careerPaths: string[] = profile.careerPaths || [];
+          const careerPaths: string[] = [
+            ...new Set([
+              ...(profile.careerPaths || []),
+              ...(profile.structuredProfile?.roles || []),
+            ]),
+          ]
+            .filter((value): value is string => typeof value === 'string')
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .slice(0, 10);
           const resumeText: string = profile.resumeText || '';
           const jobType: string = profile.jobType || 'remote';
           const location: string = profile.location || '';
@@ -98,9 +108,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               jobType,
               seenFingerprints,
               limit,
-              minMatchScore: 75,
+              minMatchScore: 78,
               matchingPreferences: profile.matchingPreferences || profile.preferences,
-            }
+              deliveryTimezone: profile.deliveryTimezone,
+              structuredProfile: profile.structuredProfile,
+            },
+            createOpenRouterCaller(),
           );
 
           console.log(

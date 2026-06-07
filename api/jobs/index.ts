@@ -4,6 +4,7 @@ import { processUserCronRun } from '../../src/services/cronEngine.js';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile.js';
 import { researchJobs, jobFingerprint } from '../../src/services/jobResearcher.js';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
+import { createOpenRouterCaller } from '../../src/services/openRouterCaller.js';
 import type { DailyJob } from '../../src/types/dailyJob.js';
 import { loadAtsAllowlist } from '../../src/services/jobSources/atsAllowlist.js';
 import { fetchAtsJobs } from '../../src/services/jobSources/atsOrchestrator.js';
@@ -273,11 +274,9 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
             limit,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
-            // Structured profile feeds both the deterministic scorer and the
-            // AI scoring prompt — gives both a verified skill / seniority /
-            // industry signal instead of forcing them to re-parse raw text.
             structuredProfile: profile.structuredProfile,
-          }
+          },
+          createOpenRouterCaller(),
         );
         debug = {
           ...debug,

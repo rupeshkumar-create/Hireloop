@@ -2,10 +2,8 @@ name: Content Growth Cron
 
 on:
   schedule:
-    # Daily blog — primary + afternoon catch-up
-    - cron: '5 8 * * *'
-    - cron: '0 12 * * *'
-    - cron: '0 18 * * *'
+    # Weekly Reddit trend posts — Mondays 10:00 UTC (max 3/week)
+    - cron: '0 10 * * 1'
     # Weekly strategy — Saturdays 08:00 UTC
     - cron: '0 8 * * 6'
     # Monthly learning — 1st of month 08:00 UTC
@@ -16,14 +14,15 @@ on:
       job:
         description: 'Which content job to run'
         required: true
-        default: daily-blog
+        default: weekly-trends
         type: choice
         options:
-          - daily-blog
+          - weekly-trends
           - weekly-analysis
           - monthly-learning
+          - daily-blog
       dry_run:
-        description: 'Dry run (daily-blog only — no publish)'
+        description: 'Dry run (no publish)'
         required: false
         default: false
         type: boolean
@@ -35,13 +34,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: hireschema-daily-blog
+  group: hireschema-content-cron
   cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
@@ -63,10 +62,10 @@ jobs:
             echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ github.event.inputs.dry_run }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "job=${{ github.event.client_payload.job || 'daily-blog' }}" >> "$GITHUB_OUTPUT"
+            echo "job=${{ github.event.client_payload.job || 'weekly-trends' }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ github.event.client_payload.dryRun == true && 'true' || 'false' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5 8 * * *" ] || [ "${{ github.event.schedule }}" = "0 12 * * *" ] || [ "${{ github.event.schedule }}" = "0 18 * * *" ]; then
-            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 10 * * 1" ]; then
+            echo "job=weekly-trends" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 8 * * 6" ]; then
             echo "job=weekly-analysis" >> "$GITHUB_OUTPUT"
@@ -75,7 +74,7 @@ jobs:
             echo "job=monthly-learning" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
+            echo "job=weekly-trends" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 

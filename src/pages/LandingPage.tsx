@@ -3,6 +3,17 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { HireschemaLogo } from '../components/brand/HireschemaLogo';
+import { SeoHead } from '../components/seo/SeoHead';
+import {
+  SITE_URL,
+  HOME_FAQ,
+  HOME_KEYWORDS,
+  buildBreadcrumbSchema,
+  buildFaqPageSchema,
+  buildOrganizationSchema,
+  buildSoftwareApplicationSchema,
+  buildWebSiteSchema,
+} from '../lib/siteSeo';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -196,20 +207,28 @@ const LP_STYLE = `
   .lp-fi-3 { animation-delay:.30s; }
   .lp-fi-4 { animation-delay:.46s; }
 
-  /* job card mockup */
+  /* job card mockup — single card cycles roles (no float) */
   .lp-mockup { position:relative; height:360px; }
   .lp-jcard {
-    position:absolute;
+    position:absolute; top:0; left:0; right:0;
     background:var(--lp-surface); border:1px solid var(--lp-border);
     padding:24px 28px; width:100%;
-    transition:transform 400ms cubic-bezier(.22,1,.36,1);
   }
-  .lp-jcard-bk { top:20px;left:14px;right:-14px;opacity:.4;z-index:0; animation:lp-float-c 7s ease-in-out infinite; }
-  .lp-jcard-md { top:10px;left:7px;right:-7px;opacity:.68;z-index:1; animation:lp-float-b 6s ease-in-out infinite; }
-  .lp-jcard-ft { top:0;left:0;right:0;z-index:2; animation:lp-float-a 5s ease-in-out infinite; }
-  @keyframes lp-float-a { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
-  @keyframes lp-float-b { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); } }
-  @keyframes lp-float-c { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
+  .lp-jcard-inner {
+    transition: opacity 380ms cubic-bezier(.22,1,.36,1), transform 380ms cubic-bezier(.22,1,.36,1);
+  }
+  .lp-jcard-inner.lp-jcard-fade {
+    opacity:0;
+    transform:translateY(8px);
+  }
+  .lp-jcard-dots {
+    display:flex; gap:6px; justify-content:center; margin-top:14px;
+  }
+  .lp-jcard-dot {
+    width:6px; height:6px; border-radius:50%; background:var(--lp-border);
+    transition:background 220ms ease, transform 220ms ease;
+  }
+  .lp-jcard-dot.active { background:var(--lp-fg); transform:scale(1.15); }
 
   .lp-jc-hdr { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
   .lp-jc-company-badge { display:flex; align-items:center; gap:10px; }
@@ -537,6 +556,7 @@ const LP_STYLE = `
   .lp-blog-meta { margin-top:12px; font-family:var(--lp-font-m); font-size:11px; color:var(--lp-muted); }
   @media(prefers-reduced-motion:reduce){
     .lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s { opacity:1 !important; transform:none !important; }
+    .lp-jcard-inner { transition:none !important; }
   }
 `;
 
@@ -552,6 +572,59 @@ const MARQUEE_ITEMS = [
   'Remote · Worldwide', '50+ Resume Signals', 'AI Match Scoring', 'ATS Integrity Checks',
   'Cover Letter Drafts', 'Daily Fresh Matches', 'Learning Loop', 'Job Tracker Built-in',
 ];
+
+const HERO_JOBS = [
+  {
+    logo: 'VR',
+    company: 'Vercel',
+    title: 'Senior Full-Stack Engineer',
+    tags: ['React', 'Next.js', 'TypeScript', 'Remote · Global', '$180k–$220k'],
+    match: 94,
+    resumeFit: 91,
+    seniority: 88,
+    ats: 74,
+  },
+  {
+    logo: 'ST',
+    company: 'Stripe',
+    title: 'Staff Software Engineer',
+    tags: ['Python', 'Distributed Systems', 'AWS', 'Remote · US/EU', '$200k–$280k'],
+    match: 92,
+    resumeFit: 89,
+    seniority: 91,
+    ats: 82,
+  },
+  {
+    logo: 'NT',
+    company: 'Notion',
+    title: 'Product Manager',
+    tags: ['Roadmaps', 'Discovery', 'B2B SaaS', 'Remote · Global', '$160k–$210k'],
+    match: 90,
+    resumeFit: 87,
+    seniority: 85,
+    ats: 78,
+  },
+  {
+    logo: 'FG',
+    company: 'Figma',
+    title: 'Product Designer',
+    tags: ['Figma', 'Design Systems', 'UX Research', 'Remote · Global', '$140k–$185k'],
+    match: 88,
+    resumeFit: 86,
+    seniority: 83,
+    ats: 80,
+  },
+  {
+    logo: 'AP',
+    company: 'Anthropic',
+    title: 'Machine Learning Engineer',
+    tags: ['PyTorch', 'LLMs', 'Python', 'Remote · US', '$185k–$245k'],
+    match: 91,
+    resumeFit: 90,
+    seniority: 87,
+    ats: 76,
+  },
+] as const;
 
 const FEATURES = [
   {
@@ -631,6 +704,22 @@ export function LandingPage() {
   const navRef = useRef<HTMLElement>(null);
   const [activeFeat, setActiveFeat] = useState(0);
   const [blogPosts, setBlogPosts] = useState<LandingBlogPost[]>([]);
+  const [heroJobIndex, setHeroJobIndex] = useState(0);
+  const [heroJobFading, setHeroJobFading] = useState(false);
+
+  const heroJob = HERO_JOBS[heroJobIndex];
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const interval = window.setInterval(() => {
+      setHeroJobFading(true);
+      window.setTimeout(() => {
+        setHeroJobIndex((i) => (i + 1) % HERO_JOBS.length);
+        setHeroJobFading(false);
+      }, 320);
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetch('/api/blog?limit=3')
@@ -737,6 +826,20 @@ export function LandingPage() {
 
   return (
     <div ref={rootRef} className="lp-root">
+      <SeoHead
+        title="HireSchema — AI Remote Job Matching & Daily Job Alerts"
+        description="Find remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path with AI, and delivers personalized remote job alerts — plus resume tailoring and interview prep."
+        canonicalUrl={`${SITE_URL}/`}
+        ogType="website"
+        keywords={HOME_KEYWORDS}
+        schema={{
+          organization: buildOrganizationSchema(),
+          website: buildWebSiteSchema(),
+          softwareApplication: buildSoftwareApplicationSchema(),
+          faqPage: buildFaqPageSchema(HOME_FAQ),
+          breadcrumb: buildBreadcrumbSchema([{ name: 'Home', url: `${SITE_URL}/` }]),
+        }}
+      />
       <div ref={progressRef} className="lp-progress" />
 
       {/* ── Nav ── */}
@@ -780,49 +883,65 @@ export function LandingPage() {
 
             <div className="lp-hero-right lp-fi lp-fi-3">
               <div className="lp-mockup">
-                <div className="lp-jcard lp-jcard-bk">
-                  <div className="lp-jc-hdr">
-                    <div className="lp-jc-company-badge">
-                      <div className="lp-jc-logo">LN</div>
-                      <div><div className="lp-jc-co">Linear Inc.</div><div className="lp-jc-ttl">Senior Product Designer</div></div>
+                <div className="lp-jcard">
+                  <div className={`lp-jcard-inner${heroJobFading ? ' lp-jcard-fade' : ''}`}>
+                    <div className="lp-jc-hdr">
+                      <div className="lp-jc-company-badge">
+                        <div className="lp-jc-logo">{heroJob.logo}</div>
+                        <div>
+                          <div className="lp-jc-co">{heroJob.company}</div>
+                          <div className="lp-jc-ttl">{heroJob.title}</div>
+                        </div>
+                      </div>
+                      <div className="lp-score-ring">
+                        <div
+                          className="lp-score-circle"
+                          style={{
+                            background: `linear-gradient(var(--lp-surface),var(--lp-surface)) padding-box, conic-gradient(var(--lp-fg) 0% ${heroJob.match}%, var(--lp-border) ${heroJob.match}% 100%) border-box`,
+                          }}
+                        >
+                          {heroJob.match}
+                        </div>
+                        <span className="lp-score-lbl">Match</span>
+                      </div>
+                    </div>
+                    <div className="lp-jc-tags">
+                      {heroJob.tags.map((t) => (
+                        <span key={t} className="lp-jc-tag">{t}</span>
+                      ))}
+                    </div>
+                    <div className="lp-signal-bar">
+                      <span className="lp-signal-lbl">Resume fit</span>
+                      <div className="lp-bar-track">
+                        <div className="lp-bar-fill" style={{ width: `${heroJob.resumeFit}%` }} />
+                      </div>
+                    </div>
+                    <div className="lp-signal-bar">
+                      <span className="lp-signal-lbl">Seniority</span>
+                      <div className="lp-bar-track">
+                        <div className="lp-bar-fill" style={{ width: `${heroJob.seniority}%` }} />
+                      </div>
+                    </div>
+                    <div className="lp-signal-bar">
+                      <span className="lp-signal-lbl">ATS quality</span>
+                      <div className="lp-bar-track">
+                        <div className="lp-bar-fill" style={{ width: `${heroJob.ats}%` }} />
+                      </div>
+                    </div>
+                    <div className="lp-jc-meta">
+                      <div className="lp-jc-meta-item">Posted <span>2 days ago</span></div>
+                      <div className="lp-jc-meta-item">Applications <span>Active</span></div>
+                      <div className="lp-jc-meta-item">ATS <span>Clean</span></div>
+                    </div>
+                    <div className="lp-live">
+                      <div className="lp-pulse" />
+                      <span className="lp-live-lbl">Agent scanning now</span>
                     </div>
                   </div>
-                </div>
-                <div className="lp-jcard lp-jcard-md">
-                  <div className="lp-jc-hdr">
-                    <div className="lp-jc-company-badge">
-                      <div className="lp-jc-logo">ST</div>
-                      <div><div className="lp-jc-co">Stripe</div><div className="lp-jc-ttl">Staff Software Engineer</div></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="lp-jcard lp-jcard-ft">
-                  <div className="lp-jc-hdr">
-                    <div className="lp-jc-company-badge">
-                      <div className="lp-jc-logo">VR</div>
-                      <div><div className="lp-jc-co">Vercel</div><div className="lp-jc-ttl">Senior Full-Stack Engineer</div></div>
-                    </div>
-                    <div className="lp-score-ring">
-                      <div className="lp-score-circle">94</div>
-                      <span className="lp-score-lbl">Match</span>
-                    </div>
-                  </div>
-                  <div className="lp-jc-tags">
-                    {['React', 'Next.js', 'TypeScript', 'Remote · Global', '$180k–$220k'].map(t => (
-                      <span key={t} className="lp-jc-tag">{t}</span>
+                  <div className="lp-jcard-dots" aria-hidden="true">
+                    {HERO_JOBS.map((_, i) => (
+                      <span key={i} className={`lp-jcard-dot${i === heroJobIndex ? ' active' : ''}`} />
                     ))}
-                  </div>
-                  <div className="lp-signal-bar"><span className="lp-signal-lbl">Resume fit</span><div className="lp-bar-track"><div className="lp-bar-fill f91" /></div></div>
-                  <div className="lp-signal-bar"><span className="lp-signal-lbl">Seniority</span><div className="lp-bar-track"><div className="lp-bar-fill f88" /></div></div>
-                  <div className="lp-signal-bar"><span className="lp-signal-lbl">ATS quality</span><div className="lp-bar-track"><div className="lp-bar-fill f74" /></div></div>
-                  <div className="lp-jc-meta">
-                    <div className="lp-jc-meta-item">Posted <span>2 days ago</span></div>
-                    <div className="lp-jc-meta-item">Applications <span>Active</span></div>
-                    <div className="lp-jc-meta-item">ATS <span>Clean</span></div>
-                  </div>
-                  <div className="lp-live">
-                    <div className="lp-pulse" />
-                    <span className="lp-live-lbl">Agent scanning now</span>
                   </div>
                 </div>
               </div>
@@ -1077,6 +1196,7 @@ export function LandingPage() {
                   <li><a href="#blog">Updates</a></li>
                   <li><a href="mailto:hello@hireschema.com">Contact</a></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>
+                  <li><a href="/remote-jobs">Remote Jobs</a></li>
                 </ul>
               </div>
 

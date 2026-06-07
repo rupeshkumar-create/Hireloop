@@ -1,0 +1,41 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ALL_PROGRAMMATIC_SPECS,
+  PROGRAMMATIC_CLUSTERS,
+  PROGRAMMATIC_POST_COUNT,
+  TARGET_PROGRAMMATIC_COUNT,
+  assertProgrammaticCatalogSize,
+} from '../programmatic/catalog.js';
+import { buildEvergreenMarkdown } from '../evergreen/buildArticle.js';
+import { BLOG_TARGET_WORD_COUNT, countWords, meetsMinimumWordCount } from '../wordCount.js';
+
+describe('500-post programmatic catalog', () => {
+  it('has exactly 500 unique specs', () => {
+    expect(() => assertProgrammaticCatalogSize(500)).not.toThrow();
+    expect(PROGRAMMATIC_POST_COUNT).toBe(TARGET_PROGRAMMATIC_COUNT);
+    const slugs = new Set(ALL_PROGRAMMATIC_SPECS.map((s) => s.slug));
+    expect(slugs.size).toBe(500);
+  });
+
+  it('cluster breakdown sums to 500', () => {
+    const sum = Object.values(PROGRAMMATIC_CLUSTERS).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(500);
+    expect(PROGRAMMATIC_CLUSTERS.locationRole).toBe(280);
+    expect(PROGRAMMATIC_CLUSTERS.skills).toBe(60);
+  });
+
+  it('staggered publish dates are monotonic', () => {
+    const dates = ALL_PROGRAMMATIC_SPECS.map((s) => new Date(s.publishedAt).getTime());
+    for (let i = 1; i < dates.length; i++) {
+      expect(dates[i]).toBeGreaterThan(dates[i - 1]!);
+    }
+  });
+
+  it('sample specs meet word target', () => {
+    for (const spec of [ALL_PROGRAMMATIC_SPECS[0], ALL_PROGRAMMATIC_SPECS[200], ALL_PROGRAMMATIC_SPECS[499]]) {
+      const md = buildEvergreenMarkdown(spec);
+      expect(meetsMinimumWordCount(md)).toBe(true);
+      expect(countWords(md)).toBeGreaterThanOrEqual(BLOG_TARGET_WORD_COUNT);
+    }
+  });
+});

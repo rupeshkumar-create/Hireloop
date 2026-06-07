@@ -8,7 +8,7 @@ import {
   type BlogPost,
 } from '../marketingEngine.js';
 import { reformatBlogPostContent } from '../../lib/blogContent.js';
-import { ensurePostLinkFields, loadPostLinkCatalog } from './enrichPostLinks.js';
+import { ensurePostLinkFields, loadPostLinkCatalog, BLOG_LINK_CATALOG_LIMIT, BLOG_BACKFILL_LIMIT } from './enrichPostLinks.js';
 
 const BLOG_COLLECTION = 'blog_posts';
 
@@ -32,7 +32,7 @@ export async function reformatBlogPosts(options: {
     }
     posts = [post];
   } else {
-    const limit = Math.min(options.limit ?? 100, 200);
+    const limit = Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT);
     const snap = await db.collection(BLOG_COLLECTION).limit(limit).get();
     posts = snap.docs.map((d) => d.data() as BlogPost);
   }
@@ -41,7 +41,7 @@ export async function reformatBlogPosts(options: {
     return { reformatted, skipped, errors };
   }
 
-  const catalog = await loadPostLinkCatalog(100);
+  const catalog = await loadPostLinkCatalog(BLOG_LINK_CATALOG_LIMIT);
 
   for (const post of posts) {
     if (!post.slug || !post.content?.trim()) {

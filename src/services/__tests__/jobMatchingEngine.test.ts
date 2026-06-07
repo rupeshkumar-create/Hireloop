@@ -30,6 +30,7 @@ describe('matchAndRankJobs', () => {
         resumeText: 'React TypeScript frontend engineer',
         seenFingerprints: ['frontend-engineer::acme'],
         limit: 10,
+        minMatchScore: 50,
       }
     );
 

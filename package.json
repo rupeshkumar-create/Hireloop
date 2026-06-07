@@ -11,6 +11,11 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "seed:competitors": "tsx scripts/seed-competitor-posts.ts",
+    "seed:geo": "tsx scripts/seed-geo-posts.ts",
+    "seed:all": "tsx scripts/seed-all-posts.ts",
+    "seed:all:full": "tsx scripts/seed-all-batches.ts",
+    "seed:production": "tsx scripts/trigger-production-seed.ts",
     "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {

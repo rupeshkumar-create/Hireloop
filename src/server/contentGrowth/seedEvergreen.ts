@@ -123,7 +123,7 @@ export async function seedEvergreenPosts(options: { force?: boolean } = {}): Pro
       ...basePost,
       directAnswer: spec.directAnswer,
       definitions: spec.definitions,
-      salaryBenchmarks: spec.salaryRows.map((r) => ({ ...r, source: 'Industry surveys 2025–2026' })),
+      salaryBenchmarks: spec.salaryRows.map((r) => ({ ...r, source: 'Industry surveys 2026' })),
       hiringTrends: spec.trends,
       internalLinks,
       entityTags: [
@@ -155,7 +155,7 @@ export async function seedEvergreenPosts(options: { force?: boolean } = {}): Pro
       ...basePost,
       directAnswer: spec.directAnswer,
       definitions: spec.definitions,
-      salaryBenchmarks: spec.salaryRows.map((r) => ({ ...r, source: 'Industry surveys 2025–2026' })),
+      salaryBenchmarks: spec.salaryRows.map((r) => ({ ...r, source: 'Industry surveys 2026' })),
       hiringTrends: spec.trends,
       comparisonTableMarkdown: spec.comparisonRows
         .map((r) => `| ${r.join(' | ')} |`)

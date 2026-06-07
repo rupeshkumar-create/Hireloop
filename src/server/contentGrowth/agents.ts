@@ -432,7 +432,7 @@ export async function runContentRefreshAgent(
   const refreshed = await chat(
     MODELS.writing,
     'Refresh outdated hiring content with current data. Keep the same structure and slug. Sound human, use recruiter language.',
-    `Refresh this article with current 2025-2026 hiring data.
+    `Refresh this article with current 2026 hiring data.
 
 Reason for refresh: ${refreshReason}
 
