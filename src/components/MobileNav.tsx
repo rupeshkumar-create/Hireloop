@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MoreHorizontal, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
-import { isAdminEmail } from '../lib/adminEmails';
+import { isAppAdmin } from '../lib/isAppAdmin';
 import { getAppNavGroups, MOBILE_SCOUT_ITEM } from '../lib/appNav';
 import { cn } from '../lib/utils';
 
@@ -19,25 +19,38 @@ export function MobileNav() {
   const { user } = useAuth();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [admin, setAdmin] = useState(false);
   const { filteredAndSortedJobs, stats } = useDashboardJobsContext();
+
+  useEffect(() => {
+    if (!user) {
+      setAdmin(false);
+      return;
+    }
+    user
+      .getIdTokenResult()
+      .then((result) => setAdmin(isAppAdmin(user.email, result.claims as { superAdmin?: boolean })))
+      .catch(() => setAdmin(isAppAdmin(user.email)));
+  }, [user]);
 
   const dashboardCount =
     filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
-  const groups = getAppNavGroups(dashboardCount, savedCount, isAdminEmail(user?.email));
+  const groups = getAppNavGroups(dashboardCount, savedCount, admin);
 
   const primaryItems = groups
     .flatMap((group) => group.items)
     .filter((item) => item.mobilePrimary);
-  const secondaryItems = groups
-    .flatMap((group) => group.items)
-    .filter((item) => !item.mobilePrimary);
+  const secondaryItems = [
+    ...groups.flatMap((group) => group.items).filter((item) => !item.mobilePrimary),
+    MOBILE_SCOUT_ITEM,
+  ];
 
   const barItems = [
     primaryItems.find((item) => item.path === '/dashboard'),
     primaryItems.find((item) => item.path === '/jobs'),
-    MOBILE_SCOUT_ITEM,
     primaryItems.find((item) => item.path === '/resume'),
+    primaryItems.find((item) => item.path === '/settings'),
   ].filter(Boolean) as typeof primaryItems;
 
   return (
@@ -88,6 +101,12 @@ export function MobileNav() {
         {barItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, location.pathname, location.search);
+          const label =
+            item.path === '/dashboard'
+              ? 'Matches'
+              : item.path === '/jobs'
+              ? 'Pipeline'
+              : item.name;
           return (
             <Link
               key={item.path}
@@ -95,7 +114,7 @@ export function MobileNav() {
               className={cn('hs-mobile-nav-item', active && 'active')}
             >
               <Icon className="h-5 w-5" strokeWidth={1.6} />
-              <span>{item.name === "Today's matches" ? 'Matches' : item.name}</span>
+              <span>{label}</span>
               {item.count ? <span className="hs-mobile-nav-badge">{item.count}</span> : null}
             </Link>
           );

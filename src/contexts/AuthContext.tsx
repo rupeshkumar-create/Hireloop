@@ -5,7 +5,7 @@ import { stripUndefinedDeep } from '../lib/firestoreSanitizer';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 
 import { ResumeAnalysis } from '../services/aiService';
-import { setAiAuthTokenGetter } from '../services/aiAuth';
+import { toast } from 'sonner';
 import type { LearningSignals } from '../services/learningSignals';
 
 export interface LearningProfile {
@@ -119,6 +119,7 @@ interface AuthContextType {
   realUser: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  signingIn: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
@@ -138,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [impersonatedProfile, setImpersonatedProfile] = useState<UserProfile | null>(null);
   
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
 
   // Effective user/profile to expose
   const isImpersonating = !!impersonatedUid;
@@ -269,11 +271,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isImpersonating, impersonatedUid]);
 
   const signInWithGoogle = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Error signing in with Google:", error);
-      alert("Failed to sign in with Google. " + (error.message || "Please try again."));
+      toast.error("Failed to sign in with Google. " + (error.message || "Please try again."));
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -310,6 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       realUser,
       profile, 
       loading, 
+      signingIn,
       signInWithGoogle, 
       logout, 
       updateProfile,

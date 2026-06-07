@@ -3,6 +3,7 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppChrome } from '../contexts/AppChromeContext';
 import { isOnboardingComplete, isFreshlyOnboarded, isInFirstSession, shouldUseCompactFreePaywall } from '../lib/onboarding';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { useDailyMatchHistory } from '../hooks/useDailyMatchHistory';
@@ -74,6 +75,7 @@ function formatPosted(job: Job) {
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
+  const { setMinimal } = useAppChrome();
   const navigate = useNavigate();
   const [dashboardTab, setDashboardTab] = useState<'today' | 'history'>('today');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -130,6 +132,11 @@ export function Dashboard() {
   const useCompactPaywall = shouldUseCompactFreePaywall(profile, profile?.plan, pipelineCount);
 
   useEffect(() => {
+    setMinimal(showGuidedFirstSession);
+    return () => setMinimal(false);
+  }, [showGuidedFirstSession, setMinimal]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('welcome') === '1') {
       setShowWelcome(true);
@@ -159,7 +166,7 @@ export function Dashboard() {
   useEffect(() => {
     if (!showWelcome && !isFreshlyOnboarded(profile)) return;
     if (filteredAndSortedJobs.length > 0 || generatingJobs || loadingJobs) return;
-    void requestJobs();
+    void requestJobs({ firstRun: true });
   }, [showWelcome, profile?.onboardingCompletedAt, filteredAndSortedJobs.length, generatingJobs, loadingJobs, requestJobs]);
 
   useEffect(() => {
@@ -341,7 +348,7 @@ export function Dashboard() {
           loadingJobs={loadingJobs}
           generatingJobs={generatingJobs}
           onReviewJob={setSelectedJob}
-          onRunScout={() => requestJobs()}
+          onRunScout={(opts) => void requestJobs({ firstRun: true, force: opts?.force })}
           onShowFullDashboard={() => void handleShowFullDashboard()}
           companyInitials={companyInitials}
           formatPosted={formatPosted}

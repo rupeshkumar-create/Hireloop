@@ -12,7 +12,7 @@ const FLOW_STEPS = [
 ];
 
 export function Login() {
-  const { user, profile, loading, signInWithGoogle } = useAuth();
+  const { user, profile, loading, signInWithGoogle, signingIn } = useAuth();
   const navigate = useNavigate();
   const isNewUser = !profile?.resumeText && !isOnboardingComplete(profile);
 
@@ -54,8 +54,12 @@ export function Login() {
           <div className="space-y-6">
             <button
               onClick={signInWithGoogle}
-              className="hs-land-cta w-full flex items-center justify-center gap-3 !py-4 hover:scale-[1.02] active:scale-[0.98]"
+              disabled={signingIn}
+              className="hs-land-cta w-full flex items-center justify-center gap-3 !py-4 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
             >
+              {signingIn ? (
+                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -77,7 +81,8 @@ export function Login() {
                   opacity="0.9"
                 />
               </svg>
-              Continue with Google
+              )}
+              {signingIn ? 'Signing in…' : 'Continue with Google'}
             </button>
 
             {isNewUser ? (

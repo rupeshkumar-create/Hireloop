@@ -11,7 +11,7 @@ interface Props {
   loadingJobs: boolean;
   generatingJobs: boolean;
   onReviewJob: (job: Job) => void;
-  onRunScout: () => void;
+  onRunScout: (opts?: { force?: boolean }) => void;
   onShowFullDashboard: () => void;
   companyInitials: (company: string) => string;
   formatPosted: (job: Job) => string;
@@ -55,8 +55,12 @@ export function FirstSessionView({
           <Loader2 className="h-8 w-8 animate-spin text-[var(--hs-app-accent)]" />
           <div className="text-[15px] font-semibold text-[var(--hs-app-fg)]">Scout is searching for your matches</div>
           <p className="max-w-sm text-sm text-[var(--hs-app-muted)]">
-            Usually 1–2 minutes. Matches appear here automatically — no refresh needed.
+            First-time runs usually finish in under a minute. Matches appear here automatically — no refresh needed.
           </p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => onRunScout({ force: true })}>
+            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            Taking too long? Retry
+          </Button>
         </div>
       ) : topJob ? (
         <>

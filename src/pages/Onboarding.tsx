@@ -468,8 +468,14 @@ async function triggerScoutRun(): Promise<'dispatched' | 'ready'> {
   const res = await fetch('/api/jobs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ mode: 'request' }),
+    body: JSON.stringify({ mode: 'request', firstRun: true }),
   });
+  if (res.ok && res.status !== 202) {
+    const payload = await res.json().catch(() => ({}));
+    if (Array.isArray((payload as any).jobs) && (payload as any).jobs.length > 0) {
+      return 'ready';
+    }
+  }
   if (res.status === 202 || res.status === 409 || res.ok) {
     return res.status === 202 ? 'dispatched' : 'ready';
   }
@@ -550,8 +556,8 @@ function ScoutStep({
         title="Scout is searching for your matches"
         body={
           dispatched
-            ? 'Running in the background — usually 1–2 minutes. Stay here or open your dashboard; matches appear automatically.'
-            : 'Scoring jobs against your resume now — no need to refresh.'
+            ? 'Running in the background — if nothing appears in 2 minutes, open your dashboard and tap Retry.'
+            : 'Scoring jobs against your resume now — usually under a minute for your first batch.'
         }
       />
 

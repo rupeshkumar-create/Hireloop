@@ -321,8 +321,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   // ── On-demand job generation ────────────────────────────────────────────────
 
-  const requestJobs = async () => {
-    if (!user || generatingJobs) return;
+  const requestJobs = async (opts?: { firstRun?: boolean; force?: boolean }) => {
+    if (!user) return;
+    if (generatingJobs && !opts?.force) return;
+
+    const isFirstRun =
+      opts?.firstRun === true || !profile?.lastSuccessfulJobRunLocalDate;
 
     // Prevent redundant runs only when today's batch is already at the
     // plan cap. A Pro user who upgraded after a Free run (1 stored job)
@@ -356,15 +360,17 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const idToken = await user.getIdToken(true);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
+      const timeoutMs = isFirstRun ? 55_000 : 35_000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
       // Returns 202 immediately; GitHub Actions runs the full pipeline and
       // writes results to Firestore; the useEffect above displays them.
+      // First-time users use inline fast pipeline (200) — no GHA wait.
       const requestResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ mode: 'request' }),
+        body: JSON.stringify({ mode: 'request', firstRun: isFirstRun }),
         signal: controller.signal,
       });
 
@@ -410,6 +416,31 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         );
         // Safety valve: clear spinner after 6 minutes regardless
         setTimeout(() => setGeneratingJobs(false), 6 * 60 * 1000);
+        // Fallback: if GHA is slow/stuck, retry with sync fast pipeline after 90s
+        setTimeout(async () => {
+          if (!user) return;
+          try {
+            const token = await user.getIdToken(true);
+            const syncRes = await fetch('/api/jobs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ mode: 'trigger', firstRun: true }),
+            });
+            if (syncRes.ok) {
+              const payload = await syncRes.json().catch(() => ({}));
+              const syncJobs = Array.isArray((payload as any).jobs) ? (payload as any).jobs : [];
+              if (syncJobs.length > 0) {
+                const { visible, paywall } = splitJobsByPlan(syncJobs, profile?.plan);
+                setJobs(visible);
+                setPaywallJobs(paywall);
+                setGeneratingJobs(false);
+                toast.success(`${visible.length} jobs curated for you!`);
+              }
+            }
+          } catch {
+            // Non-fatal — user can still retry manually
+          }
+        }, 90_000);
         return;
       }
 

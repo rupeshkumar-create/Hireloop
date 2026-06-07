@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppChromeProvider, useAppChrome } from './contexts/AppChromeContext';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
 import { DashboardJobsProvider } from './contexts/DashboardJobsContext';
@@ -102,6 +103,7 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { minimal } = useAppChrome();
   const meta: Record<string, { eyebrow: string; title: string }> = {
     '/dashboard': { eyebrow: "Today's matches", title: 'Discover fresh roles from Scout.' },
     '/settings': { eyebrow: 'Account', title: 'Settings.' },
@@ -114,6 +116,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/superadmin': { eyebrow: 'Admin', title: 'Kingdom dashboard.' },
   };
   const current = meta[location.pathname] || meta['/dashboard'];
+  const onDashboard = location.pathname === '/dashboard';
+
+  if (minimal) {
+    return (
+      <DashboardJobsProvider>
+        <div className="hs-app-frame hs-app-frame-minimal">
+          <header className="hs-minimal-header">
+            <Link to="/" className="inline-flex no-underline">
+              <HireschemaLogo height={24} />
+            </Link>
+            <p className="text-[11px] text-[var(--hs-app-muted)]">Step 1 — review your first matches</p>
+          </header>
+          <main className="hs-main hs-main-minimal">{children}</main>
+        </div>
+      </DashboardJobsProvider>
+    );
+  }
 
   return (
     <DashboardJobsProvider>
@@ -128,12 +147,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="hs-actions flex items-center gap-2">
               <Link to="/dashboard#matches" className="hs-btn">
                 <Search className="h-3.5 w-3.5" />
-                Search all matches
+                View matches
               </Link>
-              <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
-                Run Scout now
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              {!onDashboard ? (
+                <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
+                  Run Scout
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : null}
             </div>
           </header>
           <main>
@@ -149,6 +170,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
+      <AppChromeProvider>
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -231,6 +253,7 @@ export default function App() {
           } />
         </Routes>
       </Router>
+      </AppChromeProvider>
       <Toaster position="top-right" richColors />
     </AuthProvider>
   );

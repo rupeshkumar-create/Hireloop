@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LogOut,
@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { HireschemaLogo } from './brand/HireschemaLogo';
 import { cn } from '../lib/utils';
-import { isAdminEmail } from '../lib/adminEmails';
+import { isAppAdmin } from '../lib/isAppAdmin';
 import { getAppNavGroups } from '../lib/appNav';
 
 function initials(name?: string, email?: string) {
@@ -33,9 +33,19 @@ export function Sidebar() {
 
   const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
-  
-  const isAdmin = isAdminEmail(user?.email);
-  
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    user
+      .getIdTokenResult()
+      .then((result) => setIsAdmin(isAppAdmin(user.email, result.claims as { superAdmin?: boolean })))
+      .catch(() => setIsAdmin(isAppAdmin(user.email)));
+  }, [user]);
+
   const navGroups = getAppNavGroups(dashboardCount, savedCount, isAdmin);
 
 

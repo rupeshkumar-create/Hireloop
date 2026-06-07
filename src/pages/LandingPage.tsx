@@ -14,6 +14,7 @@ import {
   buildSoftwareApplicationSchema,
   buildWebSiteSchema,
 } from '../lib/siteSeo';
+import { PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -101,6 +102,26 @@ const LP_STYLE = `
   }
   .lp-wordmark:hover { opacity:0.82; }
   .lp-nav-actions { display:flex; align-items:center; gap:24px; }
+  .lp-nav-toggle {
+    display:none; align-items:center; justify-content:center;
+    width:40px; height:40px; border:1px solid var(--lp-border); border-radius:10px;
+    background:var(--lp-surface); color:var(--lp-fg); cursor:pointer;
+  }
+  .lp-mobile-menu {
+    display:none; position:fixed; inset:0; z-index:150;
+    background:oklch(20% .02 60 / .35); backdrop-filter:blur(4px);
+  }
+  .lp-mobile-menu.open { display:block; }
+  .lp-mobile-panel {
+    position:absolute; top:0; right:0; width:min(320px,88vw); height:100%;
+    background:var(--lp-bg); border-left:1px solid var(--lp-border);
+    padding:72px 24px 24px; display:flex; flex-direction:column; gap:8px;
+  }
+  .lp-mobile-link {
+    display:block; padding:12px 4px; font-size:15px; color:var(--lp-fg);
+    text-decoration:none; border-bottom:1px solid var(--lp-border);
+  }
+  .lp-mobile-link:last-child { border-bottom:0; }
   .lp-nav-link {
     font-size:14px; color:var(--lp-muted); text-decoration:none;
     position:relative; transition:color 220ms ease;
@@ -525,7 +546,8 @@ const LP_STYLE = `
     .lp-footer-grid { grid-template-columns:1fr 1fr; gap:40px; }
     .lp-footer-bottom-inner { flex-direction:column; align-items:flex-start; gap:12px; }
     .lp-section-hdr { flex-direction:column; align-items:flex-start; }
-    .lp-nav-actions .lp-nav-link:not(:last-child) { display:none; }
+    .lp-nav-actions { display:none; }
+    .lp-nav-toggle { display:inline-flex; }
   }
   @media(max-width:600px){
     .lp-hero { padding:32px 0 28px; }
@@ -706,6 +728,7 @@ export function LandingPage() {
   const [blogPosts, setBlogPosts] = useState<LandingBlogPost[]>([]);
   const [heroJobIndex, setHeroJobIndex] = useState(0);
   const [heroJobFading, setHeroJobFading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const heroJob = HERO_JOBS[heroJobIndex];
 
@@ -848,6 +871,15 @@ export function LandingPage() {
           <Link to="/" className="lp-wordmark">
             <HireschemaLogo height={26} />
           </Link>
+          <button
+            type="button"
+            className="lp-nav-toggle"
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
           <div className="lp-nav-actions">
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
@@ -858,6 +890,23 @@ export function LandingPage() {
           </div>
         </div>
       </nav>
+
+      <div
+        className={`lp-mobile-menu${mobileMenuOpen ? ' open' : ''}`}
+        role="presentation"
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        <div className="lp-mobile-panel" role="menu" onClick={(e) => e.stopPropagation()}>
+          <a href="#how" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>How it works</a>
+          <a href="#features" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
+          <Link to="/blog" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Hiring Guides</Link>
+          <a href="#pricing" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+          <Link to="/login" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
+          <Link to="/login" className="lp-btn-p" style={{ marginTop: 12, textAlign: 'center' }} onClick={() => setMobileMenuOpen(false)}>
+            Start free
+          </Link>
+        </div>
+      </div>
 
       {/* ── Hero ── */}
       <section id="about" className="lp-hero">
@@ -1096,14 +1145,14 @@ export function LandingPage() {
             </div>
             <div className="lp-plan">
               <span className="lp-plan-name">Pro</span>
-              <div className="lp-plan-price">$9</div>
-              <span className="lp-plan-period">per month — cancel anytime</span>
+              <div className="lp-plan-price">${PRO_MONTHLY_USD}</div>
+              <span className="lp-plan-period">per month — or ${PRO_ANNUAL_USD}/yr (save 25%)</span>
               <ul className="lp-plan-features">
                 {PRO_FEATURES.map(f => (
                   <li key={f} className="lp-plan-feature"><span className="lp-feat-dot" />{f}</li>
                 ))}
               </ul>
-              <Link to="/login" className="lp-btn-p">Upgrade to Pro</Link>
+              <Link to="/login" className="lp-btn-p">Get Pro — ${PRO_MONTHLY_USD}/mo</Link>
             </div>
           </div>
         </div>

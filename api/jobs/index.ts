@@ -163,7 +163,26 @@ type JobPipelineResult = {
   debug: Record<string, unknown>;
 };
 
-async function runPipeline(uid: string, runDate: string, _req: VercelRequest): Promise<JobPipelineResult> {
+type PipelineOptions = {
+  /** Smaller discovery + deterministic scoring — fits Vercel 60s for first-time users. */
+  fastMode?: boolean;
+};
+
+function isFirstScoutRun(profile: Record<string, any>): boolean {
+  return !profile.lastSuccessfulJobRunLocalDate;
+}
+
+function wantsFirstRun(req: VercelRequest): boolean {
+  return req.body?.firstRun === true;
+}
+
+async function runPipeline(
+  uid: string,
+  runDate: string,
+  _req: VercelRequest,
+  options: PipelineOptions = {}
+): Promise<JobPipelineResult> {
+  const { fastMode = false } = options;
   const db = getAdminDb();
   let storedJobs: DailyJob[] = [];
   let debug: Record<string, unknown> = {};
@@ -192,9 +211,11 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
-        const targetDiscoveryCount = Math.max(30, limit * 6);
+        const targetDiscoveryCount = fastMode
+          ? Math.max(12, limit * 2)
+          : Math.max(30, limit * 6);
 
-        console.log('[api/jobs] Checking ATS sources...');
+        console.log('[api/jobs] Checking ATS sources...', fastMode ? '(fast mode)' : '');
         const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
         console.log('[api/jobs] Found ATS sources:', atsSources.length);
 
@@ -204,8 +225,8 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
               verifyUrl: async (url) => await verifyHttpUrl(url),
               seenFingerprints,
               maxJobs: targetDiscoveryCount,
-              concurrency: 8,
-              perSourceTimeoutMs: 4500,
+              concurrency: fastMode ? 6 : 8,
+              perSourceTimeoutMs: fastMode ? 3000 : 4500,
             })
           : [];
         console.log('[api/jobs] Found ATS jobs:', atsJobs.length);
@@ -228,11 +249,18 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
           combined.push(job);
         }
 
-        if (combined.length < targetDiscoveryCount) {
+        const apifyMinGap = fastMode ? 8 : targetDiscoveryCount;
+        if (combined.length < apifyMinGap) {
           const missing = targetDiscoveryCount - combined.length;
           console.log(`[api/jobs] Discovery gap: ${missing}. Calling researchJobs...`);
           const { jobs: feedJobs } = await researchJobs(
-            { careerPaths, resumeText, jobType, location, targetCount: Math.max(20, missing) }
+            {
+              careerPaths,
+              resumeText,
+              jobType,
+              location,
+              targetCount: fastMode ? Math.max(8, missing) : Math.max(20, missing),
+            }
           );
           console.log('[api/jobs] researchJobs returned:', feedJobs.length);
           debug = {
@@ -272,11 +300,12 @@ async function runPipeline(uid: string, runDate: string, _req: VercelRequest): P
             jobType,
             seenFingerprints,
             limit,
+            minMatchScore: fastMode ? 62 : undefined,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
           },
-          createOpenRouterCaller(),
+          fastMode ? undefined : createOpenRouterCaller(),
         );
         debug = {
           ...debug,
@@ -419,6 +448,35 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     });
   }
 
+  const firstRun = wantsFirstRun(req) || isFirstScoutRun(profile);
+  if (firstRun && !isLocalRequest(req)) {
+    console.log('[api/jobs] First-time Scout — running inline fast pipeline on Vercel');
+    const pipelineResult = await runPipeline(uid, runDate, req, { fastMode: true });
+    const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
+
+    if (pipelineResult.status !== 'completed') {
+      const failureReason =
+        (pipelineResult.debug as any)?.failureReason ||
+        (pipelineResult.debug as any)?.emptyReason;
+      return res.status(500).json({
+        error: failureReason || 'First-time job generation did not complete.',
+        status: pipelineResult.status,
+        debug: pipelineResult.debug,
+      });
+    }
+
+    return res.status(200).json({
+      status: 'completed',
+      runDate,
+      jobs,
+      jobCount: jobs.length,
+      firstRun: true,
+      message: jobs.length > 0
+        ? `${jobs.length} jobs curated for you.`
+        : 'No matching jobs were found. Try broadening your career paths in Settings.',
+    });
+  }
+
   const isLocal = isLocalRequest(req);
 
   // On Vercel/serverless we must dispatch to GitHub Actions. The synchronous
@@ -526,7 +584,8 @@ async function handleSyncTrigger(uid: string, req: VercelRequest, res: VercelRes
     });
   }
 
-  const pipelineResult = await runPipeline(uid, runDate, req);
+  const fastMode = wantsFirstRun(req) || isFirstScoutRun(profile);
+  const pipelineResult = await runPipeline(uid, runDate, req, { fastMode });
   const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
   const isLocal = req.headers.host?.includes('localhost') || req.headers.host?.includes('127.0.0.1');
   return res.status(200).json({
