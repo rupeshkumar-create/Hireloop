@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
+import { MobileNav } from './components/MobileNav';
 import { WebsiteLayout } from './components/WebsiteLayout';
 import { BlogLayout } from './components/blog/BlogLayout';
 import { Login } from './pages/Login';
@@ -137,6 +138,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <MobileNav />
     </div>
   );
 }

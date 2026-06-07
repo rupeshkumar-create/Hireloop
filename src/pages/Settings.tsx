@@ -41,10 +41,21 @@ export function Settings() {
     antiSlopEnabled: true,
     deliveryTimezone: DEFAULT_TIMEZONE,
     preferredDeliveryHour: '8',
+    remoteOnly: true,
+    salaryFloor: '',
+    locations: '',
   });
 
   useEffect(() => {
     if (profile) {
+      const prefs = normalizeUserPreferences(
+        profile.matchingPreferences ||
+          profile.preferences || {
+            remoteOnly: profile.jobType !== 'both',
+            salaryFloor: profile.minSalary,
+            locations: profile.location ? [profile.location] : [],
+          }
+      );
       setFormData({
         careerPaths: profile.careerPaths || [],
         resumeText: profile.resumeText || '',
@@ -53,6 +64,9 @@ export function Settings() {
         antiSlopEnabled: profile.antiSlopEnabled !== false,
         deliveryTimezone: profile.deliveryTimezone || DEFAULT_TIMEZONE,
         preferredDeliveryHour: String(profile.preferredDeliveryHour ?? 8),
+        remoteOnly: prefs.remoteOnly,
+        salaryFloor: prefs.salaryFloor ? String(prefs.salaryFloor) : '',
+        locations: prefs.locations.join(', '),
       });
     }
   }, [profile]);
@@ -90,9 +104,9 @@ export function Settings() {
     setSaving(true);
     try {
       const preferences = normalizeUserPreferences({
-        remoteOnly: true, // Defaults to remote only
-        salaryFloor: '',
-        locations: [],
+        remoteOnly: formData.remoteOnly,
+        salaryFloor: formData.salaryFloor,
+        locations: formData.locations,
       });
       const legacy = syncLegacyPreferenceFields(preferences);
       const delivery = normalizeDeliverySettings({
@@ -229,13 +243,58 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="job-preferences">
           <CardHeader>
             <CardTitle>Job Preferences</CardTitle>
-            <CardDescription>These preferences are used to curate your daily job feed.</CardDescription>
+            <CardDescription>These preferences filter Scout matches and daily job delivery.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground-muted">Minimum salary (USD / year)</label>
+                <Input
+                  name="salaryFloor"
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={formData.salaryFloor}
+                  onChange={handleChange}
+                  placeholder="e.g. 120000"
+                />
+                <p className="text-xs text-foreground-muted">Leave blank for no minimum.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground-muted">Target locations</label>
+                <Input
+                  name="locations"
+                  value={formData.locations}
+                  onChange={handleChange}
+                  placeholder="Remote, US, Canada"
+                />
+                <p className="text-xs text-foreground-muted">Comma-separated. Used for region eligibility hints.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-background px-4 py-3">
+              <input
+                type="checkbox"
+                id="remoteOnly"
+                name="remoteOnly"
+                checked={formData.remoteOnly}
+                onChange={handleChange}
+                className="mt-1 h-4 w-4 rounded border-border"
+              />
+              <div>
+                <label htmlFor="remoteOnly" className="text-sm font-medium text-foreground">
+                  Remote roles only
+                </label>
+                <p className="mt-1 text-sm text-foreground-muted">
+                  When enabled, Scout prioritizes fully remote listings. Turn off to allow hybrid/on-site matches too.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
               <label className="text-sm font-medium text-foreground-muted">Career Paths / Desired Titles</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formData.careerPaths.map(path => (

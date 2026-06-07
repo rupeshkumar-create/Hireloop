@@ -9,6 +9,7 @@ import { useDailyMatchHistory } from '../hooks/useDailyMatchHistory';
 import { useDashboardAI } from '../hooks/useDashboardAI';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { GettingStartedCard } from '../components/dashboard/GettingStartedCard';
+import { ScoutReadinessBanner } from '../components/dashboard/ScoutReadinessBanner';
 import { DailyMatchHistoryTab } from '../components/dashboard/DailyMatchHistoryTab';
 import { LockedMatchCard } from '../components/dashboard/LockedMatchCard';
 import { buildMatchFeedItems } from '../components/dashboard/matchPaywall';
@@ -257,6 +258,12 @@ export function Dashboard() {
           Daily Scout was paused after 3 days of inactivity. Open the app again to resume — your next visit re-enables automation.
         </div>
       ) : null}
+
+      <ScoutReadinessBanner
+        profile={profile}
+        hasMatches={filteredAndSortedJobs.length > 0}
+        generatingJobs={generatingJobs}
+      />
 
       {(showWelcome || isFreshlyOnboarded(profile)) && (
         <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">

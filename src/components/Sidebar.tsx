@@ -1,61 +1,17 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Bookmark,
-  ClipboardCheck,
-  FileText,
-  LayoutDashboard,
   LogOut,
-  MessageSquareText,
   Moon,
   Settings,
   Sun,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { HireschemaLogo } from './brand/HireschemaLogo';
 import { cn } from '../lib/utils';
 import { isAdminEmail } from '../lib/adminEmails';
-
-function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: boolean) {
-  const groups = [
-    {
-      label: 'Workspace',
-      items: [
-        { name: "Today's matches", path: '/dashboard', icon: LayoutDashboard, count: dashboardCount },
-      ],
-    },
-    {
-      label: 'Library',
-      items: [
-        { name: 'Pipeline', path: '/jobs', icon: Bookmark, count: savedCount },
-        { name: 'Resume', path: '/resume', icon: FileText },
-        { name: 'Cover Letters', path: '/cover-letters', icon: MessageSquareText },
-        { name: 'Interview Prep', path: '/interview-prep', icon: ClipboardCheck },
-      ],
-    },
-    {
-      label: 'System',
-      items: [
-        { name: 'Settings', path: '/settings', icon: Settings },
-      ],
-    },
-  ];
-
-  if (isAdmin) {
-    groups.push({
-      label: 'Admin',
-      items: [
-        { name: 'SuperAdmin', path: '/superadmin', icon: ShieldCheck },
-        { name: 'Content Growth', path: '/superadmin?tab=content', icon: FileText },
-      ],
-    });
-  }
-
-  return groups;
-}
-
+import { getAppNavGroups } from '../lib/appNav';
 
 function initials(name?: string, email?: string) {
   const source = name || email || 'User';
@@ -80,7 +36,7 @@ export function Sidebar() {
   
   const isAdmin = isAdminEmail(user?.email);
   
-  const navGroups = getNavGroups(dashboardCount, savedCount, isAdmin);
+  const navGroups = getAppNavGroups(dashboardCount, savedCount, isAdmin);
 
 
   const plan = profile?.plan?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
