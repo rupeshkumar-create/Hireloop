@@ -23,7 +23,7 @@ function getNavGroups(dashboardCount?: string, savedCount?: string, isAdmin?: bo
     {
       label: 'Workspace',
       items: [
-        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, count: dashboardCount },
+        { name: "Today's matches", path: '/dashboard', icon: LayoutDashboard, count: dashboardCount },
       ],
     },
     {

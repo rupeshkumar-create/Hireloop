@@ -497,8 +497,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   // ── Save job ────────────────────────────────────────────────────────────────
 
-  const saveJob = async (job: Job): Promise<boolean> => {
-    if (!user) return false;
+  const saveJob = async (job: Job): Promise<string | null> => {
+    if (!user) return null;
     try {
       const applicationUrl = resolveJobApplicationUrl(job);
       const docRef = await addDoc(collection(db, 'trackedJobs'), {
@@ -524,7 +524,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         console.error('Failed to record saved-job learning event:', err);
       }
 
-      toast.success('Job saved to tracker!');
       fetchStats();
 
       // Pro: auto-generate AI assets in the background
@@ -547,7 +546,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           }
         }).catch(console.error);
 
-        // Trigger self-learning
         if (profile) {
           updateLearningProfile('save_job', `Saved job: ${job.title} at ${job.company}`, profile.learningProfile?.jobPreferences)
             .then((newPrefs) => {
@@ -557,11 +555,11 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
       }
 
-      return true;
+      return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'trackedJobs');
       toast.error('Failed to save job.');
-      return false;
+      return null;
     }
   };
 

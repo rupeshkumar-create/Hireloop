@@ -232,7 +232,7 @@ export function JobDetailsPanel({
                   onClick={() => saveJob(selectedJob)}
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />}
-                  {isSaving ? 'Saving...' : 'Save Job'}
+                  {isSaving ? 'Saving...' : 'Save to Pipeline'}
                 </button>
               ) : (
                 <>
@@ -327,11 +327,11 @@ export function JobDetailsPanel({
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
-                      Save this job to unlock the AI Copilot
+                      Save to Pipeline to unlock AI Copilot
                     </h4>
                     <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
-                      Tailored resume, cold email, interview prep, and salary insights —
-                      one click each, persisted to this role.
+                      Today's matches live on the dashboard. Saved roles move to Pipeline for tracking,
+                      tailored resume, cold email, interview prep, and salary insights.
                     </p>
                   </div>
                 </div>

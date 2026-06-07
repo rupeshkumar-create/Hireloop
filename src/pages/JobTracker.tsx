@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -30,6 +31,7 @@ import {
 } from '../lib/trackedJob';
 import { generateFollowUpEmail } from '../services/aiService';
 import { Search as SearchIcon } from 'lucide-react';
+import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 
 interface TrackedJob {
   id: string;
@@ -62,6 +64,16 @@ const STATUSES = ['saved', 'applied', 'interviewing', 'offered', 'rejected'];
 
 export function JobTracker() {
   const { user, profile, updateProfile } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const highlightHandled = useRef(false);
+  const [pipelineWelcome, setPipelineWelcome] = useState<{ title: string; company: string } | null>(() => {
+    const state = location.state as PipelineNavigationState | null;
+    if (state?.fromSave && state.savedTitle) {
+      return { title: state.savedTitle, company: state.savedCompany || '' };
+    }
+    return null;
+  });
   const [jobs, setJobs] = useState<TrackedJob[]>([]);
   const [viewMode, setViewMode] = useState<'board' | 'list'>(() => {
     // Default to History List. New users see their tracked jobs as a vertical
@@ -100,6 +112,21 @@ export function JobTracker() {
   useEffect(() => {
     localStorage.setItem('jobTrackerViewMode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    const state = location.state as PipelineNavigationState | null;
+    const jobId = state?.highlightJobId;
+    if (!jobId || highlightHandled.current) return;
+    if (!jobs.some((job) => job.id === jobId)) return;
+
+    highlightHandled.current = true;
+    setViewMode('list');
+    setExpandedJobId(jobId);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`pipeline-job-${jobId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    navigate('/jobs', { replace: true, state: null });
+  }, [jobs, location.state, navigate]);
   
   // AI Action States for List View
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
@@ -531,8 +558,8 @@ export function JobTracker() {
   return (
     <div className="hs-view">
     <PageShell
-      title="Job Tracker"
-      description="Manage and track your job applications."
+      title="Pipeline"
+      description="Every role you save from Today's matches lives here. Track status, generate AI assets, and apply."
       actions={
         <div className="flex items-center gap-3">
           <div className="flex rounded-full border border-border bg-surface-hover p-1">
@@ -563,6 +590,34 @@ export function JobTracker() {
       }
     >
       <div className="flex h-full flex-col space-y-6">
+
+      {pipelineWelcome ? (
+        <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
+                {pipelineWelcome.title} is in your Pipeline
+              </p>
+              <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
+                This is where saved roles live — not on Today's matches. Update status, generate cold email and resume,
+                then apply. Find new Scout matches anytime from{' '}
+                <Link to="/dashboard" className="font-medium text-[var(--hs-app-fg)] underline-offset-2 hover:underline">
+                  Today's matches
+                </Link>
+                .
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="shrink-0 text-[11px] font-medium text-[var(--hs-app-muted)] hover:text-[var(--hs-app-fg)]"
+              onClick={() => setPipelineWelcome(null)}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Funnel metrics + search bar + exports — new pipeline header */}
       {jobs.length > 0 && (
@@ -794,12 +849,24 @@ export function JobTracker() {
       ) : (
         <div className="flex-1 space-y-4 overflow-y-auto pb-8 pr-2">
           {visibleJobs.length === 0 ? (
-            <div className="text-center py-12 text-foreground-muted">
-              {jobs.length === 0 ? 'No jobs tracked yet.' : 'No matches for that search.'}
+            <div className="rounded-xl border border-dashed border-border py-12 px-6 text-center text-foreground-muted">
+              {jobs.length === 0 ? (
+                <>
+                  <p className="text-sm font-medium text-foreground">No saved roles yet</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm">
+                    Scout surfaces fresh matches on Today's matches. Save a role there and we bring you here automatically.
+                  </p>
+                  <Link to="/dashboard" className="hs-btn hs-btn-primary mt-4 inline-flex">
+                    Browse Today's matches
+                  </Link>
+                </>
+              ) : (
+                'No matches for that search.'
+              )}
             </div>
           ) : (
             visibleJobs.map(job => (
-              <Card key={job.id} className="overflow-hidden border-border">
+              <Card key={job.id} id={`pipeline-job-${job.id}`} className="overflow-hidden border-border">
                 <div 
                   className="p-5 flex items-center justify-between cursor-pointer hover:bg-background transition-colors"
                   onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}

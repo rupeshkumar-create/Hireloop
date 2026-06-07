@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,7 @@ import { buildMatchFeedItems } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit } from '../lib/planLimits';
+import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 
 // ISO country code → display name for the eligibility banner. Falls back to
 // the code itself when an unmapped country comes through (rare; defensive).
@@ -70,6 +71,7 @@ function formatPosted(job: Job) {
 
 export function Dashboard() {
   const { profile, user, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [dashboardTab, setDashboardTab] = useState<'today' | 'history'>('today');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
@@ -201,26 +203,23 @@ export function Dashboard() {
 
     setSavingJobFingerprints((current) => [...current, fp]);
     try {
-      const didSave = await saveJob(job);
-      if (!didSave) return false;
+      const jobId = await saveJob(job);
+      if (!jobId) return false;
       setSavedJobFingerprints((current) => (current.includes(fp) ? current : [...current, fp]));
+      setSelectedJob(null);
 
-      // First-asset chained CTA — collapse "save → discover Copilot → click"
-      // into a single follow-up tap. Only fires for users who haven't generated
-      // an asset yet (the activation half they're missing). Once activated,
-      // we don't pester them again.
-      if (!profile?.activatedAt) {
-        toast.success('Saved to your library', {
-          duration: 9000,
-          action: {
-            label: 'Tailor my resume',
-            onClick: () => {
-              setSelectedJob(job);
-              handleAiAction('resume', job);
-            },
-          },
-        });
-      }
+      toast.success('Saved to Pipeline', {
+        description: `${job.title} at ${job.company} — track status and generate assets here.`,
+      });
+
+      navigate('/jobs', {
+        state: {
+          highlightJobId: jobId,
+          fromSave: true,
+          savedTitle: job.title,
+          savedCompany: job.company,
+        } satisfies PipelineNavigationState,
+      });
       return true;
     } finally {
       setSavingJobFingerprints((current) => current.filter((value) => value !== fp));
@@ -270,7 +269,7 @@ export function Dashboard() {
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
             {filteredAndSortedJobs.length > 0
-              ? 'Click a role below to see why it fits, then save it to unlock the AI Copilot.'
+              ? 'Review matches here. Save a role to send it to Pipeline — where you track applications and use AI Copilot.'
               : 'This usually takes 1–2 minutes. Matches appear here automatically — no refresh needed.'}
           </p>
         </div>
@@ -441,8 +440,8 @@ export function Dashboard() {
           <section className="hs-block">
             <div className="hs-block-header">
               <div>
-                <div className="hs-label mb-1">Pipeline</div>
-                <div className="font-display text-[16px] font-semibold">Recent activity</div>
+                <div className="hs-label mb-1">Your saved roles</div>
+                <div className="font-display text-[16px] font-semibold">Pipeline snapshot</div>
               </div>
             </div>
             <div className="space-y-0">
@@ -455,7 +454,7 @@ export function Dashboard() {
                 <div className="mt-1 font-mono text-[10px] text-[var(--hs-app-muted)]">Saved, applied, or interviewing</div>
               </div>
               <Link to="/jobs" className="flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-[var(--hs-app-bg)]">
-                Open pipeline
+                Open full Pipeline
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>

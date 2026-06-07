@@ -75,7 +75,7 @@ function buildSteps(
     {
       key: 'firstSave',
       label: 'Save your first match',
-      description: 'A saved job opens the AI Copilot for that role.',
+      description: 'Saving sends the role to Pipeline — your tracker for applications and AI assets.',
       done: firstSaveDone,
     },
     {
@@ -138,8 +138,8 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
             </div>
             <p className="text-xs text-[var(--hs-app-muted)] mt-0.5">
               {skipSetupSteps
-                ? 'Save a match, generate an asset, and turn on daily Scout.'
-                : 'These steps unlock the full Scout loop. Skip any you have already handled.'}
+                ? 'Save a match (opens Pipeline), generate an asset, and turn on daily Scout.'
+                : 'Dashboard = discover matches. Pipeline = saved roles you are applying to.'}
             </p>
           </div>
         </div>

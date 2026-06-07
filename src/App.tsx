@@ -101,9 +101,9 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const meta: Record<string, { eyebrow: string; title: string }> = {
-    '/dashboard': { eyebrow: "Today's matches", title: 'Fresh roles for you.' },
+    '/dashboard': { eyebrow: "Today's matches", title: 'Discover fresh roles from Scout.' },
     '/settings': { eyebrow: 'Account', title: 'Settings.' },
-    '/jobs': { eyebrow: 'Pipeline', title: 'Track and ship your applications.' },
+    '/jobs': { eyebrow: 'Pipeline', title: 'Track saved roles and ship applications.' },
     '/resume': { eyebrow: 'Parsed profile', title: 'Your Resume Profile.' },
     '/cover-letters': { eyebrow: 'AI-generated', title: 'Cover Letters.' },
     '/interview-prep': { eyebrow: 'AI-generated', title: 'Interview Prep.' },
