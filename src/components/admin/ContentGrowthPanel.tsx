@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
+import { ADMIN_EMAILS } from '../../lib/adminEmails';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,14 @@ interface GrowthDashboard {
   };
   posts: PostSummary[];
   loadErrors?: string[];
+  publishStatus?: {
+    todayUtc: string;
+    publishedToday: boolean;
+    todaysPostTitle: string | null;
+    todaysPostSlug: string | null;
+    lastDailyPublish: string | null;
+    needsPublishToday: boolean;
+  };
   runs: { id: string; type: string; status: string; createdAt: string; details: Record<string, unknown> }[];
   keywords: { keyword: string; trend: string; clusterId: string }[];
   clusters: { id: string; name: string; postSlugs: string[]; authorityScore: number }[];
@@ -407,6 +416,10 @@ export function ContentGrowthPanel() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Action failed');
+      if (result.dispatched) {
+        toast.success(result.message || `${action} started in GitHub Actions`);
+        return;
+      }
       toast.success(
         action === 'dry-run'
           ? `Dry run done — grade ${result.result?.llmGrade}`
@@ -443,7 +456,7 @@ export function ContentGrowthPanel() {
         )}
         {loadError?.includes('super admin') && (
           <p className="mt-2 text-xs text-foreground-muted">
-            Sign in with an allowlisted admin email ({'rupesh7126@gmail.com'} or kv3244@gmail.com).
+            Sign in with an allowlisted admin email ({ADMIN_EMAILS.join(', ')}).
           </p>
         )}
         <Button variant="outline" size="sm" className="mt-4" onClick={loadDashboard}>Retry</Button>
@@ -471,7 +484,7 @@ export function ContentGrowthPanel() {
         <div className="flex items-center gap-2">
           <StatusBadge status={data.state.systemStatus} />
           {data.operational.ready ? (
-            <span className="text-xs text-emerald-600">Ready for daily cron</span>
+            <span className="text-xs text-emerald-600">Ready for GitHub Actions schedule</span>
           ) : (
             <span className="text-xs text-red-500">Not ready — fix checks below</span>
           )}
@@ -492,9 +505,39 @@ export function ContentGrowthPanel() {
 
       {data.state.lastError && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          Last error: {data.state.lastError}
+          Last publish error: {data.state.lastError}
+          <p className="mt-1 text-xs text-red-300/80">
+            This is separate from strategy &quot;Last analysis&quot; — that timestamp is weekly keyword research, not blog publishing.
+          </p>
         </div>
       )}
+
+      {data.publishStatus && !data.publishStatus.publishedToday && data.publishStatus.needsPublishToday ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <p className="font-medium">No blog post published yet today ({data.publishStatus.todayUtc} UTC)</p>
+          <p className="mt-1 text-xs opacity-90">
+            {data.state.lastError
+              ? 'Fix the error above, then click Publish Now.'
+              : 'Cron may not have fired yet. Use Publish Now (GitHub Actions) to run today\'s pipeline.'}
+          </p>
+        </div>
+      ) : null}
+
+      {data.publishStatus?.publishedToday ? (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
+          Today&apos;s post is live:{' '}
+          <strong>{data.publishStatus.todaysPostTitle}</strong>
+          {data.publishStatus.todaysPostSlug ? (
+            <>
+              {' '}
+              (<a className="underline" href={`/blog/${data.publishStatus.todaysPostSlug}`} target="_blank" rel="noreferrer">
+                view
+              </a>
+              )
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -520,7 +563,7 @@ export function ContentGrowthPanel() {
           <section className="rounded-xl border border-border bg-surface p-5">
             <h3 className="mb-4 text-sm font-medium">Daily Success Checklist</h3>
             <p className="mb-4 text-xs text-foreground-muted">
-              All critical checks must pass for the 08:00 UTC cron to publish automatically.
+              All critical checks must pass for the 08:05 UTC GitHub workflow to publish automatically.
             </p>
             <div className="space-y-2">
               {data.operational.checks.map((check) => (
@@ -679,7 +722,7 @@ export function ContentGrowthPanel() {
                 </div>
               ))}
               {data.strategy.pendingTopics.length === 0 && (
-                <p className="text-sm text-red-500">Queue empty — daily cron will fail. Run keyword discovery.</p>
+                <p className="text-sm text-red-500">Queue empty — daily publish will fail. Run keyword discovery.</p>
               )}
             </div>
           </CollapsibleSection>
@@ -709,7 +752,10 @@ export function ContentGrowthPanel() {
           )}
 
           <p className="text-xs text-foreground-muted">
-            Last updated: {fmtDate(data.strategy.lastUpdated)} · Last analysis: {fmtDate(data.strategy.lastAnalysisDate)}
+            Strategy doc edited: {fmtDate(data.strategy.lastUpdated)} · Weekly analysis: {fmtDate(data.strategy.lastAnalysisDate)} · Daily blog: {fmtDate(data.state.lastDailyPublish)}
+          </p>
+          <p className="mt-1 text-[11px] text-foreground-muted">
+            &quot;Last analysis&quot; is keyword/strategy research — not the daily blog publish. Use Overview for today&apos;s post status.
           </p>
         </div>
       )}

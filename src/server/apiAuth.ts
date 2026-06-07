@@ -1,4 +1,5 @@
 import { getAdminAuth, getAdminDb } from './firebaseAdmin.js';
+import { isAdminEmail } from '../lib/adminEmails.js';
 
 export async function verifyFirebaseToken(token: string) {
   const auth = getAdminAuth();
@@ -14,10 +15,7 @@ export async function getUserPlan(uid: string): Promise<string> {
 export async function verifyAiAccess(token: string) {
   const decoded = await verifyFirebaseToken(token);
   const email = decoded.email?.toLowerCase();
-  const isAdmin =
-    decoded.superAdmin === true ||
-    email === 'rupesh7126@gmail.com' ||
-    email === 'kv3244@gmail.com';
+  const isAdmin = decoded.superAdmin === true || isAdminEmail(email);
 
   if (isAdmin) return { decoded, plan: 'pro' as const };
 

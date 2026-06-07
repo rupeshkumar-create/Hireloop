@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { generateInterviewQuestions } from '../services/aiService';
 import { isProPlan } from '../lib/planLimits';
 import { showProRequiredToast } from '../lib/proUpgrade';
@@ -11,8 +11,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 export function InterviewPrep() {
-  const { user, profile, updateProfile } = useAuth();
-  const { filteredAndSortedJobs } = useDashboardJobs(user, profile, updateProfile);
+  const { profile } = useAuth();
+  const { filteredAndSortedJobs } = useDashboardJobsContext();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [questions, setQuestions] = useState('');

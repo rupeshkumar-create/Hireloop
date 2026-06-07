@@ -118,8 +118,17 @@ function shouldAutoTriggerScout(profile: any, today: string, now: Date): boolean
   return localHourFor(profile, now) >= preferredHour;
 }
 
+function splitJobsByPlan(allJobs: DailyJob[], plan?: string) {
+  const limit = getDailyMatchLimit(plan);
+  return {
+    visible: allJobs.slice(0, limit),
+    paywall: allJobs.slice(limit),
+  };
+}
+
 export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const [jobs, setJobs] = useState<DailyJob[]>([]);
+  const [paywallJobs, setPaywallJobs] = useState<DailyJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
   const [dailyJobsMeta, setDailyJobsMeta] = useState<Record<string, any> | null>(null);
@@ -211,8 +220,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         const dailySnap = await getDoc(dailyRef);
         if (dailySnap.exists()) {
           const record = dailySnap.data();
-          const fetched: DailyJob[] = (record.jobs || []).slice(0, limit);
-          setJobs(fetched);
+          const { visible, paywall } = splitJobsByPlan(record.jobs || [], profile?.plan);
+          setJobs(visible);
+          setPaywallJobs(paywall);
+          const fetched = visible;
           setDailyJobsMeta({
             requestedLimit: record.requestedLimit ?? limit,
             returnedCount: record.returnedCount ?? fetched.length,
@@ -236,8 +247,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       if (profile.dailyJobs && profile.dailyJobs.length > 0) {
         const fetchDate = resolveLocalDateForLastFetch(profile, now);
         if (fetchDate && fetchDate === today) {
-          const cached: DailyJob[] = (profile.dailyJobs || []).slice(0, limit);
-          setJobs(cached);
+          const { visible, paywall } = splitJobsByPlan(profile.dailyJobs || [], profile?.plan);
+          setJobs(visible);
+          setPaywallJobs(paywall);
+          const cached = visible;
           setDailyJobsMeta(profile.dailyJobsMeta || null);
           setLastFetchTime(profile.lastJobFetchTime || null);
           return;
@@ -286,9 +299,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
 
     if (fetchDate === today && profile.dailyJobs && profile.dailyJobs.length > 0) {
-      const limit = getDailyMatchLimit(profile?.plan);
-      const freshJobs = (profile.dailyJobs as DailyJob[]).slice(0, limit);
-      setJobs(freshJobs);
+      const { visible, paywall } = splitJobsByPlan(profile.dailyJobs as DailyJob[], profile?.plan);
+      setJobs(visible);
+      setPaywallJobs(paywall);
+      const freshJobs = visible;
       setDailyJobsMeta(profile.dailyJobsMeta || null);
       setLastFetchTime(profile.lastJobFetchTime || null);
       if (generatingJobs) {
@@ -358,11 +372,14 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
       if (requestResponse.ok && requestResponse.status !== 202) {
         const payload = await requestResponse.json().catch(() => ({}));
-        const fetchedJobs: DailyJob[] = Array.isArray((payload as any).jobs)
-          ? (payload as any).jobs.slice(0, getDailyMatchLimit(profile?.plan))
-          : [];
+        const { visible, paywall } = splitJobsByPlan(
+          Array.isArray((payload as any).jobs) ? (payload as any).jobs : [],
+          profile?.plan
+        );
+        const fetchedJobs = visible;
 
         setJobs(fetchedJobs);
+        setPaywallJobs(paywall);
         setDailyJobsMeta({
           requestedLimit: (payload as any).requestedLimit ?? getDailyMatchLimit(profile?.plan),
           returnedCount: (payload as any).jobCount ?? fetchedJobs.length,
@@ -398,12 +415,15 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
       if (requestResponse.status === 409) {
         const payload = await requestResponse.json().catch(() => ({}));
-        const fetchedJobs: DailyJob[] = Array.isArray((payload as any).jobs)
-          ? (payload as any).jobs.slice(0, getDailyMatchLimit(profile?.plan))
-          : jobs;
+        const { visible, paywall } = splitJobsByPlan(
+          Array.isArray((payload as any).jobs) ? (payload as any).jobs : jobs,
+          profile?.plan
+        );
+        const fetchedJobs = visible;
 
         if (fetchedJobs.length > 0) {
           setJobs(fetchedJobs);
+          setPaywallJobs(paywall);
           setDailyJobsMeta({
             requestedLimit: (payload as any).planCap ?? getDailyMatchLimit(profile?.plan),
             returnedCount: fetchedJobs.length,
@@ -701,6 +721,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   return {
     jobs,
+    paywallJobs,
     filteredAndSortedJobs,
     userCountry,
     regionFilteredCount,

@@ -23,12 +23,12 @@ function initials(name?: string, email?: string) {
     .join('') || 'U';
 }
 
-import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 
 export function Sidebar() {
-  const { profile, user, logout, isImpersonating, stopImpersonating, updateProfile } = useAuth();
+  const { profile, user, logout, isImpersonating, stopImpersonating } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { filteredAndSortedJobs, stats } = useDashboardJobs(user, profile, updateProfile);
+  const { filteredAndSortedJobs, stats } = useDashboardJobsContext();
   const location = useLocation();
 
   const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;

@@ -51,12 +51,14 @@ describe('cron route auth', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('rejects tick requests without the cron secret', async () => {
-    const req: any = { method: 'POST', headers: {} };
+  it('accepts Vercel Cron requests via x-vercel-cron header', async () => {
+    process.env.VERCEL = '1';
+    delete process.env.CRON_SECRET;
+    const req: any = { method: 'GET', headers: { 'x-vercel-cron': '1' } };
     const res = createRes();
 
-    await tickHandler(req, res);
+    await dailyAlertsHandler(req, res);
 
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).not.toBe(401);
   });
 });

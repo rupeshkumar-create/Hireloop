@@ -1,150 +1,63 @@
-# Cron setup (simple — one cron-job.org job)
+# Cron setup (Vercel Hobby + GitHub Actions)
 
-Vercel **Hobby (free)** does not run scheduled crons inside Vercel. Use **[cron-job.org](https://cron-job.org)** (free) with **one cron job** that hits Hireschema once per day.
+Hireschema runs on **Vercel Hobby** (60s function limit, no Vercel Cron). Long-running jobs run in **GitHub Actions** instead.
 
-## Vercel function budget (7 of 12 used)
+## Schedules (UTC)
 
-Hobby allows **12 serverless functions**. Hireschema uses **7** — you have **5 slots free**.
+| Workflow | Schedule | What it does |
+|----------|----------|--------------|
+| [generate-jobs.yml](../.github/workflows/generate-jobs.yml) | `30 2 * * *` + `0 9 * * *` catch-up | Daily Scout — job matches for active users |
+| [content-cron.yml](../.github/workflows/content-cron.yml) | `5 8 * * *` | Daily blog publish |
+| [content-cron.yml](../.github/workflows/content-cron.yml) | `0 8 * * 6` | Weekly keyword/strategy (Saturdays) |
+| [content-cron.yml](../.github/workflows/content-cron.yml) | `0 8 1 * *` | Monthly learning loop (1st of month) |
 
-| # | Function | What it does |
-|---|----------|----------------|
-| 1 | `api/cron/[job].ts` | All cron URLs including **`/api/cron/tick`** |
-| 2 | `api/jobs/index.ts` | User Scout runs from the dashboard |
-| 3 | `api/ai/[[...route]].ts` | OpenAI + Apollo (server-side) |
-| 4 | `api/blog/[[...route]].ts` | Blog API, RSS, covers |
-| 5 | `api/admin/[[...route]].ts` | Super Admin API |
-| 6 | `api/public/[[...route]].ts` | Sitemap + analytics |
-| 7 | `api/webhook/dodo.ts` | Pro billing webhooks |
+Confirm workflows are enabled under **GitHub → Actions** and that repo secrets are set.
 
-Individual cron paths (`/api/cron/daily-alerts`, etc.) still work for manual testing — they all share **one** Vercel function.
+## GitHub secrets
 
----
+| Secret | Required for |
+|--------|----------------|
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Scout + content pipelines |
+| `FIRESTORE_DATABASE_ID` | Optional — non-default Firestore DB |
+| `OPENROUTER_API_KEY` | Scout AI + blog pipeline |
+| `APIFY_API_TOKEN` | Scout job discovery |
 
-## Step 1 — Vercel environment variables
-
-In **Vercel → Project → Settings → Environment Variables**:
+## Vercel environment variables
 
 | Variable | Required |
 |----------|----------|
-| `CRON_SECRET` | Yes — auth for all cron endpoints |
-| `INTERNAL_CRON_SECRET` | Yes — worker auth (can match `CRON_SECRET`) |
+| `GITHUB_DISPATCH_TOKEN` | Yes — admin “Publish Now” and dashboard job generation dispatch GitHub Actions |
+| `GITHUB_REPO` | Optional if Vercel is linked to GitHub (`owner/repo`) |
+| `CRON_SECRET` | Optional — manual `/api/cron/*` calls only |
+| `INTERNAL_CRON_SECRET` | Legacy — `/api/cron/process-user` worker auth |
 | `FIREBASE_SERVICE_ACCOUNT_KEY` | Yes |
-| `FIRESTORE_DATABASE_ID` | Yes |
 | `OPENROUTER_API_KEY` | Yes |
-| `APIFY_API_TOKEN` | Yes (job discovery) |
 
-Redeploy after changing env vars.
+## Manual runs
 
----
+**GitHub Actions UI:** Actions → Content Growth Cron → Run workflow → pick job.
 
-## Step 2 — Create ONE job on cron-job.org
-
-You only need **one** cron job. It runs everything that is due.
-
-| Field | Value |
-|-------|--------|
-| **Title** | Hireschema — daily scheduler |
-| **URL** | `https://hireschema.com/api/cron/tick` |
-| **Schedule** | Every day at **08:00 UTC** |
-| **Request method** | **POST** |
-| **Header** | Name: `Authorization` · Value: `Bearer YOUR_CRON_SECRET` |
-
-Replace `YOUR_CRON_SECRET` with the exact value from Vercel.
-
-### What runs at 08:00 UTC?
-
-| Task | When |
-|------|------|
-| Daily Scout (job matches) | Every day |
-| Daily blog publish | Every day |
-| Weekly content strategy | Saturdays only |
-| Monthly learning loop | 1st of each month |
-
-All run in one batch when your cron-job.org job fires at **08:00 UTC**. On a normal weekday you get Scout + blog; on Saturdays you also get weekly strategy; on the 1st you also get the monthly loop.
-
----
-
-## Step 3 — Test it
-
-**Run now** in cron-job.org, or:
+**Local script:**
 
 ```bash
-curl -X POST "https://hireschema.com/api/cron/tick" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
+JOB=daily-blog npx tsx scripts/run-content-cron.ts
+JOB=weekly-analysis npx tsx scripts/run-content-cron.ts
+JOB=monthly-learning npx tsx scripts/run-content-cron.ts
 ```
 
-Success example:
-
-```json
-{
-  "ran": ["daily-alerts", "daily-blog"],
-  "failed": [],
-  "serverTimeUtc": "2026-06-06T08:02:00.000Z"
-}
-```
-
-See schedule + function count (authenticated):
+**Vercel API (60s cap — blog will timeout):**
 
 ```bash
-curl "https://hireschema.com/api/cron/tick" \
+curl -X POST "https://hireschema.com/api/cron/tick?force=daily-blog" \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
-### Force a single job (manual / Super Admin)
+## Super Admin
 
-```bash
-# Just Scout dispatch
-curl -X POST "https://hireschema.com/api/cron/tick?force=daily-alerts" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
+**Content Growth → Publish Now** dispatches `content-cron.yml` on GitHub (returns 202). Refresh the dashboard after the workflow completes (~2–5 min).
 
-# Everything (ignore schedule)
-curl -X POST "https://hireschema.com/api/cron/tick?force=all" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
+## Vercel function budget (Hobby)
 
-Legacy URLs still work:
+All serverless functions use **maxDuration: 60**. Cron routes remain for manual/debug use; do not rely on them for the blog pipeline.
 
-```bash
-curl -X POST "https://hireschema.com/api/cron/daily-alerts" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
-
----
-
-## FAQ
-
-**Do I need 4 separate cron-job.org jobs?**  
-No. Use **one** job pointing at `/api/cron/tick`.
-
-**Why 08:00 UTC instead of 02:30?**  
-One daily trigger is simpler. Scout still respects each user’s `preferredDeliveryHour` in their profile; the dispatcher runs once and queues due users.
-
-**What about `process-user`?**  
-Internal only — `daily-alerts` calls it per user. Do not add a separate cron-job.org entry.
-
-**Inactivity pause (3 days)**  
-Users inactive 3+ days are skipped and auto-paused until they open the app again.
-
-**Blog seed (once)**
-
-```bash
-curl -X POST "https://hireschema.com/api/blog/seed-strategy?analyze=true" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
-
-**Super Admin UI**  
-Content Growth tab: `/superadmin?tab=content` for dry-run / publish now.
-
----
-
-## cron-job.org click-by-click
-
-1. Sign up at [cron-job.org](https://cron-job.org)
-2. **Create cronjob**
-3. URL: `https://hireschema.com/api/cron/tick`
-4. Schedule: **Daily** → **08:00** → timezone **UTC**
-5. **Advanced** → add header `Authorization: / Bearer YOUR_CRON_SECRET`
-6. Method: **POST**
-7. Save → **Run now** → expect HTTP **200**
-
-Done. You do not need any other cron jobs on cron-job.org.
+See `VERCEL_FUNCTION_MANIFEST` in [`src/server/cronSchedule.ts`](../src/server/cronSchedule.ts) — stay under the 12-function Hobby limit.

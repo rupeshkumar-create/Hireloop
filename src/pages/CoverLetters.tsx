@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { generateCoverLetter } from '../services/aiService';
 import { isProPlan } from '../lib/planLimits';
 import { showProRequiredToast } from '../lib/proUpgrade';
@@ -25,8 +25,8 @@ function companyInitials(company: string): string {
 }
 
 export function CoverLetters() {
-  const { user, profile, updateProfile } = useAuth();
-  const { filteredAndSortedJobs } = useDashboardJobs(user, profile, updateProfile);
+  const { profile } = useAuth();
+  const { filteredAndSortedJobs } = useDashboardJobsContext();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [generatedLetter, setGeneratedLetter] = useState('');

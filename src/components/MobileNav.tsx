@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MoreHorizontal, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { isAdminEmail } from '../lib/adminEmails';
 import { getAppNavGroups, MOBILE_SCOUT_ITEM } from '../lib/appNav';
 import { cn } from '../lib/utils';
@@ -16,10 +16,10 @@ function isActive(path: string, pathname: string, search: string) {
 }
 
 export function MobileNav() {
-  const { user, profile, updateProfile } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { filteredAndSortedJobs, stats } = useDashboardJobs(user, profile, updateProfile);
+  const { filteredAndSortedJobs, stats } = useDashboardJobsContext();
 
   const dashboardCount =
     filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;

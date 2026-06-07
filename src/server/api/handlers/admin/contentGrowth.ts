@@ -18,10 +18,20 @@ import {
   refreshContent,
   expandShortBlogPosts,
 } from '../../../contentGrowth/orchestrator.js';
+import { dispatchContentCron, type ContentCronJob } from '../../../githubDispatch.js';
 import { seedEvergreenPosts } from '../../../contentGrowth/seedEvergreen.js';
 import { reformatBlogPosts } from '../../../contentGrowth/reformatPosts.js';
 import { backfillAllPostInternalLinks } from '../../../contentGrowth/enrichPostLinks.js';
 import { saveGrowthState } from '../../../contentGrowth/storage.js';
+
+async function dispatchLongRunningJob(
+  job: ContentCronJob,
+  options?: { dryRun?: boolean }
+): Promise<{ dispatched: true } | { dispatched: false; hint?: string }> {
+  const result = await dispatchContentCron({ job, dryRun: options?.dryRun });
+  if (result.ok) return { dispatched: true };
+  return { dispatched: false, hint: result.hint };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = getBearerToken(req);
@@ -62,12 +72,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       switch (action) {
         case 'publish': {
+          const dispatch = await dispatchLongRunningJob('daily-blog');
+          if (dispatch.dispatched) {
+            return res.status(202).json({
+              success: true,
+              action,
+              dispatched: true,
+              message: 'Blog pipeline started in GitHub Actions. Refresh in a few minutes.',
+            });
+          }
           const result = await runDailyContentPipeline({ dryRun: false });
-          return res.status(200).json({ success: true, action, result });
+          return res.status(200).json({ success: true, action, result, fallback: dispatch.hint });
         }
         case 'dry-run': {
+          const dispatch = await dispatchLongRunningJob('daily-blog', { dryRun: true });
+          if (dispatch.dispatched) {
+            return res.status(202).json({
+              success: true,
+              action,
+              dispatched: true,
+              message: 'Dry run started in GitHub Actions. Check workflow logs for scores.',
+            });
+          }
           const result = await runDailyContentPipeline({ dryRun: true });
-          return res.status(200).json({ success: true, action, result });
+          return res.status(200).json({ success: true, action, result, fallback: dispatch.hint });
         }
         case 'health': {
           const dashboard = await getContentGrowthDashboard();
@@ -97,8 +125,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({ success: true, action, competitorsAnalyzed: count });
         }
         case 'learning': {
+          const dispatch = await dispatchLongRunningJob('monthly-learning');
+          if (dispatch.dispatched) {
+            return res.status(202).json({
+              success: true,
+              action,
+              dispatched: true,
+              message: 'Monthly learning loop started in GitHub Actions.',
+            });
+          }
           const reportId = await runMonthlyLearningLoop();
-          return res.status(200).json({ success: true, action, reportId });
+          return res.status(200).json({ success: true, action, reportId, fallback: dispatch.hint });
         }
         case 'refresh': {
           if (!body.slug) return res.status(400).json({ error: 'slug required' });

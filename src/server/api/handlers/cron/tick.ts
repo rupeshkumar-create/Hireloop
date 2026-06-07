@@ -1,8 +1,8 @@
 /**
  * /api/cron/tick
  *
- * Single entry point for cron-job.org. Runs every scheduled task that is due
- * for the current UTC window. Configure ONE external cron job — see CRON_SETUP.md.
+ * Optional batch runner for manual/admin use (force=all or force=daily-blog).
+ * Production scheduling uses GitHub Actions — see .github/workflows/content-cron.yml.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireCronSecret } from '../../../cronAuth.js';
@@ -60,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     if (!requireCronSecret(req, res)) return;
     return res.status(200).json({
-      message: 'POST this endpoint once daily from cron-job.org (see docs/CRON_SETUP.md).',
+      message: 'POST with Authorization: Bearer CRON_SECRET. Long jobs run via GitHub Actions on Hobby.',
       vercelFunctions: {
         used: VERCEL_FUNCTION_COUNT,
         limit: VERCEL_FUNCTION_LIMIT,

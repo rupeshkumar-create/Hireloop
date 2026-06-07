@@ -10,27 +10,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminAuth, getAdminDb } from '../../../firebaseAdmin.js';
-
-// ── Auth ────────────────────────────────────────────────────────────────────
-
-function getBearerToken(req: VercelRequest): string | null {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return null;
-  return header.slice('Bearer '.length).trim() || null;
-}
-
-async function verifySuperAdmin(token: string) {
-  const auth = getAdminAuth();
-  const decoded = await auth.verifyIdToken(token);
-  
-  const ADMIN_EMAILS = ['rupesh7126@gmail.com', 'kv3244@gmail.com'];
-  const userEmail = decoded.email?.toLowerCase();
-
-  if (decoded.superAdmin !== true && !ADMIN_EMAILS.includes(userEmail || '')) {
-    throw Object.assign(new Error('Not authorized as super admin.'), { status: 403 });
-  }
-  return decoded;
-}
+import { getBearerToken, verifySuperAdmin } from '../../../adminAuth.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

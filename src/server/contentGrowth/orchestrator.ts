@@ -144,7 +144,97 @@ export interface PublishOptions {
 
 // ─── Daily Publish Pipeline ───────────────────────────────────────────────────
 
+const MAX_TOPIC_ATTEMPTS = 3;
+
+function topicLooksUsed(topic: TopicIdea, strategy: MarketingStrategy): boolean {
+  const normalizedTitle = topic.title.toLowerCase().trim();
+  return strategy.usedTopics.some((used) => {
+    const normalizedUsed = used.replace(/^\[skipped\]\s*/i, '').toLowerCase().trim();
+    return normalizedUsed === normalizedTitle;
+  });
+}
+
+async function skipPendingTopic(
+  strategy: MarketingStrategy,
+  reason: string,
+  dryRun: boolean
+): Promise<MarketingStrategy> {
+  if (dryRun || strategy.pendingTopics.length === 0) return strategy;
+
+  const skipped = strategy.pendingTopics[0];
+  const updated: MarketingStrategy = {
+    ...strategy,
+    pendingTopics: strategy.pendingTopics.slice(1),
+    usedTopics: [...strategy.usedTopics, `[skipped] ${skipped.title}`],
+    lastUpdated: new Date().toISOString(),
+  };
+  await saveStrategy(updated);
+  await logGrowthRun({
+    type: 'daily_publish',
+    status: 'partial',
+    details: { topic: skipped.title, reason, skipped: true },
+  });
+  return updated;
+}
+
+async function resolvePublishableTopic(
+  strategy: MarketingStrategy,
+  existingPosts: { title: string; slug: string }[],
+  dryRun: boolean
+): Promise<{ strategy: MarketingStrategy; topic: TopicIdea } | null> {
+  let current = strategy;
+  const today = new Date().toISOString().split('T')[0];
+
+  for (let attempt = 0; attempt < MAX_TOPIC_ATTEMPTS && current.pendingTopics.length > 0; attempt++) {
+    const topic = current.pendingTopics[0];
+
+    if (topicLooksUsed(topic, current)) {
+      current = await skipPendingTopic(current, 'Topic already marked used', dryRun);
+      continue;
+    }
+
+    const preDup = isDuplicateTopic(topic.title, toSlug(topic.title, today), existingPosts);
+    if (preDup.isDuplicate) {
+      current = await skipPendingTopic(current, preDup.reason ?? 'Duplicate topic', dryRun);
+      continue;
+    }
+
+    return { strategy: current, topic };
+  }
+
+  return null;
+}
+
+function isDuplicatePublishError(message: string): boolean {
+  return (
+    message.includes('Duplicate content blocked') ||
+    message.includes('Duplicate title') ||
+    message.includes('Duplicate slug') ||
+    message.includes('Similar to')
+  );
+}
+
 export async function runDailyContentPipeline(options: PublishOptions = {}): Promise<PublishResult> {
+  for (let attempt = 0; attempt < MAX_TOPIC_ATTEMPTS; attempt++) {
+    try {
+      return await runDailyContentPipelineOnce(options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!options.dryRun && isDuplicatePublishError(message) && attempt < MAX_TOPIC_ATTEMPTS - 1) {
+        const strategy = await loadStrategy();
+        if (strategy?.pendingTopics.length) {
+          await skipPendingTopic(strategy, message, false);
+          continue;
+        }
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Daily publish failed after skipping blocked topics');
+}
+
+async function runDailyContentPipelineOnce(options: PublishOptions = {}): Promise<PublishResult> {
   const dryRun = options.dryRun ?? false;
   const tracker = new PipelineTracker(dryRun ? 'dry_run' : 'live');
 
@@ -167,7 +257,16 @@ export async function runDailyContentPipeline(options: PublishOptions = {}): Pro
     }
     tracker.complete('load_strategy', { pendingTopics: strategy.pendingTopics.length, version: strategy.version });
 
-    const topic = strategy.pendingTopics[0];
+    const existingPosts = await listBlogPosts(50);
+    const existingSummaries = existingPosts.map((p) => ({ title: p.title, slug: p.slug }));
+    const resolved = await resolvePublishableTopic(strategy, existingSummaries, dryRun);
+    if (!resolved) {
+      throw new Error(
+        'No publishable topics in queue — all candidates are duplicates of existing posts. Run keyword discovery to refill.'
+      );
+    }
+    strategy = resolved.strategy;
+    const topic = resolved.topic;
     const clusterId = assignClusterId(topic);
 
     tracker.start('research');
@@ -197,12 +296,7 @@ export async function runDailyContentPipeline(options: PublishOptions = {}): Pro
     const today = new Date().toISOString().split('T')[0];
     const slug = toSlug(generated.title, today);
 
-    const existingPosts = await listBlogPosts(50);
-    const dup = isDuplicateTopic(
-      generated.title,
-      slug,
-      existingPosts.map((p) => ({ title: p.title, slug: p.slug }))
-    );
+    const dup = isDuplicateTopic(generated.title, slug, existingSummaries);
     if (dup.isDuplicate) {
       throw new Error(`Duplicate content blocked: ${dup.reason}`);
     }
@@ -724,6 +818,9 @@ export async function getContentGrowthDashboard() {
 
   const metricsBySlug = new Map(metrics.map((m) => [m.slug, m]));
   const performanceScores = buildPerformanceScores(metrics, posts);
+  const todayUtc = new Date().toISOString().split('T')[0];
+  const postPublishedToday = posts.some((p) => p.publishedAt?.startsWith(todayUtc));
+  const todaysPost = posts.find((p) => p.publishedAt?.startsWith(todayUtc)) ?? null;
 
   const postSummaries = posts.map((p) =>
     buildPostAdminSummary(
@@ -737,11 +834,22 @@ export async function getContentGrowthDashboard() {
     openRouter: Boolean(process.env.OPENROUTER_API_KEY),
     firebase: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_KEY),
     cronSecret: Boolean(process.env.CRON_SECRET),
-  });
+    githubDispatch: Boolean(
+      process.env.GITHUB_DISPATCH_TOKEN?.trim() || process.env.GITHUB_PAT?.trim()
+    ),
+  }, { postPublishedToday });
 
   return {
     state,
     loadErrors,
+    publishStatus: {
+      todayUtc,
+      publishedToday: postPublishedToday,
+      todaysPostTitle: todaysPost?.title ?? null,
+      todaysPostSlug: todaysPost?.slug ?? null,
+      lastDailyPublish: state.lastDailyPublish,
+      needsPublishToday: !postPublishedToday && new Date().getUTCHours() >= 8,
+    },
     schedule: getCronSchedule(),
     operational,
     strategy: buildStrategyAdminView(strategy, plan),

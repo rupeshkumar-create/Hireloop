@@ -28,21 +28,26 @@ export function LockedMatchCard({ slot }: Props) {
           </span>
         </div>
       </div>
-      <span className="hs-pill shrink-0 text-[9px]">Locked</span>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        {typeof slot.matchScore === 'number' ? (
+          <span className="hs-score opacity-70" style={{ '--score': `${slot.matchScore}%` } as React.CSSProperties}>
+            {slot.matchScore}
+          </span>
+        ) : null}
+        <span className="hs-pill text-[9px]">Locked</span>
+      </div>
       <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[2px]">
         <div className="mx-4 flex max-w-xs flex-col items-center rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-surface)]/95 px-5 py-4 text-center shadow-lg">
           <Lock className="mb-2 h-5 w-5 text-[var(--hs-app-accent)]" />
           <p className="text-[13px] font-medium text-[var(--hs-app-fg)]">{slot.teaser}</p>
           <p className="mt-1 text-[11px] text-[var(--hs-app-muted)]">
-            Go Pro to unlock 10 remote matches daily.
+            Go Pro to unlock 10 AI-picked matches daily.
           </p>
-          {slot.index === 0 ? (
-            <Link to="/settings#billing-plan" className="mt-3">
-              <Button variant="action" size="sm">
-                Upgrade to Pro
-              </Button>
-            </Link>
-          ) : null}
+          <Link to="/settings#billing-plan" className="mt-3">
+            <Button variant="action" size="sm">
+              Upgrade to Pro
+            </Button>
+          </Link>
         </div>
       </div>
     </article>

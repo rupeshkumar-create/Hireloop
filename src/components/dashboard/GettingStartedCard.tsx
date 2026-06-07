@@ -75,7 +75,7 @@ function buildSteps(
     {
       key: 'firstSave',
       label: 'Save your first match',
-      description: 'Saving sends the role to Pipeline — your tracker for applications and AI assets.',
+      description: 'Adds the role to Pipeline. You can keep browsing matches here — open Pipeline from the sidebar anytime.',
       done: firstSaveDone,
     },
     {
@@ -138,7 +138,7 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
             </div>
             <p className="text-xs text-[var(--hs-app-muted)] mt-0.5">
               {skipSetupSteps
-                ? 'Save a match (opens Pipeline), generate an asset, and turn on daily Scout.'
+                ? 'Review a match → save to Pipeline → turn on daily Scout emails.'
                 : 'Dashboard = discover matches. Pipeline = saved roles you are applying to.'}
             </p>
           </div>

@@ -3,19 +3,21 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { isOnboardingComplete, isFreshlyOnboarded } from '../lib/onboarding';
-import { useDashboardJobs } from '../hooks/useDashboardJobs';
+import { isOnboardingComplete, isFreshlyOnboarded, isInFirstSession, shouldUseCompactFreePaywall } from '../lib/onboarding';
+import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { useDailyMatchHistory } from '../hooks/useDailyMatchHistory';
 import { useDashboardAI } from '../hooks/useDashboardAI';
 import { JobDetailsPanel } from '../components/dashboard/JobDetailsPanel';
 import { GettingStartedCard } from '../components/dashboard/GettingStartedCard';
 import { ScoutReadinessBanner } from '../components/dashboard/ScoutReadinessBanner';
 import { DailyMatchHistoryTab } from '../components/dashboard/DailyMatchHistoryTab';
+import { FirstSessionView } from '../components/dashboard/FirstSessionView';
+import { FreeMatchUpsell } from '../components/dashboard/FreeMatchUpsell';
 import { LockedMatchCard } from '../components/dashboard/LockedMatchCard';
-import { buildMatchFeedItems } from '../components/dashboard/matchPaywall';
+import { buildMatchFeedItems, getDailyBatchSummary } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
-import { getDailyMatchLimit } from '../lib/planLimits';
+import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 
 // ISO country code → display name for the eligibility banner. Falls back to
@@ -80,6 +82,7 @@ export function Dashboard() {
 
   const {
     filteredAndSortedJobs,
+    paywallJobs,
     loadingJobs,
     generatingJobs,
     requestJobs,
@@ -92,7 +95,17 @@ export function Dashboard() {
     nextJobDeliveryAt,
     userCountry,
     regionFilteredCount,
-  } = useDashboardJobs(user, profile, updateProfile);
+    filterCompany,
+    setFilterCompany,
+    filterLocation,
+    setFilterLocation,
+    filterSalary,
+    setFilterSalary,
+    filterWorkType,
+    setFilterWorkType,
+    sortBy,
+    setSortBy,
+  } = useDashboardJobsContext();
 
   const { days: historyDays, loading: historyLoading, totals: historyTotals } =
     useDailyMatchHistory(user);
@@ -108,6 +121,13 @@ export function Dashboard() {
 
   const [awaitingPaymentUpgrade, setAwaitingPaymentUpgrade] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [firstSessionExpanded, setFirstSessionExpanded] = useState(false);
+  const [justCompletedFirstSave, setJustCompletedFirstSave] = useState(false);
+
+  const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
+  const inFirstSession = isInFirstSession(profile, pipelineCount);
+  const showGuidedFirstSession = inFirstSession && !firstSessionExpanded;
+  const useCompactPaywall = shouldUseCompactFreePaywall(profile, profile?.plan, pipelineCount);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -151,36 +171,22 @@ export function Dashboard() {
     }
   }, [generatingJobs, loadingJobs, requestJobs]);
 
-  // First-dashboard-visit booster: if the user just completed onboarding
-  // (within the last 5 minutes), auto-open the top match's details panel.
-  // Saves them from deciding "which job do I click?" — the highest-scored
-  // role + AI Copilot toolbar are right in front of them. Per-browser flag
-  // so the second visit lands cleanly without auto-open.
-  const [autoOpenedFirstMatch, setAutoOpenedFirstMatch] = useState(false);
-  useEffect(() => {
-    if (autoOpenedFirstMatch) return;
-    if (selectedJob) return;
-    if (!profile?.onboardingCompletedAt || !filteredAndSortedJobs.length) return;
-    const completedAt = new Date(profile.onboardingCompletedAt).getTime();
-    const isFreshOnboarding = !Number.isNaN(completedAt) && Date.now() - completedAt < 5 * 60 * 1000;
-    const sessionKey = `hs:auto-opened-top-match:${profile.uid || 'anon'}`;
-    if (!isFreshOnboarding) return;
-    if (sessionStorage.getItem(sessionKey)) return;
-    setSelectedJob(filteredAndSortedJobs[0]);
-    sessionStorage.setItem(sessionKey, '1');
-    setAutoOpenedFirstMatch(true);
-  }, [autoOpenedFirstMatch, selectedJob, profile?.onboardingCompletedAt, profile?.uid, filteredAndSortedJobs]);
-
-  // Show the full daily batch up to the user's plan cap (1 for Free, 10
-  // for Pro). Earlier this was hardcoded to 4 and silently hid 6 of a
-  // Pro user's matches even though the stat tile said "10 new matches".
   const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
-  const matchFeedItems = useMemo(
-    () => buildMatchFeedItems(topJobs, profile?.plan),
-    [topJobs, profile?.plan]
+  const batchSummary = useMemo(
+    () => getDailyBatchSummary(topJobs, profile?.plan, paywallJobs),
+    [topJobs, profile?.plan, paywallJobs]
   );
+  const matchFeedItems = useMemo(
+    () => buildMatchFeedItems(topJobs, profile?.plan, paywallJobs, { compactPaywall: useCompactPaywall }),
+    [topJobs, profile?.plan, paywallJobs, useCompactPaywall]
+  );
+  const hasActiveFilters =
+    filterCompany.trim().length > 0 ||
+    filterLocation.trim().length > 0 ||
+    filterSalary.trim().length > 0 ||
+    filterWorkType !== 'all' ||
+    sortBy !== 'matchScore';
   const bestScore = topJobs.reduce((max, job) => Math.max(max, job.matchScore || job.finalScore || 0), 0);
-  const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const nextRun = nextJobDeliveryAt ? new Date(nextJobDeliveryAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'tomorrow morning';
 
   const digest = useMemo(() => {
@@ -202,6 +208,8 @@ export function Dashboard() {
     const fp = jobFingerprint(job.title, job.company);
     if (savingJobFingerprints.includes(fp) || savedJobFingerprints.includes(fp)) return false;
 
+    const isFirstEverSave = pipelineCount === 0;
+
     setSavingJobFingerprints((current) => [...current, fp]);
     try {
       const jobId = await saveJob(job);
@@ -209,8 +217,36 @@ export function Dashboard() {
       setSavedJobFingerprints((current) => (current.includes(fp) ? current : [...current, fp]));
       setSelectedJob(null);
 
+      if (isFirstEverSave) {
+        await updateProfile({ firstSessionCompletedAt: new Date().toISOString() });
+        setJustCompletedFirstSave(true);
+        toast.success('Saved to Pipeline', {
+          description: `${job.title} at ${job.company} is in your saved jobs. Open Pipeline anytime from the sidebar.`,
+          action: {
+            label: 'Open Pipeline',
+            onClick: () => navigate('/jobs', {
+              state: {
+                highlightJobId: jobId,
+                fromSave: true,
+                savedTitle: job.title,
+                savedCompany: job.company,
+              } satisfies PipelineNavigationState,
+            }),
+          },
+        });
+        return true;
+      }
+
       toast.success('Saved to Pipeline', {
-        description: `${job.title} at ${job.company} — track status and generate assets here.`,
+        description: isProPlan(profile?.plan)
+          ? `${job.title} at ${job.company} — open AI Copilot in Pipeline.`
+          : `${job.title} at ${job.company} — upgrade to Pro for AI Copilot.`,
+        action: !isProPlan(profile?.plan)
+          ? {
+              label: 'View plans',
+              onClick: () => navigate('/settings#billing-plan'),
+            }
+          : undefined,
       });
 
       navigate('/jobs', {
@@ -227,31 +263,37 @@ export function Dashboard() {
     }
   };
 
+  const handleShowFullDashboard = () => {
+    setFirstSessionExpanded(true);
+  };
+
   if (!isOnboardingComplete(profile)) {
     return <Navigate to="/onboarding" />;
   }
 
   return (
     <div className="hs-view space-y-7">
-      <div className="flex gap-2 border-b border-[var(--hs-app-border)]">
-        {([
-          ['today', "Today's matches"],
-          ['history', 'Match history'],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setDashboardTab(id)}
-            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              dashboardTab === id
-                ? 'border-[var(--hs-app-accent)] text-[var(--hs-app-fg)]'
-                : 'border-transparent text-[var(--hs-app-muted)] hover:text-[var(--hs-app-fg)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!showGuidedFirstSession ? (
+        <div className="flex gap-2 border-b border-[var(--hs-app-border)]">
+          {([
+            ['today', "Today's matches"],
+            ...(inFirstSession ? [] : [['history', 'Match history'] as const]),
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setDashboardTab(id)}
+              className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                dashboardTab === id
+                  ? 'border-[var(--hs-app-accent)] text-[var(--hs-app-fg)]'
+                  : 'border-transparent text-[var(--hs-app-muted)] hover:text-[var(--hs-app-fg)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {profile?.automationPausedReason === 'inactive_3d' && profile.receiveDailyAlerts === false ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12px] text-amber-700">
@@ -265,7 +307,17 @@ export function Dashboard() {
         generatingJobs={generatingJobs}
       />
 
-      {(showWelcome || isFreshlyOnboarded(profile)) && (
+      {justCompletedFirstSave ? (
+        <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">
+          <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">Nice — your first role is saved</div>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
+            Pipeline is where you track status and generate application assets. Tomorrow Scout will deliver a fresh
+            batch here on the dashboard.
+          </p>
+        </div>
+      ) : null}
+
+      {!showGuidedFirstSession && (showWelcome || isFreshlyOnboarded(profile)) && !justCompletedFirstSave ? (
         <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">
           <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
             {filteredAndSortedJobs.length > 0
@@ -280,9 +332,21 @@ export function Dashboard() {
               : 'This usually takes 1–2 minutes. Matches appear here automatically — no refresh needed.'}
           </p>
         </div>
-      )}
+      ) : null}
 
-      {dashboardTab === 'history' ? (
+      {showGuidedFirstSession ? (
+        <FirstSessionView
+          topJob={topJobs[0] || null}
+          batchSummary={batchSummary}
+          loadingJobs={loadingJobs}
+          generatingJobs={generatingJobs}
+          onReviewJob={setSelectedJob}
+          onRunScout={() => requestJobs()}
+          onShowFullDashboard={() => void handleShowFullDashboard()}
+          companyInitials={companyInitials}
+          formatPosted={formatPosted}
+        />
+      ) : dashboardTab === 'history' ? (
         <DailyMatchHistoryTab
           days={historyDays}
           loading={historyLoading}
@@ -367,6 +431,75 @@ export function Dashboard() {
             </button>
           </div>
 
+          <div className="border-b border-[var(--hs-app-border)] px-5 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                className="hs-form-input min-w-[120px] flex-1 text-[12px]"
+                placeholder="Filter company"
+                value={filterCompany}
+                onChange={(event) => setFilterCompany(event.target.value)}
+                aria-label="Filter by company"
+              />
+              <input
+                type="search"
+                className="hs-form-input min-w-[120px] flex-1 text-[12px]"
+                placeholder="Filter location"
+                value={filterLocation}
+                onChange={(event) => setFilterLocation(event.target.value)}
+                aria-label="Filter by location"
+              />
+              <input
+                type="search"
+                className="hs-form-input min-w-[100px] flex-1 text-[12px]"
+                placeholder="Filter salary"
+                value={filterSalary}
+                onChange={(event) => setFilterSalary(event.target.value)}
+                aria-label="Filter by salary"
+              />
+              <select
+                className="hs-form-input text-[12px]"
+                value={filterWorkType}
+                onChange={(event) => setFilterWorkType(event.target.value as 'all' | 'remote')}
+                aria-label="Filter by work type"
+              >
+                <option value="all">All work types</option>
+                <option value="remote">Remote only</option>
+              </select>
+              <select
+                className="hs-form-input text-[12px]"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                aria-label="Sort matches"
+              >
+                <option value="matchScore">Best match</option>
+                <option value="datePosted">Newest posted</option>
+                <option value="company">Company A–Z</option>
+              </select>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  className="hs-btn text-[11px]"
+                  onClick={() => {
+                    setFilterCompany('');
+                    setFilterLocation('');
+                    setFilterSalary('');
+                    setFilterWorkType('all');
+                    setSortBy('matchScore');
+                  }}
+                >
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
+            {hasActiveFilters ? (
+              <p className="mt-2 text-[11px] text-[var(--hs-app-muted)]">
+                Showing {topJobs.length} of {filteredAndSortedJobs.length} visible matches
+                {regionFilteredCount > 0 ? ` · ${regionFilteredCount} hidden by region eligibility` : ''}
+              </p>
+            ) : null}
+          </div>
+
           {loadingJobs ? (
             <div className="p-10 text-center text-sm text-[var(--hs-app-muted)]">Loading your latest Scout run...</div>
           ) : generatingJobs ? (
@@ -426,6 +559,11 @@ export function Dashboard() {
               </p>
             </div>
           )}
+          {useCompactPaywall && topJobs.length > 0 ? (
+            <div className="border-t border-[var(--hs-app-border)] p-5">
+              <FreeMatchUpsell summary={batchSummary} teaserJobs={batchSummary.teaserJobs} />
+            </div>
+          ) : null}
         </section>
 
         <aside className="space-y-5">
@@ -471,7 +609,7 @@ export function Dashboard() {
         </>
       )}
 
-      {dashboardTab !== 'history' && selectedJob && (
+      {selectedJob && (
         <JobDetailsPanel
           selectedJob={selectedJob}
           saveJob={handleSaveJob}

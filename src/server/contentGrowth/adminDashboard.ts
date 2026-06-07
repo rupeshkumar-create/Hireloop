@@ -105,7 +105,8 @@ export interface OperationalCheck {
 export function buildOperationalChecks(
   state: ContentGrowthState,
   strategy: MarketingStrategy | null,
-  env: { openRouter: boolean; firebase: boolean; cronSecret: boolean }
+  env: { openRouter: boolean; firebase: boolean; cronSecret: boolean; githubDispatch?: boolean },
+  publishContext?: { postPublishedToday?: boolean }
 ): { ready: boolean; checks: OperationalCheck[] } {
   const checks: OperationalCheck[] = [];
 
@@ -129,13 +130,17 @@ export function buildOperationalChecks(
 
   checks.push({
     id: 'cron_job',
-    label: 'External cron configured',
-    passed: env.cronSecret,
-    severity: 'critical',
-    detail: env.cronSecret
-      ? 'CRON_SECRET set — use cron-job.org → POST /api/cron/tick daily'
-      : 'Missing CRON_SECRET',
-    action: 'Add CRON_SECRET in Vercel and create one cron-job.org job (see docs/CRON_SETUP.md)',
+    label: 'Cron authentication',
+    passed: env.cronSecret || Boolean(env.githubDispatch),
+    severity: 'info',
+    detail: env.githubDispatch
+      ? 'GITHUB_DISPATCH_TOKEN set — Publish Now dispatches GitHub Actions'
+      : env.cronSecret
+        ? 'CRON_SECRET set — manual /api/cron/* only (60s Vercel cap)'
+        : 'Add GITHUB_DISPATCH_TOKEN for admin publish + scheduled GitHub workflows',
+    action: !env.githubDispatch
+      ? 'Add GITHUB_DISPATCH_TOKEN in Vercel env (repo workflow scope)'
+      : undefined,
   });
 
   checks.push({
@@ -168,25 +173,35 @@ export function buildOperationalChecks(
 
   const lastPublish = state.lastDailyPublish ? new Date(state.lastDailyPublish).getTime() : 0;
   const hoursSincePublish = lastPublish ? (Date.now() - lastPublish) / (1000 * 60 * 60) : Infinity;
+  const todayUtc = new Date().toISOString().split('T')[0];
+  const publishedToday = Boolean(
+    publishContext?.postPublishedToday ||
+      state.lastDailyPublish?.startsWith(todayUtc)
+  );
   checks.push({
     id: 'recent_publish',
     label: 'Published in last 36 hours',
-    passed: hoursSincePublish < 36,
+    passed: publishedToday || hoursSincePublish < 36,
     severity: 'warning',
-    detail:
-      lastPublish > 0
-        ? `Last publish: ${Math.round(hoursSincePublish)}h ago`
+    detail: publishedToday
+      ? `Today's post is live (${todayUtc} UTC)`
+      : lastPublish > 0
+        ? `Last publish: ${Math.round(hoursSincePublish)}h ago — none yet today (${todayUtc} UTC)`
         : 'No publish recorded yet',
-    action: hoursSincePublish >= 36 ? 'Check Vercel cron logs or trigger manual publish' : undefined,
+    action:
+      !publishedToday && hoursSincePublish >= 36
+        ? 'Click Publish Now (runs in GitHub Actions) or check Actions → Content Growth Cron'
+        : undefined,
   });
 
   checks.push({
-    id: 'external_cron',
-    label: 'Daily scheduler (cron-job.org)',
+    id: 'github_scheduler',
+    label: 'GitHub Actions schedules',
     passed: true,
     severity: 'info',
-    detail: 'POST https://hireschema.com/api/cron/tick daily at 08:00 UTC',
-    action: 'See docs/CRON_SETUP.md — one job runs Scout + blog automation',
+    detail:
+      'content-cron.yml: daily-blog 08:05 UTC · weekly Sat 08:00 · monthly 1st · generate-jobs.yml for Scout',
+    action: 'Confirm workflows are enabled and FIREBASE + OPENROUTER secrets are set in GitHub',
   });
 
   const criticalFailed = checks.filter((c) => c.severity === 'critical' && !c.passed);

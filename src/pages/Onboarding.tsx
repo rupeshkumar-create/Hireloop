@@ -443,7 +443,7 @@ function PathsStep({
         </span>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => void handleSkip()} disabled={saving}>
-            Skip for now
+            Finish without waiting for Scout
           </Button>
           <Button onClick={handleContinue} disabled={saving || paths.length === 0}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -540,7 +540,7 @@ function ScoutStep({
     if (jobsReady) onDone();
   }, [jobsReady, onDone]);
 
-  const canOpenDashboard = elapsedSec >= 20;
+  const canOpenDashboard = elapsedSec >= 45;
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
@@ -618,7 +618,11 @@ function ScoutStep({
             Open dashboard while Scout finishes
           </Button>
         </div>
-      ) : null}
+      ) : (
+        <p className="mt-6 text-[11px] text-foreground-muted">
+          You can open the dashboard in {Math.max(45 - elapsedSec, 0)}s if Scout is taking longer than expected.
+        </p>
+      )}
     </section>
   );
 }
@@ -628,15 +632,33 @@ function ScoutStep({
 function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Promise<void> }) {
   const limit = getDailyMatchLimit(profile?.plan);
   const jobs: DailyJob[] = (profile?.dailyJobs || []).slice(0, Math.min(3, limit));
+  const isFree = limit === 1;
+  const totalToday = profile?.dailyJobsMeta?.returnedCount || profile?.dailyJobs?.length || jobs.length;
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
       <StepHeading
         icon={CheckCircle2}
         eyebrow="Step 4 of 4"
-        title={`${jobs.length} fresh ${jobs.length === 1 ? 'match' : 'matches'} ready`}
-        body="Here's a preview. The full list and your AI Copilot are waiting on the dashboard."
+        title={jobs.length > 0 ? `${jobs.length} fresh ${jobs.length === 1 ? 'match' : 'matches'} ready` : 'Almost there'}
+        body={
+          jobs.length > 0
+            ? 'Tap a role to read why it fits. Save to Pipeline when you want to track or apply.'
+            : 'Scout is still running or today\'s market is thin. Your dashboard updates automatically when matches land.'
+        }
       />
+
+      {isFree && totalToday > 1 ? (
+        <div className="mt-6 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-accent-soft)] px-4 py-3 text-[13px] text-foreground">
+          <span className="font-medium">Free plan:</span>{' '}
+          Scout ranked {totalToday} roles — you&apos;ll see your best match first. Pro unlocks all {Math.min(totalToday, 10)} daily.
+        </div>
+      ) : null}
+
+      <div className="mt-6 rounded-lg border border-dashed border-[var(--hs-app-border)] bg-background px-4 py-3 text-[12px] leading-relaxed text-foreground-muted">
+        <strong className="text-foreground">How it works:</strong> Dashboard = new jobs Scout finds.
+        Pipeline = roles you save to track and generate AI application assets.
+      </div>
 
       {jobs.length === 0 ? (
         <div className="mt-8 space-y-4">
@@ -697,7 +719,7 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
 
       <div className="mt-10 flex items-center justify-end">
         <Button onClick={onFinish}>
-          {jobs.length > 0 ? 'See all matches on dashboard' : 'Open dashboard'} <ArrowRight className="ml-1.5 h-4 w-4" />
+          {jobs.length > 0 ? 'Review my best match' : 'Open dashboard'} <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
       </div>
     </section>

@@ -1,7 +1,7 @@
 /**
  * /api/cron/daily-blog
  *
- * Runs once per day (scheduled in vercel.json).
+ * Runs once per day (scheduled in .github/workflows/content-cron.yml).
  * Picks the next topic from the strategy, researches it via Perplexity,
  * generates a full SEO + LLM-optimized blog post, and saves it to Firestore.
  */

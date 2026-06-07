@@ -1,0 +1,78 @@
+name: Content Growth Cron
+
+on:
+  # Daily blog publish — 08:05 UTC
+  schedule:
+    - cron: '5 8 * * *'
+    - cron: '0 8 * * 6'
+    - cron: '0 8 1 * *'
+
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which content job to run'
+        required: true
+        default: daily-blog
+        type: choice
+        options:
+          - daily-blog
+          - weekly-analysis
+          - monthly-learning
+      dry_run:
+        description: 'Dry run (daily-blog only — no publish)'
+        required: false
+        default: false
+        type: boolean
+
+  repository_dispatch:
+    types: [run-content-cron]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve job
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT"
+            echo "dry_run=${{ github.event.inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "job=${{ github.event.client_payload.job || 'daily-blog' }}" >> "$GITHUB_OUTPUT"
+            echo "dry_run=${{ github.event.client_payload.dryRun == true && 'true' || 'false' }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "5 8 * * *" ]; then
+            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 8 * * 6" ]; then
+            echo "job=weekly-analysis" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 8 1 * *" ]; then
+            echo "job=monthly-learning" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run content cron
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          JOB: ${{ steps.resolve.outputs.job }}
+          DRY_RUN: ${{ steps.resolve.outputs.dry_run == 'true' && 'true' || 'false' }}
+        run: npx tsx scripts/run-content-cron.ts

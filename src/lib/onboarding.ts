@@ -36,3 +36,28 @@ export function nextStepAfterUpload(profile: UserProfile | null | undefined): On
   if ((profile?.careerPaths?.length || 0) > 0) return 'scout';
   return 'paths';
 }
+
+/**
+ * Guided first dashboard — stays active until the user saves a match to Pipeline
+ * or explicitly skips the guided view. Avoids dumping new users into the full
+ * dashboard + nine locked cards before they understand the product loop.
+ */
+export function isInFirstSession(
+  profile: UserProfile | null | undefined,
+  pipelineSavedCount: number
+): boolean {
+  if (!profile?.onboardingCompletedAt) return false;
+  if (profile.firstSessionCompletedAt) return false;
+  if (pipelineSavedCount > 0) return false;
+  return true;
+}
+
+/** Free users in first session see a single upsell strip instead of nine locked cards. */
+export function shouldUseCompactFreePaywall(
+  profile: UserProfile | null | undefined,
+  plan?: string,
+  pipelineSavedCount = 0
+): boolean {
+  if ((plan || profile?.plan || 'free').toLowerCase() === 'pro') return false;
+  return isInFirstSession(profile, pipelineSavedCount);
+}

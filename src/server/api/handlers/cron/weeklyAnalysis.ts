@@ -1,7 +1,7 @@
 /**
  * /api/cron/weekly-analysis
  *
- * Runs every Saturday (scheduled in vercel.json).
+ * Runs every Saturday (scheduled in .github/workflows/content-cron.yml).
  * Uses Perplexity to research current trends, then Claude updates the
  * marketing strategy with new topic ideas and refined keywords.
  */

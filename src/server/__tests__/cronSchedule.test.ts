@@ -16,13 +16,26 @@ describe('cronSchedule', () => {
   it('marks daily jobs due when tick fires at 08:00 UTC', () => {
     const now = new Date('2026-06-03T08:00:00.000Z'); // Tuesday
     expect(isCronJobDue(CRON_JOBS.find((j) => j.id === 'daily-alerts')!, now)).toBe(true);
-    expect(isCronJobDue(CRON_JOBS.find((j) => j.id === 'daily-blog')!, now)).toBe(true);
-    expect(getDueCronJobs(now).map((j) => j.id)).toEqual(['daily-alerts', 'daily-blog']);
+    expect(isCronJobDue(CRON_JOBS.find((j) => j.id === 'daily-blog')!, now)).toBe(false);
+    expect(getDueCronJobs(now).map((j) => j.id)).toEqual(['daily-alerts']);
   });
 
-  it('skips daily-alerts outside the run window', () => {
+  it('marks daily blog due after 08:05 UTC', () => {
+    const now = new Date('2026-06-03T08:05:00.000Z');
+    expect(isCronJobDue(CRON_JOBS.find((j) => j.id === 'daily-blog')!, now)).toBe(true);
+    expect(getDueCronJobs(now).map((j) => j.id)).toContain('daily-blog');
+  });
+
+  it('still runs daily jobs later the same UTC day (catch-up for late cron)', () => {
     const schedule = CRON_JOBS.find((j) => j.id === 'daily-alerts')!;
     const now = new Date('2026-06-06T10:00:00.000Z');
+    expect(isCronJobDue(schedule, now)).toBe(true);
+    expect(getDueCronJobs(now).map((j) => j.id)).toContain('daily-blog');
+  });
+
+  it('skips daily jobs before the scheduled hour', () => {
+    const schedule = CRON_JOBS.find((j) => j.id === 'daily-alerts')!;
+    const now = new Date('2026-06-06T07:30:00.000Z');
     expect(isCronJobDue(schedule, now)).toBe(false);
   });
 

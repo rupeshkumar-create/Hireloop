@@ -95,6 +95,8 @@ export interface UserProfile {
   careerPathSuggestions?: Array<{ id: string; title: string; rationale?: string; queryHints?: string[] }>;
   selectedCareerPathId?: string;
   onboardingCompletedAt?: string;
+  /** Set when the user saves their first Pipeline role or skips guided first dashboard. */
+  firstSessionCompletedAt?: string;
   tourCompletedAt?: string;
   activatedAt?: string;
   plan?: 'free' | 'pro';

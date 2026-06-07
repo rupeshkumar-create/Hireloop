@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookmarkPlus,
@@ -279,11 +280,16 @@ export function JobDetailsPanel({
             {isSaved ? (
               <div className="relative rounded-xl border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">
                 {!isProPlan(profile?.plan) ? (
-                  <ProFeatureOverlay message="AI Copilot is a Pro feature" />
+                  <ProFeatureOverlay message="AI Copilot requires Pro" />
                 ) : null}
-                <h4 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--hs-app-muted)]">
+                <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--hs-app-muted)]">
                   AI Copilot
                 </h4>
+                {!isProPlan(profile?.plan) ? (
+                  <p className="mb-3 text-[11px] text-[var(--hs-app-muted)]">
+                    This role is saved. Upgrade to Pro to generate cold email, tailored resume, interview prep, and salary data.
+                  </p>
+                ) : null}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                   <button
                     type="button"
@@ -327,12 +333,18 @@ export function JobDetailsPanel({
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-[13px] font-semibold text-[var(--hs-app-fg)]">
-                      Save to Pipeline to unlock AI Copilot
+                      Save to Pipeline, then unlock AI Copilot (Pro)
                     </h4>
                     <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
-                      Today's matches live on the dashboard. Saved roles move to Pipeline for tracking,
-                      tailored resume, cold email, interview prep, and salary insights.
+                      Free users get one match daily. Pro unlocks 10 matches plus cold email, tailored resume,
+                      interview prep, and salary insights on every saved role.
                     </p>
+                    <Link
+                      to="/settings#billing-plan"
+                      className="mt-2 inline-block text-[11px] font-semibold text-[var(--hs-app-accent)] hover:underline"
+                    >
+                      Compare Free vs Pro →
+                    </Link>
                   </div>
                 </div>
               </div>

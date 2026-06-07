@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } f
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
+import { DashboardJobsProvider } from './contexts/DashboardJobsContext';
 import { WebsiteLayout } from './components/WebsiteLayout';
 import { BlogLayout } from './components/blog/BlogLayout';
 import { Login } from './pages/Login';
@@ -115,31 +116,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const current = meta[location.pathname] || meta['/dashboard'];
 
   return (
-    <div className="hs-app-frame">
-      <Sidebar />
-      <div className="hs-main">
-        <header className="hs-topbar">
-          <div>
-            <div className="hs-label">{current.eyebrow}</div>
-            <div className="hs-topbar-title">{current.title}</div>
-          </div>
-          <div className="hs-actions flex items-center gap-2">
-            <Link to="/dashboard#matches" className="hs-btn">
-              <Search className="h-3.5 w-3.5" />
-              Search all matches
-            </Link>
-            <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
-              Run Scout now
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </header>
-        <main>
-          {children}
-        </main>
+    <DashboardJobsProvider>
+      <div className="hs-app-frame">
+        <Sidebar />
+        <div className="hs-main">
+          <header className="hs-topbar">
+            <div>
+              <div className="hs-label">{current.eyebrow}</div>
+              <div className="hs-topbar-title">{current.title}</div>
+            </div>
+            <div className="hs-actions flex items-center gap-2">
+              <Link to="/dashboard#matches" className="hs-btn">
+                <Search className="h-3.5 w-3.5" />
+                Search all matches
+              </Link>
+              <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
+                Run Scout now
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </header>
+          <main>
+            {children}
+          </main>
+        </div>
+        <MobileNav />
       </div>
-      <MobileNav />
-    </div>
+    </DashboardJobsProvider>
   );
 }
 

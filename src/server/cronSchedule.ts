@@ -1,6 +1,9 @@
 /**
  * Central schedule for Hireschema background jobs.
- * cron-job.org only needs ONE job hitting /api/cron/tick (see docs/CRON_SETUP.md).
+ * Production runs on Vercel Hobby — long jobs use GitHub Actions:
+ *   - Scout: `.github/workflows/generate-jobs.yml`
+ *   - Content: `.github/workflows/content-cron.yml`
+ * `/api/cron/tick` remains for manual batch runs with CRON_SECRET (60s cap on Vercel).
  */
 
 export type CronJobId =
@@ -22,20 +25,19 @@ export interface CronJobSchedule {
   dayOfMonthUtc?: number;
 }
 
-/** All scheduled jobs — 4 user-facing crons + process-user (internal, via daily-alerts). */
-/** All jobs share 08:00 UTC — tick runs them in order when cron-job.org fires once daily. */
+/** Scheduled jobs — Scout runs via GitHub Actions; content via content-cron.yml. */
 export const CRON_JOBS: CronJobSchedule[] = [
   {
     id: 'daily-alerts',
-    label: 'Daily Scout dispatch (job matches)',
+    label: 'Daily Scout dispatch (legacy API — Scout uses GitHub Actions)',
     hourUtc: 8,
     minuteUtc: 0,
   },
   {
     id: 'daily-blog',
-    label: 'Daily blog publish',
+    label: 'Daily blog publish (GitHub Actions)',
     hourUtc: 8,
-    minuteUtc: 0,
+    minuteUtc: 5,
   },
   {
     id: 'weekly-analysis',
@@ -53,7 +55,7 @@ export const CRON_JOBS: CronJobSchedule[] = [
   },
 ];
 
-const WINDOW_MINUTES = 55;
+const WINDOW_MINUTES = 24 * 60; // Rest of UTC day after scheduled time (catch late Vercel cron invocations)
 
 function matchesDayOfWeek(now: Date, dayOfWeek?: number): boolean {
   if (dayOfWeek === undefined) return true;
