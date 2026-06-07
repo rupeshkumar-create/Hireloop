@@ -3,6 +3,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listBlogPosts } from '../../../marketingEngine.js';
+import { ensureDailyBlogPublish } from '../../../contentGrowth/ensureDailyPublish.js';
 
 const BASE = 'https://hireschema.com';
 
@@ -13,6 +14,9 @@ function escapeXml(s: string): string {
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     const posts = await listBlogPosts(50);
+    void ensureDailyBlogPublish('rss', { posts }).catch((error) => {
+      console.error('[rss] ensureDailyBlogPublish failed:', error);
+    });
     const items = posts
       .map(
         (p) => `    <item>

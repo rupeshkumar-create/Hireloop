@@ -470,6 +470,7 @@ export function ContentGrowthPanel() {
     ['posts', `Posts (${data.posts.length})`],
     ['activity', 'Activity'],
   ];
+  const hourUtc = new Date().getUTCHours();
 
   return (
     <div className="space-y-5">
@@ -517,8 +518,10 @@ export function ContentGrowthPanel() {
           <p className="font-medium">No blog post published yet today ({data.publishStatus.todayUtc} UTC)</p>
           <p className="mt-1 text-xs opacity-90">
             {data.state.lastError
-              ? 'Fix the error above, then click Publish Now.'
-              : 'Cron may not have fired yet. Use Publish Now (GitHub Actions) to run today\'s pipeline.'}
+              ? 'Fix the error above, then wait for the next auto-publish window (or use Publish Now).'
+              : hourUtc >= 8 && hourUtc < 18
+                ? 'Auto-publish is running on schedule — refresh in a few minutes.'
+                : 'Auto-publish will retry via GitHub Actions or the next site crawl.'}
           </p>
         </div>
       ) : null}
@@ -563,7 +566,7 @@ export function ContentGrowthPanel() {
           <section className="rounded-xl border border-border bg-surface p-5">
             <h3 className="mb-4 text-sm font-medium">Daily Success Checklist</h3>
             <p className="mb-4 text-xs text-foreground-muted">
-              All critical checks must pass for the 08:05 UTC GitHub workflow to publish automatically.
+              All critical checks must pass for automatic daily publishing via GitHub Actions.
             </p>
             <div className="space-y-2">
               {data.operational.checks.map((check) => (

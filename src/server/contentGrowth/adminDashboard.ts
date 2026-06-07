@@ -174,34 +174,41 @@ export function buildOperationalChecks(
   const lastPublish = state.lastDailyPublish ? new Date(state.lastDailyPublish).getTime() : 0;
   const hoursSincePublish = lastPublish ? (Date.now() - lastPublish) / (1000 * 60 * 60) : Infinity;
   const todayUtc = new Date().toISOString().split('T')[0];
+  const hourUtc = new Date().getUTCHours();
   const publishedToday = Boolean(
     publishContext?.postPublishedToday ||
       state.lastDailyPublish?.startsWith(todayUtc)
   );
+  const autoPublishPending = !publishedToday && hourUtc >= 8 && hourUtc < 18;
   checks.push({
     id: 'recent_publish',
     label: 'Published in last 36 hours',
     passed: publishedToday || hoursSincePublish < 36,
-    severity: 'warning',
+    severity: autoPublishPending ? 'info' : 'warning',
     detail: publishedToday
       ? `Today's post is live (${todayUtc} UTC)`
-      : lastPublish > 0
-        ? `Last publish: ${Math.round(hoursSincePublish)}h ago — none yet today (${todayUtc} UTC)`
-        : 'No publish recorded yet',
+      : autoPublishPending
+        ? `Auto-publish scheduled — GitHub Actions runs at 08:05, 09:00, 12:00, and 18:00 UTC`
+        : lastPublish > 0
+          ? `Last publish: ${Math.round(hoursSincePublish)}h ago — none yet today (${todayUtc} UTC)`
+          : 'No publish recorded yet — autopilot will retry via GitHub Actions and RSS/sitemap triggers',
     action:
-      !publishedToday && hoursSincePublish >= 36
-        ? 'Click Publish Now (runs in GitHub Actions) or check Actions → Content Growth Cron'
+      !publishedToday && !autoPublishPending && hoursSincePublish >= 36
+        ? 'Check GitHub Actions → Content Growth Cron / Generate Daily Jobs for errors'
         : undefined,
   });
 
   checks.push({
     id: 'github_scheduler',
-    label: 'GitHub Actions schedules',
-    passed: true,
-    severity: 'info',
-    detail:
-      'content-cron.yml: daily-blog 08:05 UTC · weekly Sat 08:00 · monthly 1st · generate-jobs.yml for Scout',
-    action: 'Confirm workflows are enabled and FIREBASE + OPENROUTER secrets are set in GitHub',
+    label: 'GitHub Actions autopilot',
+    passed: Boolean(env.githubDispatch),
+    severity: env.githubDispatch ? 'info' : 'critical',
+    detail: env.githubDispatch
+      ? 'Vercel dispatches GitHub on deploy + RSS/sitemap. Add VERCEL_TOKEN + ORG_ID + PROJECT_ID in GitHub secrets so scheduled runs can read your Vercel env.'
+      : 'Missing GITHUB_DISPATCH_TOKEN in Vercel — autopilot cannot trigger GitHub Actions',
+    action: env.githubDispatch
+      ? 'GitHub → Settings → Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID (see docs/CRON_SETUP.md)'
+      : 'Add GITHUB_DISPATCH_TOKEN in Vercel env',
   });
 
   const criticalFailed = checks.filter((c) => c.severity === 'critical' && !c.passed);

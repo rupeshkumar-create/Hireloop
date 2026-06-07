@@ -131,6 +131,10 @@ export interface ContentGrowthState {
   evergreenSeededAt?: string | null;
   ga4PropertyId?: string;
   gscSiteUrl?: string;
+  /** UTC date (YYYY-MM-DD) when GitHub Actions dispatch succeeded for daily blog */
+  lastAutoDispatchDate?: string | null;
+  lastAutoDispatchAt?: string | null;
+  lastAutoDispatchError?: string | null;
   updatedAt: string;
 }
 

@@ -24,6 +24,8 @@ import {
   runCompetitorAnalysis,
   runMonthlyLearningLoop,
 } from '../src/server/contentGrowth/orchestrator.js';
+import { hasPublishedToday } from '../src/server/contentGrowth/ensureDailyPublishLogic.js';
+import { listBlogPosts } from '../src/server/marketingEngine.js';
 import { loadStrategy, initializeStrategy, runWeeklyAnalysis } from '../src/server/marketingEngine.js';
 import { getAdminDb } from '../src/server/firebaseAdmin.js';
 
@@ -83,6 +85,20 @@ async function main() {
 
   switch (job) {
     case 'daily-blog': {
+      if (!dryRun && process.env.FORCE_PUBLISH !== 'true') {
+        const recentPosts = await listBlogPosts(10);
+        if (hasPublishedToday(recentPosts)) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              job,
+              skipped: true,
+              reason: 'already_published_today',
+            })
+          );
+          break;
+        }
+      }
       const result = await runDailyContentPipeline({ dryRun });
       console.log(JSON.stringify({ success: true, job, dryRun, result }, null, 2));
       break;

@@ -1,10 +1,14 @@
 name: Content Growth Cron
 
 on:
-  # Daily blog publish — 08:05 UTC
   schedule:
+    # Daily blog — primary + afternoon catch-up
     - cron: '5 8 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 18 * * *'
+    # Weekly strategy — Saturdays 08:00 UTC
     - cron: '0 8 * * 6'
+    # Monthly learning — 1st of month 08:00 UTC
     - cron: '0 8 1 * *'
 
   workflow_dispatch:
@@ -26,6 +30,13 @@ on:
 
   repository_dispatch:
     types: [run-content-cron]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hireschema-daily-blog
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -54,7 +65,7 @@ jobs:
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "job=${{ github.event.client_payload.job || 'daily-blog' }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ github.event.client_payload.dryRun == true && 'true' || 'false' }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "5 8 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "5 8 * * *" ] || [ "${{ github.event.schedule }}" = "0 12 * * *" ] || [ "${{ github.event.schedule }}" = "0 18 * * *" ]; then
             echo "job=daily-blog" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 8 * * 6" ]; then
@@ -68,11 +79,18 @@ jobs:
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Load environment from Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+        run: bash scripts/gha-source-env.sh
+
       - name: Run content cron
         env:
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           JOB: ${{ steps.resolve.outputs.job }}
           DRY_RUN: ${{ steps.resolve.outputs.dry_run == 'true' && 'true' || 'false' }}
         run: npx tsx scripts/run-content-cron.ts

@@ -1,15 +1,10 @@
 name: Generate Daily Jobs
 
 on:
-  # ── Scheduled: primary run at 2:30 AM UTC (8:00 AM IST) ──────────────────
-  # Plus a catch-up at 9:00 AM UTC that retries any user whose primary
-  # cronRun is missing or 'failed'. cronEngine skips any 'completed' or
-  # 'processing' run, so the catch-up is a no-op for healthy users.
   schedule:
     - cron: '30 2 * * *'
     - cron: '0 9 * * *'
 
-  # ── Manual: run from the GitHub Actions UI (optionally for one user) ──────
   workflow_dispatch:
     inputs:
       user_id:
@@ -17,14 +12,21 @@ on:
         required: false
         default: ''
 
-  # ── User-triggered: dispatched from the dashboard "Generate my jobs" button ─
   repository_dispatch:
     types: [generate-jobs-for-user]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: hireschema-generate-jobs-${{ github.event_name }}-${{ github.event.schedule || 'manual' }}
+  cancel-in-progress: false
+
 jobs:
   generate:
+    if: github.event_name != 'repository_dispatch' || github.event.action == 'generate-jobs-for-user'
     runs-on: ubuntu-latest
-    timeout-minutes: 120   # pipeline per user ~2 min; 100 users = well within 120 min
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -39,13 +41,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Load environment from Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+        run: bash scripts/gha-source-env.sh
+
       - name: Generate daily jobs
         env:
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          FIRESTORE_DATABASE_ID:        ${{ secrets.FIRESTORE_DATABASE_ID }}
-          APIFY_API_TOKEN:              ${{ secrets.APIFY_API_TOKEN }}
-          OPENROUTER_API_KEY:           ${{ secrets.OPENROUTER_API_KEY }}
-          # USER_ID is set for single-user mode (user-triggered or manual dispatch)
           USER_ID: >-
             ${{
               github.event.inputs.user_id ||
@@ -57,3 +65,39 @@ jobs:
               github.event.client_payload.force == true && 'true' || 'false'
             }}
         run: npx tsx scripts/generate-daily-jobs.ts
+
+  publish-blog:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.user_id == '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: hireschema-daily-blog
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Load environment from Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+        run: bash scripts/gha-source-env.sh
+
+      - name: Publish daily blog (if missing today)
+        env:
+          JOB: daily-blog
+        run: npx tsx scripts/run-content-cron.ts

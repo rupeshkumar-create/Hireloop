@@ -1,63 +1,43 @@
 # Cron setup (Vercel Hobby + GitHub Actions)
 
-Hireschema runs on **Vercel Hobby** (60s function limit, no Vercel Cron). Long-running jobs run in **GitHub Actions** instead.
+## Why GitHub needs 3 extra secrets
 
-## Schedules (UTC)
+Your **Firebase, OpenRouter, Apify, etc. live in Vercel** — that is correct for the live site.
 
-| Workflow | Schedule | What it does |
-|----------|----------|--------------|
-| [generate-jobs.yml](../.github/workflows/generate-jobs.yml) | `30 2 * * *` + `0 9 * * *` catch-up | Daily Scout — job matches for active users |
-| [content-cron.yml](../.github/workflows/content-cron.yml) | `5 8 * * *` | Daily blog publish |
-| [content-cron.yml](../.github/workflows/content-cron.yml) | `0 8 * * 6` | Weekly keyword/strategy (Saturdays) |
-| [content-cron.yml](../.github/workflows/content-cron.yml) | `0 8 1 * *` | Monthly learning loop (1st of month) |
+**GitHub Actions runs on GitHub’s servers**, not Vercel. Scheduled workflows cannot read Vercel env unless you connect them.
 
-Confirm workflows are enabled under **GitHub → Actions** and that repo secrets are set.
+### One-time GitHub setup (5 minutes)
 
-## GitHub secrets
+Go to **GitHub → your repo → Settings → Secrets and variables → Actions** and add:
 
-| Secret | Required for |
-|--------|----------------|
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Scout + content pipelines |
-| `FIRESTORE_DATABASE_ID` | Optional — non-default Firestore DB |
-| `OPENROUTER_API_KEY` | Scout AI + blog pipeline |
-| `APIFY_API_TOKEN` | Scout job discovery |
+| Secret | Where to find it |
+|--------|------------------|
+| `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) — create a token |
+| `VERCEL_ORG_ID` | Vercel → Project → **Settings → General** → Team / Org ID |
+| `VERCEL_PROJECT_ID` | Same page → **Project ID** |
 
-## Vercel environment variables
+You already have `GITHUB_DISPATCH_TOKEN` and `GITHUB_REPO` in **Vercel** — keep those.
 
-| Variable | Required |
-|----------|----------|
-| `GITHUB_DISPATCH_TOKEN` | Yes — admin “Publish Now” and dashboard job generation dispatch GitHub Actions |
-| `GITHUB_REPO` | Optional if Vercel is linked to GitHub (`owner/repo`) |
-| `CRON_SECRET` | Optional — manual `/api/cron/*` calls only |
-| `INTERNAL_CRON_SECRET` | Legacy — `/api/cron/process-user` worker auth |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Yes |
-| `OPENROUTER_API_KEY` | Yes |
+After this, workflows pull all production env vars from Vercel automatically (`scripts/gha-source-env.sh`).
 
-## Manual runs
+**Alternative:** duplicate `FIREBASE_SERVICE_ACCOUNT_KEY` and `OPENROUTER_API_KEY` into GitHub secrets instead of the 3 Vercel tokens above.
 
-**GitHub Actions UI:** Actions → Content Growth Cron → Run workflow → pick job.
+---
 
-**Local script:**
+## How automatic publish works
 
-```bash
-JOB=daily-blog npx tsx scripts/run-content-cron.ts
-JOB=weekly-analysis npx tsx scripts/run-content-cron.ts
-JOB=monthly-learning npx tsx scripts/run-content-cron.ts
-```
+1. **Schedules** — `content-cron.yml` (08:05, 12:00, 18:00 UTC) and `generate-jobs.yml` publish job (02:30, 09:00 UTC)
+2. **Every production deploy** — build runs `postbuild-dispatch-blog.mjs` and triggers GitHub if no post yet today
+3. **Self-healing** — RSS, sitemap, blog API, and admin dashboard dispatch GitHub if a run was missed
 
-**Vercel API (60s cap — blog will timeout):**
+All paths skip if today’s post already exists.
 
-```bash
-curl -X POST "https://hireschema.com/api/cron/tick?force=daily-blog" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
+---
 
-## Super Admin
+## After pushing these changes
 
-**Content Growth → Publish Now** dispatches `content-cron.yml` on GitHub (returns 202). Refresh the dashboard after the workflow completes (~2–5 min).
+1. Add the 3 GitHub secrets above
+2. Push to `main` (triggers deploy → auto-dispatch)
+3. Check **GitHub → Actions → Content Growth Cron** — should go green in ~3–5 min
 
-## Vercel function budget (Hobby)
-
-All serverless functions use **maxDuration: 60**. Cron routes remain for manual/debug use; do not rely on them for the blog pipeline.
-
-See `VERCEL_FUNCTION_MANIFEST` in [`src/server/cronSchedule.ts`](../src/server/cronSchedule.ts) — stay under the 12-function Hobby limit.
+Manual run: **Actions → Content Growth Cron → Run workflow → daily-blog**

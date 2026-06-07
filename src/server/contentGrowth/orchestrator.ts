@@ -62,6 +62,7 @@ import {
   buildOperationalChecks,
   buildStrategyAdminView,
 } from './adminDashboard.js';
+import { ensureDailyBlogPublish } from './ensureDailyPublish.js';
 import {
   BLOG_TARGET_WORD_COUNT,
   countWords,
@@ -830,6 +831,12 @@ export async function getContentGrowthDashboard() {
     )
   );
 
+  if (!postPublishedToday && new Date().getUTCHours() >= 8) {
+    void ensureDailyBlogPublish('admin-dashboard', { posts }).catch((error) => {
+      console.error('[contentGrowth] ensureDailyBlogPublish failed:', error);
+    });
+  }
+
   const operational = buildOperationalChecks(state, strategy, {
     openRouter: Boolean(process.env.OPENROUTER_API_KEY),
     firebase: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_KEY),
@@ -848,7 +855,7 @@ export async function getContentGrowthDashboard() {
       todaysPostTitle: todaysPost?.title ?? null,
       todaysPostSlug: todaysPost?.slug ?? null,
       lastDailyPublish: state.lastDailyPublish,
-      needsPublishToday: !postPublishedToday && new Date().getUTCHours() >= 8,
+      needsPublishToday: !postPublishedToday && new Date().getUTCHours() >= 18,
     },
     schedule: getCronSchedule(),
     operational,
