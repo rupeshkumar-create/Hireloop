@@ -109,6 +109,7 @@ export function Onboarding() {
               {step === 'scout' && (
                 <ScoutStep
                   profile={profile}
+                  updateProfile={updateProfile}
                   onDone={() => goNext('matches')}
                   onFinishEarly={finish}
                 />
@@ -495,10 +496,12 @@ const SCOUT_STAGES = [
 
 function ScoutStep({
   profile,
+  updateProfile,
   onDone,
   onFinishEarly,
 }: {
   profile: any;
+  updateProfile: (data: any) => Promise<void>;
   onDone: () => void;
   onFinishEarly: () => Promise<void>;
 }) {
@@ -507,6 +510,13 @@ function ScoutStep({
   const [error, setError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [dispatched, setDispatched] = useState(false);
+  const [scoutMarked, setScoutMarked] = useState(Boolean(profile?.onboardingScoutStartedAt));
+
+  useEffect(() => {
+    if (scoutMarked || profile?.onboardingScoutStartedAt) return;
+    setScoutMarked(true);
+    void updateProfile({ onboardingScoutStartedAt: new Date().toISOString() }).catch(() => {});
+  }, [profile?.onboardingScoutStartedAt, scoutMarked, updateProfile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -546,7 +556,12 @@ function ScoutStep({
     if (jobsReady) onDone();
   }, [jobsReady, onDone]);
 
-  const canOpenDashboard = elapsedSec >= 45;
+  // Zero-match runs still deserve the final onboarding step.
+  useEffect(() => {
+    if (jobsReady) return;
+    const t = setTimeout(() => onDone(), 90_000);
+    return () => clearTimeout(t);
+  }, [jobsReady, onDone]);
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6 md:p-10">
@@ -618,17 +633,14 @@ function ScoutStep({
         Scout also runs every morning at your preferred delivery hour.
       </p>
 
-      {canOpenDashboard ? (
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => void onFinishEarly()}>
-            Open dashboard while Scout finishes
-          </Button>
-        </div>
-      ) : (
-        <p className="mt-6 text-[11px] text-foreground-muted">
-          You can open the dashboard in {Math.max(45 - elapsedSec, 0)}s if Scout is taking longer than expected.
-        </p>
-      )}
+      <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={() => onDone()}>
+          Continue to review matches
+        </Button>
+        <Button onClick={() => void onFinishEarly()}>
+          Open dashboard now
+        </Button>
+      </div>
     </section>
   );
 }

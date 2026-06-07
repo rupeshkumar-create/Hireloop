@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
-import { doc, setDoc, addDoc, collection, getDocs, getDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { cn } from '../lib/utils';
 import { runAdminGhostMode } from '../services/adminGhostMode';
@@ -455,8 +455,8 @@ export function AdminDashboard() {
     setLoading(true);
     setLoadError(null);
     try {
-      const snap = await getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc')));
-      const list = snap.docs.map(d => buildAdminUserListItem({ id: d.id, ...d.data() }));
+      const data = await apiCall('/api/admin/users?limit=500');
+      const list = (data.users ?? []).map((u: AdminUserListItem) => buildAdminUserListItem(u));
       setUsers(list);
       if (list.length === 0) toast.info('No users found in database.');
     } catch (err: any) {
@@ -491,9 +491,9 @@ export function AdminDashboard() {
 
   const handleViewDetail = async (u: AdminUserListItem) => {
     try {
-      const snap = await getDoc(doc(db, 'users', u.id));
-      if (!snap.exists()) throw new Error('User document not found');
-      setDetailUser(buildAdminUserDetail({ id: snap.id, ...snap.data() }));
+      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
+      if (!data.user) throw new Error('User document not found');
+      setDetailUser(buildAdminUserDetail(data.user));
     } catch (err: any) {
       toast.error('Failed to load user details: ' + err.message);
     }
@@ -501,9 +501,9 @@ export function AdminDashboard() {
 
   const handleOpenGhost = async (u: AdminUserListItem) => {
     try {
-      const snap = await getDoc(doc(db, 'users', u.id));
-      if (!snap.exists()) throw new Error('User document not found');
-      setGhostUser(buildAdminUserDetail({ id: snap.id, ...snap.data() }) as GhostModeTargetUser);
+      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
+      if (!data.user) throw new Error('User document not found');
+      setGhostUser(buildAdminUserDetail(data.user) as GhostModeTargetUser);
       setGhostResult(null);
     } catch (err: any) {
       toast.error('Failed to load user for Ghost Mode: ' + err.message);
@@ -514,7 +514,10 @@ export function AdminDashboard() {
     if (!editUser) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'users', editUser.id), patch as Record<string, unknown>);
+      await apiCall(`/api/admin/users?userId=${encodeURIComponent(editUser.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
       setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...patch } : u));
       toast.success(`Updated ${editUser.email}`);
       setEditUser(null);
@@ -528,7 +531,10 @@ export function AdminDashboard() {
   const handleTogglePlan = async (u: AdminUserListItem) => {
     const newPlan: Plan = u.plan === 'pro' ? 'free' : 'pro';
     try {
-      await updateDoc(doc(db, 'users', u.id), { plan: newPlan });
+      await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ plan: newPlan }),
+      });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, plan: newPlan } : x));
       toast.success(`${u.email} → ${newPlan}`);
     } catch (err: any) {

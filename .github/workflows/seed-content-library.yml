@@ -40,17 +40,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Load environment from Vercel
+      - name: Load environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -62,10 +64,18 @@ jobs:
 
       - name: Seed all 500 posts (10 batches)
         if: github.event.inputs.mode == 'all'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ env.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
         run: npm run seed:all:full
 
       - name: Seed single batch
         if: github.event.inputs.mode == 'single'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ env.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
         run: |
           FORCE_FLAG=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then

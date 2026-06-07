@@ -65,6 +65,8 @@ service cloud.firestore {
              (!hasField(data, 'preferredDeliveryHour') || data.preferredDeliveryHour is number) &&
              (!hasField(data, 'nextJobDeliveryAt') || data.nextJobDeliveryAt is string) &&
              (!hasField(data, 'onboardingCompletedAt') || data.onboardingCompletedAt is string) &&
+             (!hasField(data, 'onboardingScoutStartedAt') || data.onboardingScoutStartedAt is string) &&
+             (!hasField(data, 'firstSessionCompletedAt') || data.firstSessionCompletedAt is string) &&
              (!hasField(data, 'tourCompletedAt') || data.tourCompletedAt is string) &&
              (!hasField(data, 'activatedAt') || data.activatedAt is string) &&
              (!hasField(data, 'lastSuccessfulJobRunLocalDate') || data.lastSuccessfulJobRunLocalDate is string) &&

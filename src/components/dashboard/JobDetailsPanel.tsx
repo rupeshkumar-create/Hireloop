@@ -14,6 +14,9 @@ import {
   Loader2,
   X,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
 } from 'lucide-react';
 import { Job } from '../../types/dashboard';
 import { AiActionType } from '../../hooks/useDashboardAI';
@@ -26,12 +29,10 @@ import { AiResultModal } from './AiResultModal';
 import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
 interface JobDetailsPanelProps {
-  selectedJob: Job;
+  selectedJob: Job | null;
   saveJob: (j: Job) => Promise<boolean>;
   dismissJob: (j: Job) => void;
   trackJobClick: (j: Job) => void;
-  // Optional — when wired, the Apply button surfaces a "Mark as applied?"
-  // prompt after opening the JD URL. Used on the dashboard for saved jobs.
   markJobApplied?: (j: Job) => Promise<boolean>;
   handleAiAction: (a: AiActionType, j: Job) => void;
   aiAction: AiActionType;
@@ -42,6 +43,15 @@ interface JobDetailsPanelProps {
   onClose: () => void;
   isSaved: boolean;
   isSaving: boolean;
+  /** Guided daily review — prev/next through today's queue. */
+  reviewIndex?: number;
+  reviewTotal?: number;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  onSkip?: () => void;
+  reviewComplete?: boolean;
+  savedThisSession?: number;
+  onGoToPipeline?: () => void;
 }
 
 export function JobDetailsPanel({
@@ -58,6 +68,14 @@ export function JobDetailsPanel({
   onClose,
   isSaved,
   isSaving,
+  reviewIndex,
+  reviewTotal,
+  onPrevious,
+  onNext,
+  onSkip,
+  reviewComplete,
+  savedThisSession = 0,
+  onGoToPipeline,
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
   const [aiModalDismissed, setAiModalDismissed] = useState(false);
@@ -86,10 +104,13 @@ export function JobDetailsPanel({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if (reviewComplete) return;
+      if (e.key === 'ArrowLeft' && onPrevious) onPrevious();
+      if (e.key === 'ArrowRight' && onNext) onNext();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onPrevious, onNext, reviewComplete]);
 
   // Lock background scroll while the panel is open. We use the robust
   // position:fixed + top:-scrollY pattern instead of plain overflow:hidden
@@ -126,7 +147,7 @@ export function JobDetailsPanel({
     };
   }, []);
 
-  const aiModalOpen = !!aiAction && !aiModalDismissed;
+  const aiModalOpen = !!selectedJob && !reviewComplete && !!aiAction && !aiModalDismissed;
 
   // Email action: tailor a resume, download it, then open Gmail with the draft.
   const handleOpenGmail = async (emailContent: string) => {
@@ -198,6 +219,38 @@ export function JobDetailsPanel({
           onClick={(e) => e.stopPropagation()}
           className="relative flex h-screen min-h-0 w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] font-sans shadow-2xl"
         >
+          {reviewComplete ? (
+            <div className="relative flex flex-1 flex-col items-center justify-center px-8 py-12 text-center">
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] text-[var(--hs-app-fg)] shadow-sm transition-all hover:bg-[var(--hs-app-fg)] hover:text-[var(--hs-app-surface)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--hs-app-accent-soft)]">
+                <CheckCircle2 className="h-7 w-7 text-[var(--hs-app-accent)]" />
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--hs-app-fg)]">All matches reviewed</h2>
+              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-[var(--hs-app-muted)]">
+                {savedThisSession > 0
+                  ? `${savedThisSession} ${savedThisSession === 1 ? 'role' : 'roles'} saved to Pipeline with AI assets preparing in the background. Skipped roles are in Match history.`
+                  : 'Skipped roles are in Match history. Save roles anytime from the history tab.'}
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {savedThisSession > 0 && onGoToPipeline ? (
+                  <button type="button" className="hs-btn hs-btn-primary gap-2" onClick={onGoToPipeline}>
+                    Open Pipeline <ArrowRight className="h-4 w-4" />
+                  </button>
+                ) : null}
+                <button type="button" className="hs-btn" onClick={onClose}>
+                  Back to dashboard
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* ── Sticky header ──────────────────────────────────────────── */}
           <div className="shrink-0 border-b border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] px-6 pt-6 pb-4 md:px-8 md:pt-8">
             <button
@@ -224,17 +277,55 @@ export function JobDetailsPanel({
               {selectedJob.company}
             </p>
 
-            <div className="flex gap-3 mb-4">
-              {!isSaved ? (
+            {typeof reviewIndex === 'number' && typeof reviewTotal === 'number' && reviewTotal > 0 ? (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-3 py-2">
                 <button
                   type="button"
-                  className="hs-btn hs-btn-primary flex-1 justify-center py-2.5"
-                  disabled={isSaving}
-                  onClick={() => saveJob(selectedJob)}
+                  className="hs-btn h-8 w-8 p-0"
+                  disabled={!onPrevious}
+                  onClick={onPrevious}
+                  aria-label="Previous job"
                 >
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />}
-                  {isSaving ? 'Saving...' : 'Save to Pipeline'}
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
+                <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
+                  Match {reviewIndex + 1} of {reviewTotal}
+                </span>
+                <button
+                  type="button"
+                  className="hs-btn h-8 w-8 p-0"
+                  disabled={!onNext}
+                  onClick={onNext}
+                  aria-label="Next job"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 mb-4">
+              {!isSaved ? (
+                <>
+                  <button
+                    type="button"
+                    className="hs-btn hs-btn-primary flex-1 justify-center py-2.5"
+                    disabled={isSaving}
+                    onClick={() => void saveJob(selectedJob)}
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />}
+                    {isSaving ? 'Saving…' : 'Save to Pipeline'}
+                  </button>
+                  {onSkip ? (
+                    <button
+                      type="button"
+                      className="hs-btn flex-1 justify-center py-2.5"
+                      disabled={isSaving}
+                      onClick={onSkip}
+                    >
+                      Skip for now
+                    </button>
+                  ) : null}
+                </>
               ) : (
                 <>
                   <button
@@ -392,6 +483,8 @@ export function JobDetailsPanel({
               )}
             </div>
           </div>
+          </>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>
@@ -402,6 +495,7 @@ export function JobDetailsPanel({
   const tree = (
     <>
       {panelNode}
+      {selectedJob ? (
       <AiResultModal
         isOpen={aiModalOpen}
         onClose={() => setAiModalDismissed(true)}
@@ -414,6 +508,7 @@ export function JobDetailsPanel({
         onContentChange={setAiResult}
         onOpenGmail={handleOpenGmail}
       />
+      ) : null}
     </>
   );
 

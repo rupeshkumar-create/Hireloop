@@ -96,6 +96,8 @@ export interface UserProfile {
   careerPathSuggestions?: Array<{ id: string; title: string; rationale?: string; queryHints?: string[] }>;
   selectedCareerPathId?: string;
   onboardingCompletedAt?: string;
+  /** Set when step 3 (Scout) starts — lets refresh resume on matches even with 0 jobs. */
+  onboardingScoutStartedAt?: string;
   /** Set when the user saves their first Pipeline role or skips guided first dashboard. */
   firstSessionCompletedAt?: string;
   tourCompletedAt?: string;

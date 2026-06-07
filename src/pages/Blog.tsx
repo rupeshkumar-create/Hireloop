@@ -16,15 +16,7 @@ interface BlogPostSummary {
   directAnswer?: string;
 }
 
-const CLUSTERS = [
-  { id: 'all', label: 'All Guides' },
-  { id: 'remote-job-search', label: 'Job Search' },
-  { id: 'ai-job-matching', label: 'AI Matching' },
-  { id: 'resume-optimization', label: 'Resume' },
-  { id: 'salary-negotiation', label: 'Salary' },
-  { id: 'interview-prep', label: 'Interview' },
-  { id: 'hiring-trends', label: 'Trends' },
-];
+import { BLOG_CLUSTERS, blogCardEyebrow } from '../lib/blogClusters';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -37,7 +29,7 @@ export function Blog() {
   const [activeCluster, setActiveCluster] = useState('all');
 
   useEffect(() => {
-    fetch('/api/blog?limit=50')
+    fetch('/api/blog?limit=500')
       .then(async (r) => {
         const contentType = r.headers.get('content-type') ?? '';
         const text = await r.text();
@@ -90,7 +82,7 @@ export function Blog() {
         </header>
 
         <div className="mb-10 flex flex-wrap justify-center gap-2">
-          {CLUSTERS.map((c) => (
+          {BLOG_CLUSTERS.map((c) => (
             <button
               key={c.id}
               type="button"
@@ -131,11 +123,15 @@ export function Blog() {
 
         {!loading && filtered.length > 0 && (
           <div className="blog-lp-grid">
-            {filtered.map((post) => (
+            {filtered.map((post) => {
+              const eyebrow = blogCardEyebrow(post);
+              return (
               <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-lp-card">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="blog-lp-badge">{post.category}</span>
-                </div>
+                {eyebrow ? (
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="blog-lp-badge">{eyebrow}</span>
+                  </div>
+                ) : null}
                 <h2 className="blog-lp-card-title">{post.title}</h2>
                 <p className="blog-lp-card-excerpt line-clamp-3">
                   {post.directAnswer || post.seoDescription || post.excerpt}
@@ -148,7 +144,8 @@ export function Blog() {
                   </span>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

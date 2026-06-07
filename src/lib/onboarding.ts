@@ -18,7 +18,17 @@ export function isOnboardingComplete(profile: UserProfile | null | undefined): b
 export function deriveOnboardingStep(profile: UserProfile | null | undefined): OnboardingStep {
   if (!profile?.resumeText?.trim()) return 'upload';
   if (!profile?.careerPaths?.length) return 'paths';
-  if (!profile?.dailyJobs?.length) return 'scout';
+  if (!profile?.dailyJobs?.length) {
+    // Scout may finish with zero matches — still let users reach the final step.
+    if (
+      profile.lastJobFetchTime ||
+      profile.lastSuccessfulJobRunLocalDate ||
+      profile.onboardingScoutStartedAt
+    ) {
+      return 'matches';
+    }
+    return 'scout';
+  }
   return 'matches';
 }
 

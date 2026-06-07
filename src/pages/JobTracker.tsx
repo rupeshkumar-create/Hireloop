@@ -16,6 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
 import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
+import { exportInterviewPrepAsPdf } from '../lib/resumeExport';
 import { applyLearningEvent } from '../services/learningSignals';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 import { PageShell } from '../components/ui/page-shell';
@@ -1077,20 +1078,24 @@ export function JobTracker() {
                           )}
                           {hasValidInterview(job.interviewQuestions) && (
                             <div className="mt-auto flex gap-2">
-                              <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={() => {
+                              <Button size="sm" variant="outline" className="w-full text-xs h-8" onClick={async () => {
                                 const text = Array.isArray(job.interviewQuestions) ? job.interviewQuestions.join('\n\n') : job.interviewQuestions;
-                                const blob = new Blob([text!], { type: 'text/markdown' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `Interview_Prep_${job.company.replace(/\s+/g, '_')}.md`;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                URL.revokeObjectURL(url);
-                                toast.success("Interview Prep downloaded!");
+                                if (!text?.trim()) return;
+                                try {
+                                  toast.loading('Generating PDF…', { id: 'interview-pdf' });
+                                  await exportInterviewPrepAsPdf({
+                                    jobTitle: job.title,
+                                    company: job.company,
+                                    questions: job.interviewQuestions!,
+                                    baseFilename: `Interview_Prep_${job.company.replace(/\s+/g, '_')}`,
+                                  });
+                                  toast.success('Interview prep downloaded as PDF', { id: 'interview-pdf' });
+                                } catch (err: unknown) {
+                                  const message = err instanceof Error ? err.message : 'PDF export failed';
+                                  toast.error(message, { id: 'interview-pdf' });
+                                }
                               }}>
-                                Download Q&A
+                                Download PDF
                               </Button>
                             </div>
                           )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Briefcase, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowRight, Briefcase, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppChrome } from '../contexts/AppChromeContext';
@@ -82,6 +82,9 @@ export function Dashboard() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobFingerprints, setSavedJobFingerprints] = useState<string[]>([]);
   const [savingJobFingerprints, setSavingJobFingerprints] = useState<string[]>([]);
+  const [reviewComplete, setReviewComplete] = useState(false);
+  const [savedThisSession, setSavedThisSession] = useState(0);
+  const [lastSavedJobId, setLastSavedJobId] = useState<string | null>(null);
 
   const {
     filteredAndSortedJobs,
@@ -94,6 +97,8 @@ export function Dashboard() {
     markJobApplied,
     dismissJob,
     trackJobClick,
+    pipelineFingerprints,
+    dismissedFingerprints,
     dailyJobsMeta,
     nextJobDeliveryAt,
     userCountry,
@@ -187,14 +192,82 @@ export function Dashboard() {
   }, [generatingJobs, loadingJobs, requestJobs]);
 
   const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
+
+  const allSavedFingerprints = useMemo(() => {
+    const merged = new Set([...pipelineFingerprints, ...savedJobFingerprints]);
+    return Array.from(merged);
+  }, [pipelineFingerprints, savedJobFingerprints]);
+
+  /** Today's queue — exclude roles already in Pipeline or skipped to history. */
+  const pendingJobs = useMemo(() => {
+    return topJobs.filter((job) => {
+      const fp = jobFingerprint(job.title, job.company);
+      return !allSavedFingerprints.includes(fp) && !dismissedFingerprints.includes(fp);
+    });
+  }, [topJobs, allSavedFingerprints, dismissedFingerprints]);
+
   const batchSummary = useMemo(
-    () => getDailyBatchSummary(topJobs, profile?.plan, paywallJobs),
-    [topJobs, profile?.plan, paywallJobs]
+    () => getDailyBatchSummary(pendingJobs.length > 0 ? pendingJobs : topJobs, profile?.plan, paywallJobs),
+    [pendingJobs, topJobs, profile?.plan, paywallJobs]
   );
   const matchFeedItems = useMemo(
-    () => buildMatchFeedItems(topJobs, profile?.plan, paywallJobs, { compactPaywall: useCompactPaywall }),
-    [topJobs, profile?.plan, paywallJobs, useCompactPaywall]
+    () =>
+      buildMatchFeedItems(
+        pendingJobs.length > 0 ? pendingJobs : topJobs,
+        profile?.plan,
+        paywallJobs,
+        { compactPaywall: useCompactPaywall }
+      ),
+    [pendingJobs, topJobs, profile?.plan, paywallJobs, useCompactPaywall]
   );
+
+  const reviewIndex = selectedJob
+    ? pendingJobs.findIndex(
+        (j) => jobFingerprint(j.title, j.company) === jobFingerprint(selectedJob.title, selectedJob.company)
+      )
+    : -1;
+
+  const openReviewJob = (job: Job) => {
+    setReviewComplete(false);
+    setSelectedJob(job);
+  };
+
+  const closeReviewPanel = () => {
+    setSelectedJob(null);
+    setReviewComplete(false);
+  };
+
+  const advanceReviewQueue = (afterFingerprint: string) => {
+    const remaining = pendingJobs.filter(
+      (j) => jobFingerprint(j.title, j.company) !== afterFingerprint
+    );
+    if (remaining.length > 0) {
+      setSelectedJob(remaining[0]);
+      setReviewComplete(false);
+    } else {
+      setSelectedJob(null);
+      setReviewComplete(true);
+    }
+  };
+
+  const handleSkipJob = (job: Job) => {
+    const fp = jobFingerprint(job.title, job.company);
+    dismissJob(job);
+    toast.info('Moved to Match history', {
+      description: `${job.title} at ${job.company} — find it under the History tab.`,
+    });
+    advanceReviewQueue(fp);
+  };
+
+  const goToPreviousReviewJob = () => {
+    if (reviewIndex <= 0) return;
+    setSelectedJob(pendingJobs[reviewIndex - 1]);
+  };
+
+  const goToNextReviewJob = () => {
+    if (reviewIndex < 0 || reviewIndex >= pendingJobs.length - 1) return;
+    setSelectedJob(pendingJobs[reviewIndex + 1]);
+  };
   const hasActiveFilters =
     filterCompany.trim().length > 0 ||
     filterLocation.trim().length > 0 ||
@@ -221,61 +294,48 @@ export function Dashboard() {
 
   const handleSaveJob = async (job: Job) => {
     const fp = jobFingerprint(job.title, job.company);
-    if (savingJobFingerprints.includes(fp) || savedJobFingerprints.includes(fp)) return false;
+    if (savingJobFingerprints.includes(fp) || allSavedFingerprints.includes(fp)) return false;
 
-    const isFirstEverSave = pipelineCount === 0;
+    const isFirstEverSave = pipelineCount === 0 && savedThisSession === 0;
 
     setSavingJobFingerprints((current) => [...current, fp]);
     try {
       const jobId = await saveJob(job);
       if (!jobId) return false;
       setSavedJobFingerprints((current) => (current.includes(fp) ? current : [...current, fp]));
-      setSelectedJob(null);
+      setSavedThisSession((n) => n + 1);
+      setLastSavedJobId(jobId);
 
       if (isFirstEverSave) {
         await updateProfile({ firstSessionCompletedAt: new Date().toISOString() });
         setJustCompletedFirstSave(true);
-        toast.success('Saved to Pipeline', {
-          description: `${job.title} at ${job.company} is in your saved jobs. Open Pipeline anytime from the sidebar.`,
-          action: {
-            label: 'Open Pipeline',
-            onClick: () => navigate('/jobs', {
-              state: {
-                highlightJobId: jobId,
-                fromSave: true,
-                savedTitle: job.title,
-                savedCompany: job.company,
-              } satisfies PipelineNavigationState,
-            }),
-          },
-        });
-        return true;
       }
 
       toast.success('Saved to Pipeline', {
         description: isProPlan(profile?.plan)
-          ? `${job.title} at ${job.company} — open AI Copilot in Pipeline.`
-          : `${job.title} at ${job.company} — upgrade to Pro for AI Copilot.`,
-        action: !isProPlan(profile?.plan)
-          ? {
-              label: 'View plans',
-              onClick: () => navigate('/settings#billing-plan'),
-            }
-          : undefined,
+          ? `${job.title} at ${job.company} — cold email, resume, and interview prep are generating now.`
+          : `${job.title} at ${job.company} saved. Pro unlocks auto-generated application assets.`,
       });
 
-      navigate('/jobs', {
-        state: {
-          highlightJobId: jobId,
-          fromSave: true,
-          savedTitle: job.title,
-          savedCompany: job.company,
-        } satisfies PipelineNavigationState,
-      });
+      if (
+        selectedJob &&
+        jobFingerprint(selectedJob.title, selectedJob.company) === fp
+      ) {
+        advanceReviewQueue(fp);
+      }
       return true;
     } finally {
       setSavingJobFingerprints((current) => current.filter((value) => value !== fp));
     }
+  };
+
+  const handleGoToPipeline = () => {
+    navigate('/jobs', {
+      state: {
+        highlightJobId: lastSavedJobId ?? undefined,
+        fromSave: true,
+      } satisfies PipelineNavigationState,
+    });
   };
 
   const handleShowFullDashboard = () => {
@@ -355,7 +415,7 @@ export function Dashboard() {
           batchSummary={batchSummary}
           loadingJobs={loadingJobs}
           generatingJobs={generatingJobs}
-          onReviewJob={setSelectedJob}
+          onReviewJob={openReviewJob}
           onRunScout={(opts) => void requestJobs({ firstRun: true, force: opts?.force })}
           onShowFullDashboard={() => void handleShowFullDashboard()}
           companyInitials={companyInitials}
@@ -377,7 +437,7 @@ export function Dashboard() {
             setAiResult,
             actionLoading,
             downloadResume,
-            savedFingerprints: savedJobFingerprints,
+            savedFingerprints: allSavedFingerprints,
             savingFingerprints: savingJobFingerprints,
           }}
         />
@@ -412,9 +472,9 @@ export function Dashboard() {
       />
       <div className="hs-stats">
         <div className="hs-stat">
-          <div className="hs-stat-num">{filteredAndSortedJobs.length}</div>
-          <div className="hs-label mt-2">New matches today</div>
-          <div className="hs-stat-delta">From Scout</div>
+          <div className="hs-stat-num">{pendingJobs.length}</div>
+          <div className="hs-label mt-2">To review today</div>
+          <div className="hs-stat-delta">{topJobs.length - pendingJobs.length} saved or skipped</div>
         </div>
         <div className="hs-stat">
           <div className="hs-stat-num">{dailyJobsMeta?.returnedCount || filteredAndSortedJobs.length || 0}</div>
@@ -525,6 +585,24 @@ export function Dashboard() {
                 Checking ATS feeds and job boards against your resume. This usually takes 1–2 minutes.
               </p>
             </div>
+          ) : pendingJobs.length === 0 && topJobs.length > 0 ? (
+            <div className="p-10 text-center">
+              <CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-accent)]" />
+              <div className="text-[15px] font-semibold">All of today&apos;s matches reviewed</div>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--hs-app-muted)]">
+                Saved roles are in Pipeline. Skipped roles are in Match history.
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {pipelineCount > 0 ? (
+                  <Link to="/jobs" className="hs-btn hs-btn-primary">
+                    Open Pipeline <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Link>
+                ) : null}
+                <button type="button" className="hs-btn" onClick={() => setDashboardTab('history')}>
+                  View Match history
+                </button>
+              </div>
+            </div>
           ) : matchFeedItems.length > 0 ? (
             matchFeedItems.map((item) =>
               item.kind === 'locked' ? (
@@ -537,7 +615,7 @@ export function Dashboard() {
                     <article
                       key={item.id}
                       className="hs-card-row"
-                      onClick={() => setSelectedJob(job)}
+                      onClick={() => openReviewJob(job)}
                     >
                       <div className="min-w-0">
                         <div className="mb-2 flex items-center gap-2">
@@ -624,7 +702,7 @@ export function Dashboard() {
         </>
       )}
 
-      {selectedJob && (
+      {(selectedJob || reviewComplete) && (
         <JobDetailsPanel
           selectedJob={selectedJob}
           saveJob={handleSaveJob}
@@ -637,9 +715,17 @@ export function Dashboard() {
           setAiResult={setAiResult}
           actionLoading={actionLoading}
           downloadResume={downloadResume}
-          onClose={() => setSelectedJob(null)}
-          isSaved={savedJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
-          isSaving={savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company))}
+          onClose={closeReviewPanel}
+          isSaved={selectedJob ? allSavedFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company)) : false}
+          isSaving={selectedJob ? savingJobFingerprints.includes(jobFingerprint(selectedJob.title, selectedJob.company)) : false}
+          reviewIndex={reviewIndex >= 0 ? reviewIndex : 0}
+          reviewTotal={pendingJobs.length || topJobs.length}
+          onPrevious={reviewIndex > 0 ? goToPreviousReviewJob : undefined}
+          onNext={reviewIndex >= 0 && reviewIndex < pendingJobs.length - 1 ? goToNextReviewJob : undefined}
+          onSkip={selectedJob ? () => handleSkipJob(selectedJob) : undefined}
+          reviewComplete={reviewComplete}
+          savedThisSession={savedThisSession}
+          onGoToPipeline={handleGoToPipeline}
         />
       )}
     </div>

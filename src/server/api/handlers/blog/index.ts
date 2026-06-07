@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ post });
     }
 
-    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const limit = Math.min(Number(req.query.limit) || 20, 500);
     const posts = await listBlogPosts(limit);
     void ensureDailyBlogPublish('blog-list', { posts }).catch((error) => {
       console.error('[blog] ensureDailyBlogPublish failed:', error);

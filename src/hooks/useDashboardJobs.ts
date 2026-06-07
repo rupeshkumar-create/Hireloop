@@ -136,6 +136,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   const [stats, setStats] = useState({ saved: 0, applied: 0, interviewing: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [pipelineFingerprints, setPipelineFingerprints] = useState<string[]>([]);
 
   // Filters & sorting
   const [filterCompany, setFilterCompany] = useState('');
@@ -170,14 +171,16 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let saved = 0, applied = 0, interviewing = 0;
+      const fps: string[] = [];
       snapshot.forEach((d) => {
         const data = d.data();
+        fps.push(jobFingerprint(data.title || '', data.company || ''));
         const status = data.status || 'saved';
         if (status === 'saved') saved++;
         if (status === 'applied') applied++;
         if (status === 'interviewing') interviewing++;
       });
-      
+
       const nextStats = {
         saved,
         applied,
@@ -185,6 +188,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         total: snapshot.size
       };
       setStats(nextStats as any);
+      setPipelineFingerprints(fps);
       setStatsLoading(false);
     }, (error) => {
       console.error('[useDashboardJobs] stats listener failed:', error);
@@ -783,6 +787,8 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     markJobApplied,
     dismissJob,
     trackJobClick,
+    pipelineFingerprints,
+    dismissedFingerprints,
     filterCompany, setFilterCompany,
     filterLocation, setFilterLocation,
     filterSalary, setFilterSalary,

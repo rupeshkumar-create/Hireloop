@@ -2,7 +2,11 @@ name: Content Growth Cron
 
 on:
   schedule:
-    # Weekly Reddit trend posts — Mondays 10:00 UTC (max 3/week)
+    # Daily blog — 08:05, 12:00, 18:00 UTC
+    - cron: '5 8 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 18 * * *'
+    # Weekly Reddit trends — Mondays 10:00 UTC
     - cron: '0 10 * * 1'
     # Weekly strategy — Saturdays 08:00 UTC
     - cron: '0 8 * * 6'
@@ -14,13 +18,13 @@ on:
       job:
         description: 'Which content job to run'
         required: true
-        default: weekly-trends
+        default: daily-blog
         type: choice
         options:
+          - daily-blog
           - weekly-trends
           - weekly-analysis
           - monthly-learning
-          - daily-blog
       dry_run:
         description: 'Dry run (no publish)'
         required: false
@@ -45,11 +49,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -62,8 +68,11 @@ jobs:
             echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ github.event.inputs.dry_run }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "job=${{ github.event.client_payload.job || 'weekly-trends' }}" >> "$GITHUB_OUTPUT"
+            echo "job=${{ github.event.client_payload.job || 'daily-blog' }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ github.event.client_payload.dryRun == true && 'true' || 'false' }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "5 8 * * *" ] || [ "${{ github.event.schedule }}" = "0 12 * * *" ] || [ "${{ github.event.schedule }}" = "0 18 * * *" ]; then
+            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 10 * * 1" ]; then
             echo "job=weekly-trends" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
@@ -74,11 +83,11 @@ jobs:
             echo "job=monthly-learning" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "job=weekly-trends" >> "$GITHUB_OUTPUT"
+            echo "job=daily-blog" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Load environment from Vercel
+      - name: Load environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -92,4 +101,7 @@ jobs:
         env:
           JOB: ${{ steps.resolve.outputs.job }}
           DRY_RUN: ${{ steps.resolve.outputs.dry_run == 'true' && 'true' || 'false' }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ env.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
         run: npx tsx scripts/run-content-cron.ts
