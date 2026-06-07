@@ -5,6 +5,7 @@ import { stripUndefinedDeep } from '../lib/firestoreSanitizer';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 
 import { ResumeAnalysis } from '../services/aiService';
+import { setAiAuthTokenGetter } from '../services/aiAuth';
 import { toast } from 'sonner';
 import type { LearningSignals } from '../services/learningSignals';
 
