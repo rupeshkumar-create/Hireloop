@@ -1,4 +1,5 @@
 import type { UserProfile } from '../contexts/AuthContext';
+import { isProPlan } from './planLimits';
 
 export type OnboardingStep = 'upload' | 'paths' | 'scout' | 'matches';
 
@@ -48,26 +49,27 @@ export function nextStepAfterUpload(profile: UserProfile | null | undefined): On
 }
 
 /**
- * Guided first dashboard — stays active until the user saves a match to Pipeline
- * or explicitly skips the guided view. Avoids dumping new users into the full
- * dashboard + nine locked cards before they understand the product loop.
+ * Guided first dashboard for Pro users — stays active until the user saves a match
+ * to Pipeline or opens the full dashboard. Free users skip this guided view because
+ * it references AI asset generation they cannot use without Pro.
  */
 export function isInFirstSession(
   profile: UserProfile | null | undefined,
-  pipelineSavedCount: number
+  pipelineSavedCount: number,
+  plan?: string
 ): boolean {
+  if (!isProPlan(plan || profile?.plan)) return false;
   if (!profile?.onboardingCompletedAt) return false;
   if (profile.firstSessionCompletedAt) return false;
   if (pipelineSavedCount > 0) return false;
   return true;
 }
 
-/** Free users in first session see a single upsell strip instead of nine locked cards. */
+/** @deprecated Free users skip guided first session; full dashboard shows locked-match upsell. */
 export function shouldUseCompactFreePaywall(
-  profile: UserProfile | null | undefined,
-  plan?: string,
-  pipelineSavedCount = 0
+  _profile: UserProfile | null | undefined,
+  _plan?: string,
+  _pipelineSavedCount = 0
 ): boolean {
-  if ((plan || profile?.plan || 'free').toLowerCase() === 'pro') return false;
-  return isInFirstSession(profile, pipelineSavedCount);
+  return false;
 }

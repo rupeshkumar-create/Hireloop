@@ -386,8 +386,9 @@ export function Dashboard() {
         <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">
           <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">Nice — your first role is saved</div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
-            Pipeline is where you track status and generate application assets. Tomorrow Scout will deliver a fresh
-            batch here on the dashboard.
+            {isProPlan(profile?.plan)
+              ? 'Pipeline is where you track status and generate application assets. Tomorrow Scout will deliver a fresh batch here on the dashboard.'
+              : 'Pipeline is where you track saved roles. Upgrade to Pro when you are ready for AI application assets.'}
           </p>
         </div>
       ) : null}
@@ -403,7 +404,9 @@ export function Dashboard() {
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
             {filteredAndSortedJobs.length > 0
-              ? 'Review matches here. Save a role to send it to Pipeline — where you track applications and use AI Copilot.'
+              ? isProPlan(profile?.plan)
+                ? 'Review matches here. Save a role to send it to Pipeline — where you track applications and use AI Copilot.'
+                : 'Review your best match here. Save roles to Pipeline to track applications. Upgrade to Pro for AI-tailored resumes, cold emails, and interview prep.'
               : 'This usually takes 1–2 minutes. Matches appear here automatically — no refresh needed.'}
           </p>
         </div>

@@ -30,6 +30,10 @@ type ApiMount = {
 };
 
 const API_MOUNTS: ApiMount[] = [
+  { prefix: '/api/admin/users', module: '/api/admin/users.ts' },
+  { prefix: '/api/admin/ghost-discover', module: '/api/admin/ghost-discover.ts' },
+  { prefix: '/api/admin/bootstrap', module: '/api/admin/bootstrap.ts' },
+  { prefix: '/api/admin/content-growth', module: '/api/admin/content-growth.ts' },
   { prefix: '/api/admin', module: '/api/admin/[[...route]].ts', routeParam: true },
   { prefix: '/api/blog', module: '/api/blog/[[...route]].ts', routeParam: true },
   { prefix: '/api/public', module: '/api/public/[[...route]].ts', routeParam: true },

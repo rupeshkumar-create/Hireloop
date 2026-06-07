@@ -73,7 +73,13 @@ export function Onboarding() {
 
   const goNext = (next: Step) => setStep(next);
   const finish = async () => {
-    await updateProfile({ onboardingCompletedAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const patch: Record<string, string> = { onboardingCompletedAt: now };
+    // Free users go straight to the full dashboard — skip the Pro-oriented guided view.
+    if ((profile?.plan || 'free').toLowerCase() !== 'pro') {
+      patch.firstSessionCompletedAt = now;
+    }
+    await updateProfile(patch);
     navigate('/dashboard?welcome=1');
   };
 
@@ -673,9 +679,11 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
         </div>
       ) : null}
 
-      <div className="mt-6 rounded-lg border border-dashed border-[var(--hs-app-border)] bg-background px-4 py-3 text-[12px] leading-relaxed text-foreground-muted">
-        <strong className="text-foreground">How it works:</strong> Dashboard = new jobs Scout finds.
-        Pipeline = roles you save to track and generate AI application assets.
+      <div className="mt-6 rounded-lg border border-[var(--hs-app-border)] bg-background px-4 py-3 text-[13px] leading-relaxed text-foreground-muted">
+        <strong className="text-foreground">Your free plan includes:</strong> 1 top match daily, save roles to Pipeline,
+        and match history.{' '}
+        <strong className="text-foreground">Pro</strong> unlocks 10 daily matches plus AI-tailored resumes, cold emails,
+        and interview prep.
       </div>
 
       {jobs.length === 0 ? (
@@ -737,7 +745,7 @@ function MatchesStep({ profile, onFinish }: { profile: any; onFinish: () => Prom
 
       <div className="mt-10 flex items-center justify-end">
         <Button onClick={onFinish}>
-          {jobs.length > 0 ? 'Review my best match' : 'Open dashboard'} <ArrowRight className="ml-1.5 h-4 w-4" />
+          {jobs.length > 0 ? 'Open dashboard & review match' : 'Open dashboard'} <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
       </div>
     </section>

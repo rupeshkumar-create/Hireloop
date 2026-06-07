@@ -10,27 +10,28 @@ const baseProfile: UserProfile = {
 };
 
 describe('isInFirstSession', () => {
-  it('is true after onboarding until the first pipeline save', () => {
-    expect(isInFirstSession(baseProfile, 0)).toBe(true);
+  it('is true for Pro users after onboarding until the first pipeline save', () => {
+    expect(isInFirstSession(baseProfile, 0, 'pro')).toBe(true);
+  });
+
+  it('is false for free users — they skip the guided first dashboard', () => {
+    expect(isInFirstSession(baseProfile, 0, 'free')).toBe(false);
   });
 
   it('is false after the user saves a job', () => {
-    expect(isInFirstSession(baseProfile, 1)).toBe(false);
+    expect(isInFirstSession(baseProfile, 1, 'pro')).toBe(false);
   });
 
   it('is false when first session was marked complete', () => {
     expect(
-      isInFirstSession({ ...baseProfile, firstSessionCompletedAt: new Date().toISOString() }, 0)
+      isInFirstSession({ ...baseProfile, firstSessionCompletedAt: new Date().toISOString() }, 0, 'pro')
     ).toBe(false);
   });
 });
 
 describe('shouldUseCompactFreePaywall', () => {
-  it('uses compact paywall for free users in first session', () => {
-    expect(shouldUseCompactFreePaywall(baseProfile, 'free', 0)).toBe(true);
-  });
-
-  it('does not use compact paywall for pro users', () => {
+  it('is always false — free users use the full dashboard upsell', () => {
+    expect(shouldUseCompactFreePaywall(baseProfile, 'free', 0)).toBe(false);
     expect(shouldUseCompactFreePaywall(baseProfile, 'pro', 0)).toBe(false);
   });
 });

@@ -98,6 +98,12 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
   const { profile, updateProfile } = useAuth();
   const [dismissing, setDismissing] = useState(false);
 
+  const isFree = (profile?.plan || 'free').toLowerCase() !== 'pro';
+
+  // Free users already complete setup in onboarding — hide the checklist that
+  // references Pro-only AI asset generation.
+  if (isFree) return null;
+
   const skipSetupSteps = isFreshlyOnboarded(profile);
   const steps = useMemo(
     () => buildSteps(profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps),
