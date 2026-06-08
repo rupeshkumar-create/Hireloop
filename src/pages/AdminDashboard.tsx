@@ -455,7 +455,7 @@ export function AdminDashboard() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await apiCall('/api/admin/users?limit=500');
+      const data = await apiCall('/api/admin-users?limit=500');
       const list = (data.users ?? []).map((u: AdminUserListItem) => buildAdminUserListItem(u));
       setUsers(list);
       if (list.length === 0) toast.info('No users found in database.');
@@ -491,7 +491,7 @@ export function AdminDashboard() {
 
   const handleViewDetail = async (u: AdminUserListItem) => {
     try {
-      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
+      const data = await apiCall(`/api/admin-users?userId=${encodeURIComponent(u.id)}`);
       if (!data.user) throw new Error('User document not found');
       setDetailUser(buildAdminUserDetail(data.user));
     } catch (err: any) {
@@ -501,7 +501,7 @@ export function AdminDashboard() {
 
   const handleOpenGhost = async (u: AdminUserListItem) => {
     try {
-      const data = await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`);
+      const data = await apiCall(`/api/admin-users?userId=${encodeURIComponent(u.id)}`);
       if (!data.user) throw new Error('User document not found');
       setGhostUser(buildAdminUserDetail(data.user) as GhostModeTargetUser);
       setGhostResult(null);
@@ -514,7 +514,7 @@ export function AdminDashboard() {
     if (!editUser) return;
     setSaving(true);
     try {
-      await apiCall(`/api/admin/users?userId=${encodeURIComponent(editUser.id)}`, {
+      await apiCall(`/api/admin-users?userId=${encodeURIComponent(editUser.id)}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
       });
@@ -531,7 +531,7 @@ export function AdminDashboard() {
   const handleTogglePlan = async (u: AdminUserListItem) => {
     const newPlan: Plan = u.plan === 'pro' ? 'free' : 'pro';
     try {
-      await apiCall(`/api/admin/users?userId=${encodeURIComponent(u.id)}`, {
+      await apiCall(`/api/admin-users?userId=${encodeURIComponent(u.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({ plan: newPlan }),
       });
@@ -546,7 +546,7 @@ export function AdminDashboard() {
     if (!deleteUser) return;
     setDeleting(true);
     try {
-      await apiCall(`/api/admin/users?userId=${encodeURIComponent(deleteUser.id)}`, { method: 'DELETE' });
+      await apiCall(`/api/admin-users?userId=${encodeURIComponent(deleteUser.id)}`, { method: 'DELETE' });
       setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
       toast.success(`Deleted ${deleteUser.email}`);
       setDeleteUser(null);
@@ -605,7 +605,7 @@ export function AdminDashboard() {
             // Discovery runs server-side so APIFY_API_TOKEN never ships in
             // the browser bundle. The admin client just gets the resulting
             // job list and matches/scores it locally with the AI proxy.
-            const discoverResp = await fetch('/api/admin/ghost-discover', {
+            const discoverResp = await fetch('/api/admin-ghost-discover', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
