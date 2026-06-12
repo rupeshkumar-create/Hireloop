@@ -2,6 +2,7 @@
 
 export const SITE_URL = 'https://hireschema.com';
 export const SITE_NAME = 'HireSchema';
+export const SITE_STATUS = 'Public beta — free access while we refine the product';
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 export const DEFAULT_OG_IMAGE_ALT = 'HireSchema — AI remote job matching and daily job alerts';
@@ -28,7 +29,7 @@ export const HOME_FAQ: { question: string; answer: string }[] = [
   {
     question: 'How do I find remote jobs with HireSchema?',
     answer:
-      'Upload your resume, set your career paths and preferences, and HireSchema runs a daily AI pipeline to discover remote roles, filter irrelevant listings, and surface only high-fit matches. Free users receive one curated match per day; Pro users receive up to ten.',
+      'Upload your resume, set your career paths and preferences, and HireSchema runs a daily AI pipeline to discover remote roles, filter irrelevant listings, and surface high-fit matches. HireSchema is in public beta with free access while we refine the product.',
   },
   {
     question: 'Is HireSchema only for remote jobs?',

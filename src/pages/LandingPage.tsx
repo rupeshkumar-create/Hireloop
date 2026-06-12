@@ -4,18 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { SeoHead } from '../components/seo/SeoHead';
-import {
-  SITE_URL,
-  DEFAULT_OG_IMAGE,
-  HOME_FAQ,
-  HOME_KEYWORDS,
-  buildBreadcrumbSchema,
-  buildFaqPageSchema,
-  buildOrganizationSchema,
-  buildSoftwareApplicationSchema,
-  buildWebSiteSchema,
-} from '../lib/siteSeo';
-import { PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
+import { SITE_URL, SITE_STATUS, DEFAULT_OG_IMAGE, HOME_FAQ, HOME_KEYWORDS, buildBreadcrumbSchema, buildFaqPageSchema, buildOrganizationSchema, buildSoftwareApplicationSchema, buildWebSiteSchema } from '../lib/siteSeo';
 import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
 
 /* ─── Landing-page-scoped styles injected once ─── */
@@ -733,21 +722,6 @@ const FEATURES = [
   },
 ];
 
-const FREE_FEATURES = [
-  'Up to 1 matched job per day',
-  'Resume parsing and profile setup',
-  'Daily job refresh cycle',
-  'Built-in job tracker',
-];
-
-const PRO_FEATURES = [
-  '10 matched jobs per day',
-  'AI cover letter and resume tailoring',
-  'Interview prep questions per role',
-  'Cold email drafts per saved role',
-  'Priority learning loop updates',
-];
-
 function ArrowIcon() {
   return (
     <svg className="lp-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -887,8 +861,8 @@ export function LandingPage() {
   return (
     <div ref={rootRef} className="lp-root">
       <SeoHead
-        title="HireSchema — AI Remote Job Matching & Daily Job Alerts"
-        description="Find remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path with AI, and delivers personalized remote job alerts — plus resume tailoring and interview prep."
+        title="HireSchema — AI Remote Job Matching (Public Beta)"
+        description="Find remote jobs matched to your resume. HireSchema is in public beta — free access while we refine daily AI-scored remote job alerts, resume tailoring, and interview prep."
         canonicalUrl={`${SITE_URL}/`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
@@ -923,7 +897,6 @@ export function LandingPage() {
             <a href="#features" className="lp-nav-link">Features</a>
             <Link to="/blog" className="lp-nav-link">Hiring Guides</Link>
             <Link to="/remote-jobs" className="lp-nav-link">Remote Jobs</Link>
-            <a href="#pricing" className="lp-nav-link">Pricing</a>
             <Link to="/login" className="lp-nav-link">Sign in</Link>
             <Link to="/login" className="lp-btn-p">Start free</Link>
           </div>
@@ -940,7 +913,6 @@ export function LandingPage() {
           <a href="#features" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
           <Link to="/blog" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Hiring Guides</Link>
           <Link to="/remote-jobs" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Remote Jobs</Link>
-          <a href="#pricing" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
           <Link to="/login" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
           <Link to="/login" className="lp-btn-p" style={{ marginTop: 12, textAlign: 'center' }} onClick={() => setMobileMenuOpen(false)}>
             Start free
@@ -953,20 +925,20 @@ export function LandingPage() {
         <div className="lp-container">
           <div className="lp-hero-grid">
             <div className="lp-hero-left">
-              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">AI Recruiting Agent · Remote Only</p>
+              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">Public Beta · AI Recruiting Agent · Remote Only</p>
               <h1 className="lp-display lp-dh lp-hero-hl lp-fi lp-fi-2">
                 The quiet agent<br />
                 that finds your<br />
                 <em>next</em> remote role.
               </h1>
               <p className="lp-body-lg lp-hero-sub lp-fi lp-fi-3">
-                Upload your resume. Hireschema scouts the global job market daily, scores every match against your profile, and delivers only the roles worth your attention.
+                Upload your resume. Hireschema scouts the global job market daily, scores every match against your profile, and delivers only the roles worth your attention. {SITE_STATUS}.
               </p>
               <div className="lp-hero-cta-row lp-fi lp-fi-4">
                 <Link to="/login" className="lp-cta-main">
                   Start for free <ArrowIcon />
                 </Link>
-                <span className="lp-cta-note">No credit card required</span>
+                <span className="lp-cta-note">Free during public beta · No credit card</span>
               </div>
             </div>
 
@@ -1162,42 +1134,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ── */}
-      <section id="pricing" className="lp-pricing">
-        <div className="lp-container">
-          <div className="lp-section-hdr">
-            <div className="lp-reveal-l">
-              <p className="lp-eyebrow" style={{ marginBottom: 12 }}>Pricing</p>
-              <h2 className="lp-display lp-ds">Start free.<br />Scale when ready.</h2>
-            </div>
-          </div>
-          <div className="lp-pricing-grid lp-reveal-s" style={{ transitionDelay: '0.1s' }}>
-            <div className="lp-plan">
-              <span className="lp-plan-name">Free</span>
-              <div className="lp-plan-price">$0</div>
-              <span className="lp-plan-period">forever — no card needed</span>
-              <ul className="lp-plan-features">
-                {FREE_FEATURES.map(f => (
-                  <li key={f} className="lp-plan-feature"><span className="lp-feat-dot" />{f}</li>
-                ))}
-              </ul>
-              <Link to="/login" className="lp-btn-g">Get started</Link>
-            </div>
-            <div className="lp-plan">
-              <span className="lp-plan-name">Pro</span>
-              <div className="lp-plan-price">${PRO_MONTHLY_USD}</div>
-              <span className="lp-plan-period">per month — or ${PRO_ANNUAL_USD}/yr (save 25%)</span>
-              <ul className="lp-plan-features">
-                {PRO_FEATURES.map(f => (
-                  <li key={f} className="lp-plan-feature"><span className="lp-feat-dot" />{f}</li>
-                ))}
-              </ul>
-              <Link to="/login" className="lp-btn-p">Get Pro — ${PRO_MONTHLY_USD}/mo</Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── Blog ── */}
       <section id="blog" className="lp-section">
         <div className="lp-container">
@@ -1254,7 +1190,7 @@ export function LandingPage() {
               <Link to="/login" className="lp-cta-main" style={{ display: 'inline-flex' }}>
                 Start for free <ArrowIcon />
               </Link>
-              <p className="lp-body-sm" style={{ marginTop: 10 }}>No credit card required.</p>
+              <p className="lp-body-sm" style={{ marginTop: 10 }}>Free during public beta. No credit card required.</p>
             </div>
           </div>
         </div>
@@ -1296,7 +1232,6 @@ export function LandingPage() {
                 <span className="lp-footer-col-ttl">Company</span>
                 <ul className="lp-footer-col-list">
                   <li><a href="#about">About</a></li>
-                  <li><a href="#pricing">Pricing</a></li>
                   <li><a href="#blog">Updates</a></li>
                   <li><a href="mailto:hello@hireschema.com">Contact</a></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>

@@ -33,7 +33,7 @@ const REMOTE_JOBS_FAQ = [
   {
     question: 'Are there free remote job alerts on HireSchema?',
     answer:
-      'Yes. HireSchema offers a free plan with one AI-scored remote job match delivered daily. The Pro plan includes up to ten curated matches per day plus resume tailoring, cold email generation, and interview prep tools.',
+      'Yes. HireSchema is in public beta with free access while we refine the product. Sign up for daily AI-scored remote matches, resume tools, and interview prep.',
   },
 ];
 
