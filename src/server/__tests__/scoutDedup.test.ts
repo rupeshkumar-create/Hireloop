@@ -35,6 +35,22 @@ describe('evaluateScoutDedup', () => {
     expect(result.planCap).toBe(10);
   });
 
+  it('allows retry when today run returned zero jobs', () => {
+    const result = evaluateScoutDedup(
+      {
+        plan: 'free',
+        deliveryTimezone: 'UTC',
+        dailyJobs: [],
+        dailyJobsMeta: { deliveryLocalDate: '2026-06-06' },
+        lastJobFetchTime: '2026-06-06T10:00:00.000Z',
+        lastSuccessfulJobRunLocalDate: '2026-06-06',
+      },
+      new Date('2026-06-06T15:00:00.000Z')
+    );
+
+    expect(result.blocked).toBe(false);
+  });
+
   it('allows a new run on a new local day', () => {
     const result = evaluateScoutDedup(
       {

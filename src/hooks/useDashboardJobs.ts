@@ -416,7 +416,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
     const planCap = getDailyMatchLimit(profile?.plan);
 
-    if (!allowUnlimitedRegen && fetchDate === today && jobs.length >= planCap) {
+    if (!allowUnlimitedRegen && fetchDate === today && jobs.length > 0 && jobs.length >= planCap) {
       toast.info("Scout has already found your matches for today. Come back tomorrow for a fresh batch!");
       return;
     }
@@ -433,17 +433,13 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       const idToken = await user.getIdToken(true);
 
       const controller = new AbortController();
-      const timeoutMs = isFirstRun ? 55_000 : 35_000;
+      const timeoutMs = 55_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      // ── Path A: async dispatch via GitHub Actions (preferred) ──────────────
-      // Returns 202 immediately; GitHub Actions runs the full pipeline and
-      // writes results to Firestore; the useEffect above displays them.
-      // First-time users use inline fast pipeline (200) — no GHA wait.
       const requestResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ mode: 'request', firstRun: isFirstRun }),
+        body: JSON.stringify({ mode: 'request', firstRun: isFirstRun, force: opts?.force === true }),
         signal: controller.signal,
       });
 
@@ -490,36 +486,10 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           'Your dashboard will update automatically in about 2 minutes.',
           { duration: 10000 }
         );
-        // Safety valve: clear spinner after 6 minutes regardless
         setTimeout(() => {
           stopDailyMatchesWatch();
           setGeneratingJobs(false);
         }, 6 * 60 * 1000);
-        // Fallback: if GHA is slow/stuck, retry with sync fast pipeline after 90s
-        setTimeout(async () => {
-          if (!user) return;
-          try {
-            const token = await user.getIdToken(true);
-            const syncRes = await fetch('/api/jobs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ mode: 'trigger', firstRun: true }),
-            });
-            if (syncRes.ok) {
-              const payload = await syncRes.json().catch(() => ({}));
-              const syncJobs = Array.isArray((payload as any).jobs) ? (payload as any).jobs : [];
-              if (syncJobs.length > 0) {
-                const { visible, paywall } = splitJobsByPlan(syncJobs, profile?.plan);
-                setJobs(visible);
-                setPaywallJobs(paywall);
-                setGeneratingJobs(false);
-                toast.success(`${visible.length} jobs curated for you!`);
-              }
-            }
-          } catch {
-            // Non-fatal — user can still retry manually
-          }
-        }, 90_000);
         return;
       }
 

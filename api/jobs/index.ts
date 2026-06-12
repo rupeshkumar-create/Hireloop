@@ -30,122 +30,11 @@ function resolveCareerPaths(profile: Record<string, any>): string[] {
     .slice(0, 10);
 }
 
-function getBaseUrl(req: VercelRequest): string {
-  const proto =
-    Array.isArray(req.headers['x-forwarded-proto'])
-      ? req.headers['x-forwarded-proto'][0]
-      : req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers.host || process.env.VERCEL_URL;
-  if (!host) throw new Error('Cannot determine request host');
-  return `${proto}://${host}`;
-}
-
 function isLocalRequest(req: VercelRequest): boolean {
   return Boolean(
     req.headers.host?.includes('localhost') ||
     req.headers.host?.includes('127.0.0.1')
   );
-}
-
-function normalizeGithubRepoValue(raw: string): string {
-  const value = raw.trim();
-  if (!value) return '';
-
-  return value
-    .replace(/^https?:\/\/github\.com\//i, '')
-    .replace(/^github\.com\//i, '')
-    .replace(/\.git$/i, '')
-    .replace(/^\/+|\/+$/g, '');
-}
-
-function resolveGithubRepo(): string {
-  const explicit = normalizeGithubRepoValue(process.env.GITHUB_REPO || '');
-  if (explicit) return explicit;
-
-  const owner = (process.env.VERCEL_GIT_REPO_OWNER || '').trim();
-  const slug = (process.env.VERCEL_GIT_REPO_SLUG || '').trim();
-  if (owner && slug) return `${owner}/${slug}`;
-
-  return '';
-}
-
-function resolveGithubDispatchToken(): string {
-  return (
-    (process.env.GITHUB_DISPATCH_TOKEN || '').trim() ||
-    (process.env.GITHUB_PAT || '').trim()
-  );
-}
-
-function resolveGithubRef(): string {
-  return (
-    (process.env.GITHUB_DISPATCH_REF || '').trim() ||
-    (process.env.VERCEL_GIT_COMMIT_REF || '').trim() ||
-    'main'
-  );
-}
-
-function githubDispatchHint(status: number): string {
-  if (status === 401 || status === 403) {
-    return 'Check GITHUB_DISPATCH_TOKEN permissions and repository access.';
-  }
-  if (status === 404) {
-    return 'Check GITHUB_REPO or confirm the Vercel project is linked to the correct GitHub repository.';
-  }
-  if (status === 422) {
-    return 'Check that .github/workflows/generate-jobs.yml includes repository_dispatch for generate-jobs-for-user.';
-  }
-  return 'Check the GitHub Actions workflow and repository dispatch configuration.';
-}
-
-async function dispatchRepositoryEvent(
-  githubRepo: string,
-  githubToken: string,
-  uid: string,
-  runDate: string
-): Promise<Response> {
-  return await fetch(`https://api.github.com/repos/${githubRepo}/dispatches`, {
-    method: 'POST',
-    headers: {
-      Authorization: `token ${githubToken}`,
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'hireschema-job-dispatch',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-    body: JSON.stringify({
-      event_type: 'generate-jobs-for-user',
-      client_payload: { userId: uid, runDate, force: true },
-    }),
-  });
-}
-
-async function dispatchWorkflowRun(
-  githubRepo: string,
-  githubToken: string,
-  uid: string
-): Promise<Response> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6000);
-  
-  try {
-    return await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/generate-jobs.yml/dispatches`, {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'hireschema-job-dispatch',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({
-        ref: resolveGithubRef(),
-        inputs: { user_id: uid },
-      }),
-      signal: ctrl.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 async function verifyUser(req: VercelRequest): Promise<string | null> {
@@ -414,10 +303,11 @@ async function readStoredJobs(uid: string, runDate: string): Promise<DailyJob[]>
   return userSnap.exists ? ((userSnap.data()?.dailyJobs || []) as DailyJob[]) : [];
 }
 
-async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
-  const githubToken = resolveGithubDispatchToken();
-  const githubRepo = resolveGithubRepo();
+function wantsForceRerun(req: VercelRequest): boolean {
+  return req.body?.force === true;
+}
 
+async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelResponse) {
   const db = getAdminDb();
   const userSnap = await db.collection('users').doc(uid).get();
   if (!userSnap.exists) {
@@ -427,9 +317,10 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const profile = userSnap.data() || {};
   const careerPaths = resolveCareerPaths(profile);
   const runDate = formatLocalDate(new Date(), profile.deliveryTimezone || 'UTC');
+  const force = wantsForceRerun(req);
 
   const dedup = evaluateScoutDedup(profile);
-  if (dedup.blocked) {
+  if (dedup.blocked && !force) {
     const jobs = await readStoredJobs(uid, runDate);
     return res.status(409).json({
       error: 'Scout has already found your matches for today.',
@@ -448,10 +339,13 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
     });
   }
 
+  const isLocal = isLocalRequest(req);
   const firstRun = wantsFirstRun(req) || isFirstScoutRun(profile);
-  if (firstRun && !isLocalRequest(req)) {
-    console.log('[api/jobs] First-time Scout — running inline fast pipeline on Vercel');
-    const pipelineResult = await runPipeline(uid, runDate, req, { fastMode: true });
+  const useFastMode = !isLocal;
+
+  if (!isLocal) {
+    console.log('[api/jobs] Running inline Scout pipeline on Vercel', { firstRun, useFastMode, force });
+    const pipelineResult = await runPipeline(uid, runDate, req, { fastMode: useFastMode });
     const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
 
     if (pipelineResult.status !== 'completed') {
@@ -459,7 +353,7 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
         (pipelineResult.debug as any)?.failureReason ||
         (pipelineResult.debug as any)?.emptyReason;
       return res.status(500).json({
-        error: failureReason || 'First-time job generation did not complete.',
+        error: failureReason || 'Daily job generation did not complete.',
         status: pipelineResult.status,
         debug: pipelineResult.debug,
       });
@@ -470,100 +364,14 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
       runDate,
       jobs,
       jobCount: jobs.length,
-      firstRun: true,
+      firstRun,
       message: jobs.length > 0
         ? `${jobs.length} jobs curated for you.`
         : 'No matching jobs were found. Try broadening your career paths in Settings.',
     });
   }
 
-  const isLocal = isLocalRequest(req);
-
-  // On Vercel/serverless we must dispatch to GitHub Actions. The synchronous
-  // pipeline is too slow and causes the 30s/60s request to die with HTTP 500.
-  if (!isLocal && !githubToken) {
-    return res.status(500).json({
-      error: 'Missing GITHUB_DISPATCH_TOKEN.',
-      detail: 'On Vercel, daily job generation takes ~2 minutes and must run via GitHub Actions. Please add GITHUB_DISPATCH_TOKEN to your Vercel Environment Variables.'
-    });
-  }
-
-  if (!isLocal && !githubRepo) {
-    return res.status(500).json({
-      error: 'Could not resolve GitHub repository.',
-      detail: 'Set GITHUB_REPO (e.g. "owner/repo") in your Vercel environment so the Scout can dispatch job discovery tasks.'
-    });
-  }
-
-  if (githubToken && githubRepo && !isLocal) {
-    console.log('[api/jobs] Dispatching to GitHub Actions...');
-    let ghResponse: Response;
-    const ghAbort = new AbortController();
-    const ghTimeout = setTimeout(() => ghAbort.abort(), 5000);
-    try {
-      ghResponse = await dispatchRepositoryEvent(githubRepo, githubToken, uid, runDate);
-    } catch (fetchErr) {
-      console.error('[jobs/index] GitHub fetch threw:', fetchErr);
-      ghResponse = { ok: false, status: 0 } as any;
-    } finally {
-      clearTimeout(ghTimeout);
-    }
-
-    if (ghResponse.ok) {
-      return res.status(202).json({
-        status: 'dispatched',
-        runDate,
-        message: 'Job generation started. Your dashboard will update automatically in about 2 minutes.',
-      });
-    }
-
-    const dispatchBody = ghResponse.text ? await ghResponse.text().catch(() => '') : '';
-    console.error('[jobs/index] Repository dispatch failed:', ghResponse.status, dispatchBody);
-
-    try {
-      const workflowResponse = await dispatchWorkflowRun(githubRepo, githubToken, uid);
-      if (workflowResponse.ok) {
-        return res.status(202).json({
-          status: 'dispatched',
-          runDate,
-          message: 'Job generation started via GitHub workflow dispatch. Your dashboard will update automatically in about 2 minutes.',
-        });
-      }
-
-      const workflowBody = workflowResponse.text ? await workflowResponse.text().catch(() => '') : '';
-      console.error('[jobs/index] Workflow dispatch failed:', workflowResponse.status, workflowBody);
-    } catch (workflowErr) {
-      console.error('[jobs/index] Workflow dispatch threw:', workflowErr);
-    }
-
-    console.warn('[api/jobs] GitHub dispatch unavailable — running inline fast pipeline');
-    const fallbackResult = await runPipeline(uid, runDate, req, { fastMode: true });
-    const fallbackJobs =
-      fallbackResult.jobs.length > 0 ? fallbackResult.jobs : await readStoredJobs(uid, runDate);
-    if (fallbackResult.status === 'completed') {
-      return res.status(200).json({
-        status: 'completed',
-        runDate,
-        jobs: fallbackJobs,
-        jobCount: fallbackJobs.length,
-        fallback: 'inline-fast',
-        message: fallbackJobs.length > 0
-          ? `${fallbackJobs.length} jobs curated for you.`
-          : 'No matching jobs were found. Try broadening your career paths in Settings.',
-      });
-    }
-
-    const failureReason =
-      (fallbackResult.debug as any)?.failureReason ||
-      (fallbackResult.debug as any)?.emptyReason;
-    return res.status(500).json({
-      error: failureReason || 'Daily job generation did not complete.',
-      status: fallbackResult.status,
-      debug: fallbackResult.debug,
-    });
-  }
-
-  const pipelineResult = await runPipeline(uid, runDate, req);
+  const pipelineResult = await runPipeline(uid, runDate, req, { fastMode: firstRun });
   const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
   if (pipelineResult.status !== 'completed') {
     const failureReason = (pipelineResult.debug as any)?.failureReason || (pipelineResult.debug as any)?.emptyReason;

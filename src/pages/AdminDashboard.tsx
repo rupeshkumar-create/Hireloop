@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
@@ -10,7 +9,6 @@ import { runAdminGhostMode } from '../services/adminGhostMode';
 import type { CallAIFn } from '../services/jobResearcher';
 import { matchAndRankJobs } from '../services/jobMatchingEngine';
 import { GhostModeModal } from '../components/admin/GhostModeModal';
-import { ContentGrowthPanel } from '../components/admin/ContentGrowthPanel';
 import type {
   GhostModeInputMode,
   GhostModeOverrides,
@@ -73,37 +71,6 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="text-sm text-foreground-muted">{label}</p>
     </div>
   );
-}
-
-class ContentGrowthErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { error: Error | null }
-> {
-  state = { error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-          <p className="text-sm font-medium text-red-400">Content Growth panel crashed</p>
-          <p className="mt-2 font-mono text-xs text-foreground-muted break-all">{this.state.error.message}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => this.setState({ error: null })}
-          >
-            Try again
-          </Button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 function AdminModalFrame({
@@ -416,14 +383,6 @@ export function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [ghostRunning, setGhostRunning] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'content' ? 'content' : 'users';
-  const [activeTab, setActiveTab] = useState<'users' | 'content'>(initialTab);
-
-  useEffect(() => {
-    const tab = searchParams.get('tab') === 'content' ? 'content' : 'users';
-    setActiveTab(tab);
-  }, [searchParams]);
 
   // ── API helpers ────────────────────────────────────────────────────────────
 
@@ -689,44 +648,11 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-medium">Super Admin</h1>
-        {activeTab === 'users' && (
-          <Button variant="outline" size="sm" onClick={loadUsers} disabled={loading}>
-            {loading ? 'Loading…' : 'Refresh'}
-          </Button>
-        )}
+        <Button variant="outline" size="sm" onClick={loadUsers} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-border">
-        {([
-          ['users', 'Users'],
-          ['content', 'Content Growth'],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => {
-              setActiveTab(id);
-              setSearchParams(id === 'content' ? { tab: 'content' } : {});
-            }}
-            className={cn(
-              'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-              activeTab === id
-                ? 'border-foreground text-foreground'
-                : 'border-transparent text-foreground-muted hover:text-foreground'
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'content' ? (
-        <ContentGrowthErrorBoundary>
-          <ContentGrowthPanel />
-        </ContentGrowthErrorBoundary>
-      ) : (
-        <>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Stat label="Total Users" value={stats.total} />
@@ -845,8 +771,6 @@ export function AdminDashboard() {
         onRun={handleRunGhost}
         onClose={() => { setGhostUser(null); setGhostResult(null); }}
       />
-        </>
-      )}
     </div>
   );
 }

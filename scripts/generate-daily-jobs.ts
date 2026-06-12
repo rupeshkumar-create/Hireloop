@@ -25,6 +25,9 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { createOpenRouterCaller } from '../src/services/openRouterCaller';
 import { researchJobs, jobFingerprint } from '../src/services/jobResearcher';
 import { matchAndRankJobs } from '../src/services/jobMatchingEngine';
+import { loadAtsAllowlist } from '../src/services/jobSources/atsAllowlist';
+import { fetchAtsJobs } from '../src/services/jobSources/atsOrchestrator';
+import { verifyHttpUrl } from '../src/services/urlVerifier';
 import {
   isActiveCronUser,
   processUserCronRun,
@@ -36,6 +39,19 @@ import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const BATCH_SIZE = 100;
+
+function resolveCareerPaths(profile: Record<string, unknown>): string[] {
+  const fromCareerPaths = Array.isArray(profile.careerPaths) ? profile.careerPaths : [];
+  const fromStructuredRoles = Array.isArray((profile.structuredProfile as any)?.roles)
+    ? (profile.structuredProfile as any).roles
+    : [];
+
+  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
 
 // ── OpenRouter AI caller ─────────────────────────────────────────────────────
 // matchAndRankJobs needs an AI scorer to rank Apify's broad pull by actual
@@ -79,11 +95,10 @@ async function processUser(
       },
 
       getExistingRun: async (runId) => {
+        if (force) return null;
         const snap = await db.collection('cronRuns').doc(runId).get();
         if (!snap.exists) return null;
-        const data = { id: snap.id, ...snap.data() } as any;
-        if (force && data.status !== 'processing') return null;
-        return data;
+        return { id: snap.id, ...snap.data() } as any;
       },
 
       markRun: async (runId, patch) => {
@@ -97,18 +112,53 @@ async function processUser(
       },
 
       generateJobs: async (profile, limit) => {
-        const careerPaths: string[] = profile.careerPaths || [];
+        const careerPaths = resolveCareerPaths(profile);
         const resumeText: string = profile.resumeText || '';
-        const jobType: string = profile.jobType || 'both';
+        const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
+        const targetDiscoveryCount = Math.max(30, limit * 6);
 
-        const { jobs: discovered, sources } = await researchJobs(
-          { careerPaths, resumeText, jobType, location, targetCount: 60 }
-        );
-        console.log(`  discovered ${discovered.length} jobs`, sources);
+        const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
+        const atsJobs = atsSources.length
+          ? await fetchAtsJobs(atsSources, {
+              fetchFn: fetch,
+              verifyUrl: async (url) => await verifyHttpUrl(url),
+              seenFingerprints,
+              maxJobs: targetDiscoveryCount,
+              concurrency: 8,
+              perSourceTimeoutMs: 4500,
+            })
+          : [];
 
-        if (discovered.length === 0) {
+        const byFingerprint = new Set<string>();
+        const combined: any[] = [];
+        for (const job of atsJobs) {
+          if (!job?.fingerprint || byFingerprint.has(job.fingerprint)) continue;
+          byFingerprint.add(job.fingerprint);
+          combined.push(job);
+        }
+
+        if (combined.length < targetDiscoveryCount) {
+          const missing = targetDiscoveryCount - combined.length;
+          const { jobs: feedJobs, sources } = await researchJobs({
+            careerPaths,
+            resumeText,
+            jobType,
+            location,
+            targetCount: Math.max(20, missing),
+          });
+          console.log(`  discovered ${feedJobs.length} jobs from feeds`, sources);
+          for (const job of feedJobs) {
+            if (!job?.fingerprint || byFingerprint.has(job.fingerprint)) continue;
+            byFingerprint.add(job.fingerprint);
+            combined.push(job);
+            if (combined.length >= targetDiscoveryCount) break;
+          }
+        }
+
+        console.log(`  total discovered ${combined.length} jobs`);
+        if (combined.length === 0) {
           return {
             jobs: [],
             requestedLimit: limit,
@@ -120,7 +170,7 @@ async function processUser(
         }
 
         const matchResult = await matchAndRankJobs(
-          discovered,
+          combined,
           {
             careerPaths,
             resumeText,
@@ -128,6 +178,7 @@ async function processUser(
             seenFingerprints,
             limit,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
+            deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
           },
           callOpenRouter,
@@ -141,6 +192,8 @@ async function processUser(
           totalValidatedJobs: matchResult.scoredCount,
           unseenCount: matchResult.scoredCount,
           seenCount: 0,
+          qualityFilteredCount: matchResult.qualityFilteredCount,
+          dedupedCount: matchResult.dedupedCount,
         };
       },
 

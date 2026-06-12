@@ -65,10 +65,7 @@ export function getAppNavGroups(
   if (isAdmin) {
     groups.push({
       label: 'Admin',
-      items: [
-        { name: 'SuperAdmin', path: '/superadmin', icon: ShieldCheck },
-        { name: 'Content Growth', path: '/superadmin?tab=content', icon: FileText },
-      ],
+      items: [{ name: 'SuperAdmin', path: '/superadmin', icon: ShieldCheck }],
     });
   }
 

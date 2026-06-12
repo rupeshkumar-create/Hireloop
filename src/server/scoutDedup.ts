@@ -29,7 +29,7 @@ export function evaluateScoutDedup(
   const dailyJobs = Array.isArray(profile.dailyJobs) ? profile.dailyJobs : [];
   const existingCount = dailyJobs.length;
 
-  if (fetchDate === runDate && existingCount >= planCap) {
+  if (fetchDate === runDate && existingCount > 0 && existingCount >= planCap) {
     return { blocked: true, existingCount, planCap, runDate };
   }
 
