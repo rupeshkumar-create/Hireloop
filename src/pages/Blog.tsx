@@ -81,8 +81,8 @@ export function Blog() {
             {!loading && !error && posts.length > 0 ? (
               <span className="block mt-2 text-sm opacity-80">
                 {filtered.length === posts.length
-                  ? `${posts.length} guides available`
-                  : `${filtered.length} of ${posts.length} guides in this topic`}
+                  ? `${posts.length} hiring guides`
+                  : `${filtered.length} guides in this topic`}
               </span>
             ) : null}
           </p>

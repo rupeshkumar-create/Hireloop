@@ -688,7 +688,7 @@ export function ContentGrowthPanel() {
                 ['seed-evergreen', 'Seed 10 Evergreen Posts'],
                 ['seed-competitors', 'Seed 25 Competitor Posts'],
                 ['seed-geo-posts', 'Seed 66 GEO Guides'],
-                ['seed-library', 'Seed 500 Post Library'],
+                ['seed-library', 'Seed Full Guide Library'],
               ].map(([action, label]) => (
                 <Button key={action} variant="outline" size="sm" disabled={actionLoading !== null} onClick={() => runAction(action)}>
                   {actionLoading === action ? 'Running…' : label}
@@ -700,7 +700,7 @@ export function ContentGrowthPanel() {
                 disabled={actionLoading !== null}
                 onClick={() => void runSeedLibraryAll()}
               >
-                {actionLoading === 'seed-library-all' ? 'Seeding all 500…' : 'Seed All 500 (batched)'}
+                {actionLoading === 'seed-library-all' ? 'Seeding library…' : 'Seed Full Library (batched)'}
               </Button>
               {[
                 ['weekly-trends', 'Run Weekly Reddit Trends'],

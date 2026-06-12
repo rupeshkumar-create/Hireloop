@@ -24,11 +24,13 @@ describe('500-post programmatic catalog', () => {
     expect(PROGRAMMATIC_CLUSTERS.skills).toBe(60);
   });
 
-  it('staggered publish dates are monotonic', () => {
+  it('staggered publish dates are monotonic and not in the future', () => {
+    const now = Date.now();
     const dates = ALL_PROGRAMMATIC_SPECS.map((s) => new Date(s.publishedAt).getTime());
     for (let i = 1; i < dates.length; i++) {
       expect(dates[i]).toBeGreaterThan(dates[i - 1]!);
     }
+    expect(dates[dates.length - 1]!).toBeLessThanOrEqual(now + 24 * 60 * 60 * 1000);
   });
 
   it('sample specs meet word target', () => {

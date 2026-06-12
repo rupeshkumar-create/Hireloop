@@ -1,5 +1,5 @@
 /**
- * Serve the 500-post programmatic library from code when Firestore is incomplete.
+ * Serve the programmatic guide library from code when Firestore is incomplete.
  */
 import type { BlogPost } from '../../marketingEngine.js';
 import { buildPostFromSpec, type LinkPoolEntry } from '../seed/buildPostFromSpec.js';

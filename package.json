@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build && node scripts/postbuild-dispatch-blog.mjs",
+    "build": "tsx scripts/generate-llms-txt.ts && vite build && node scripts/postbuild-dispatch-blog.mjs",
+    "generate:llms": "tsx scripts/generate-llms-txt.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
