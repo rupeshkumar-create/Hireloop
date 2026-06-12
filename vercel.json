@@ -5,6 +5,7 @@
   "framework": "vite",
   "functions": {
     "api/cron/[job].ts": { "maxDuration": 60 },
+    "api/blog/index.ts": { "maxDuration": 60 },
     "api/blog/[[...route]].ts": { "maxDuration": 60 },
     "api/admin/[[...route]].ts": { "maxDuration": 60 },
     "api/ai/[[...route]].ts": { "maxDuration": 60 },

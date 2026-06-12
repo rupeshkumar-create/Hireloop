@@ -532,17 +532,35 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
 
       const workflowBody = workflowResponse.text ? await workflowResponse.text().catch(() => '') : '';
       console.error('[jobs/index] Workflow dispatch failed:', workflowResponse.status, workflowBody);
-      return res.status(500).json({
-        error:
-          `GitHub job dispatch failed (${ghResponse.status || 'network error'}), and workflow dispatch also failed (${workflowResponse.status || 'network error'}). ` +
-          githubDispatchHint(workflowResponse.status || ghResponse.status || 0),
-      });
     } catch (workflowErr) {
       console.error('[jobs/index] Workflow dispatch threw:', workflowErr);
-      return res.status(500).json({
-        error: `GitHub job dispatch failed (${ghResponse.status || 'network error'}). ${githubDispatchHint(ghResponse.status || 0)}`,
+    }
+
+    console.warn('[api/jobs] GitHub dispatch unavailable — running inline fast pipeline');
+    const fallbackResult = await runPipeline(uid, runDate, req, { fastMode: true });
+    const fallbackJobs =
+      fallbackResult.jobs.length > 0 ? fallbackResult.jobs : await readStoredJobs(uid, runDate);
+    if (fallbackResult.status === 'completed') {
+      return res.status(200).json({
+        status: 'completed',
+        runDate,
+        jobs: fallbackJobs,
+        jobCount: fallbackJobs.length,
+        fallback: 'inline-fast',
+        message: fallbackJobs.length > 0
+          ? `${fallbackJobs.length} jobs curated for you.`
+          : 'No matching jobs were found. Try broadening your career paths in Settings.',
       });
     }
+
+    const failureReason =
+      (fallbackResult.debug as any)?.failureReason ||
+      (fallbackResult.debug as any)?.emptyReason;
+    return res.status(500).json({
+      error: failureReason || 'Daily job generation did not complete.',
+      status: fallbackResult.status,
+      debug: fallbackResult.debug,
+    });
   }
 
   const pipelineResult = await runPipeline(uid, runDate, req);

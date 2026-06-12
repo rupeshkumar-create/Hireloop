@@ -291,6 +291,64 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   const [generatingJobs, setGeneratingJobs] = useState(false);
   const noJobsToastShownRef = useRef(false);
+  const dailyMatchesUnsubRef = useRef<(() => void) | null>(null);
+
+  const stopDailyMatchesWatch = () => {
+    dailyMatchesUnsubRef.current?.();
+    dailyMatchesUnsubRef.current = null;
+  };
+
+  const watchDailyMatchesForScout = (today: string) => {
+    if (!user) return;
+    stopDailyMatchesWatch();
+
+    const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
+    dailyMatchesUnsubRef.current = onSnapshot(
+      dailyRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const record = snap.data();
+        const allJobs = (record.jobs || []) as DailyJob[];
+        const scoutDone =
+          typeof record.generatedAt === 'string' ||
+          typeof record.returnedCount === 'number';
+
+        if (!scoutDone) return;
+
+        const { visible, paywall } = splitJobsByPlan(allJobs, profile?.plan);
+        setJobs(visible);
+        setPaywallJobs(paywall);
+        setDailyJobsMeta({
+          requestedLimit: record.requestedLimit ?? getDailyMatchLimit(profile?.plan),
+          returnedCount: record.returnedCount ?? visible.length,
+          qualityFilteredCount: record.qualityFilteredCount ?? 0,
+          dedupedCount: record.dedupedCount ?? 0,
+          qualityLimited: record.qualityLimited === true,
+          warnings: record.warnings || [],
+          deliveryTimezone: record.deliveryTimezone || resolveDeliveryTimeZone(profile),
+          deliveryLocalDate: record.deliveryLocalDate || today,
+        });
+        setLastFetchTime(record.generatedAt || new Date().toISOString());
+        setGeneratingJobs(false);
+        stopDailyMatchesWatch();
+
+        if (visible.length > 0) {
+          toast.success(`${visible.length} jobs curated for you!`);
+        } else if (!noJobsToastShownRef.current) {
+          noJobsToastShownRef.current = true;
+          toast.info(
+            'No matching jobs found this time. Try broadening your career paths or work preferences.',
+            { duration: 8000 }
+          );
+        }
+      },
+      (error) => {
+        console.warn('[useDashboardJobs] daily_matches watch failed:', error);
+      }
+    );
+  };
+
+  useEffect(() => () => stopDailyMatchesWatch(), []);
 
   // ── Reactive: show jobs as soon as Firestore delivers them ─────────────────
   // AuthContext's onSnapshot keeps `profile` in sync with Firestore.
@@ -426,13 +484,17 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
       if (requestResponse.status === 202) {
         asyncDispatched = true;
+        watchDailyMatchesForScout(today);
         toast.info(
           'Searching live job boards for your top matches… ' +
           'Your dashboard will update automatically in about 2 minutes.',
           { duration: 10000 }
         );
         // Safety valve: clear spinner after 6 minutes regardless
-        setTimeout(() => setGeneratingJobs(false), 6 * 60 * 1000);
+        setTimeout(() => {
+          stopDailyMatchesWatch();
+          setGeneratingJobs(false);
+        }, 6 * 60 * 1000);
         // Fallback: if GHA is slow/stuck, retry with sync fast pipeline after 90s
         setTimeout(async () => {
           if (!user) return;

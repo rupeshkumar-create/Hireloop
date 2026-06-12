@@ -42,7 +42,7 @@ describe('openai API handler', () => {
   });
 
   it('rejects unauthenticated requests', async () => {
-    const handler = (await import('../../../api/openai.ts')).default;
+    const handler = (await import('../api/handlers/openai.js')).default;
     const req = {
       method: 'POST',
       headers: {},
