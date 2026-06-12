@@ -19,7 +19,8 @@ import { getAdminDb } from '../../../firebaseAdmin.js';
 import { requireInternalCronSecret } from '../../../cronAuth.js';
 import { processUserCronRun } from '../../../../services/cronEngine.js';
 import { computeNextJobDeliveryAt } from '../../../../services/jobDeliveryProfile.js';
-import { researchJobs, jobFingerprint } from '../../../../services/jobResearcher.js';
+import { discoverJobsForMatching } from '../../src/services/discoverJobs.js';
+import { jobFingerprint } from '../../src/services/jobResearcher.js';
 import { matchAndRankJobs } from '../../../../services/jobMatchingEngine.js';
 import { createOpenRouterCaller } from '../../../../services/openRouterCaller.js';
 import type { DailyJob } from '../../../../types/dailyJob.js';
@@ -78,9 +79,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
           const targetCount = profile.plan === 'pro' ? 100 : 60;
-          const { jobs: discovered, sources } = await researchJobs(
-            { careerPaths, resumeText, jobType, location, targetCount }
-          );
+          const { jobs: discovered, sources } = await discoverJobsForMatching({
+            careerPaths,
+            resumeText,
+            jobType,
+            location,
+            targetCount,
+            seenFingerprints,
+            getAdminDb: () => db,
+          });
 
           console.log(
             `[process-user] ${userId}: discovered ${discovered.length} jobs`,

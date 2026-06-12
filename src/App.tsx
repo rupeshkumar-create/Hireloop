@@ -22,6 +22,7 @@ import { ArrowRight, Search } from 'lucide-react';
 import { isAdminEmail } from './lib/adminEmails';
 import { isOnboardingComplete } from './lib/onboarding';
 import { HireschemaLogo } from './components/brand/HireschemaLogo';
+import { GoogleAnalytics } from './components/GoogleAnalytics';
 
 const JobTracker = lazy(() => import('./pages/JobTracker').then((m) => ({ default: m.JobTracker })));
 const ResumeProfile = lazy(() => import('./pages/ResumeProfile').then((m) => ({ default: m.ResumeProfile })));
@@ -173,6 +174,7 @@ export default function App() {
     <AuthProvider>
       <AppChromeProvider>
       <Router>
+        <GoogleAnalytics />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/remote-jobs" element={<RemoteJobsPage />} />

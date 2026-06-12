@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb, getAdminAuth } from '../../src/server/firebaseAdmin.js';
 import { processUserCronRun } from '../../src/services/cronEngine.js';
 import { computeMatchReadiness } from '../../src/services/jobDeliveryProfile.js';
-import { researchJobs, jobFingerprint, type DiscoveredJob } from '../../src/services/jobResearcher.js';
+import { discoverJobsForMatching } from '../../src/services/discoverJobs.js';
+import { jobFingerprint, type DiscoveredJob } from '../../src/services/jobResearcher.js';
 import { matchAndRankJobs } from '../../src/services/jobMatchingEngine.js';
 import { createOpenRouterCaller } from '../../src/services/openRouterCaller.js';
 import type { DailyJob } from '../../src/types/dailyJob.js';
@@ -84,21 +85,20 @@ async function runPipeline(
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
-        const targetCount = profile.plan === 'pro' ? 100 : 60;
-
-        console.log('[api/jobs] Career paths:', careerPaths);
-
         let discovered: DiscoveredJob[] = [];
         try {
-          const { jobs: feedJobs } = await researchJobs({
+          const targetCount = profile.plan === 'pro' ? 100 : 60;
+          const { jobs: feedJobs, sources } = await discoverJobsForMatching({
             careerPaths,
             resumeText,
             jobType,
             location,
             targetCount,
+            seenFingerprints,
+            getAdminDb: () => db,
           });
           discovered = feedJobs;
-          console.log('[api/jobs] researchJobs returned:', feedJobs.length);
+          console.log('[api/jobs] discoverJobsForMatching returned:', feedJobs.length, sources);
           debug = {
             ...debug,
             careerPaths,
@@ -106,10 +106,11 @@ async function runPipeline(
             hasResumeText: resumeText.trim().length > 0,
             apifyJobCount: feedJobs.length,
             targetDiscoveryCount: targetCount,
+            discoverySources: sources,
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          console.error('[api/jobs] researchJobs failed:', message);
+          console.error('[api/jobs] discoverJobsForMatching failed:', message);
           debug = {
             ...debug,
             careerPaths,

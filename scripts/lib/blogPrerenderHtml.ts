@@ -4,6 +4,7 @@
 import { marked } from 'marked';
 import type { BlogPost } from '../../src/server/marketingEngine.js';
 import { SITE_URL, DEFAULT_OG_IMAGE } from '../../src/lib/siteSeo.js';
+import { gtagHeadSnippet } from '../../src/lib/analytics.js';
 
 const PRERENDER_CSS = `
 :root { --fg:#1a1a1a; --muted:#555; --accent:#c45a2a; --bg:#faf8f5; --border:#e8e4df; }
@@ -90,6 +91,7 @@ export function buildBlogPostHtml(post: BlogPost): string {
   <meta name="twitter:description" content="${escapeHtml(post.seoDescription)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
   ${schemaBlocks}
+  ${gtagHeadSnippet()}
   <style>${PRERENDER_CSS}</style>
 </head>
 <body>
@@ -139,6 +141,7 @@ export function buildBlogIndexHtml(
   <meta property="og:image" content="${DEFAULT_OG_IMAGE}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${DEFAULT_OG_IMAGE}" />
+  ${gtagHeadSnippet()}
   <style>${PRERENDER_CSS} ul.guides { list-style: none; padding: 0; } ul.guides li { margin: 0.75rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }</style>
 </head>
 <body>

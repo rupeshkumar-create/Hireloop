@@ -24,13 +24,13 @@ describe('isActiveCronUser', () => {
     ).toBe(true);
   });
 
-  it('returns false when the plan is missing', () => {
+  it('returns true when plan is omitted (defaults to free)', () => {
     expect(
       isActiveCronUser({
         receiveDailyAlerts: true,
         lastActiveAt: recentActiveAt,
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('returns false when alerts are explicitly disabled', () => {
@@ -56,8 +56,8 @@ describe('isActiveCronUser', () => {
 });
 
 describe('isRecentlyActiveUser', () => {
-  it('returns false when lastActiveAt is missing', () => {
-    expect(isRecentlyActiveUser({})).toBe(false);
+  it('returns true when lastActiveAt is missing (legacy profiles)', () => {
+    expect(isRecentlyActiveUser({})).toBe(true);
   });
 });
 
@@ -426,12 +426,13 @@ describe('processUserCronRun', () => {
     expect(deps.generateJobs).toHaveBeenCalledWith(expect.any(Object), 1);
   });
 
-  it('does not re-process a completed run', async () => {
+  it('does not re-process a completed run that already delivered jobs', async () => {
     const deps = {
       loadUser: vi.fn(),
       getExistingRun: vi.fn().mockResolvedValue({
         id: 'user_123_2026-04-16',
         status: 'completed',
+        jobsStored: 2,
       } as CronRunRecord),
       markRun: vi.fn(),
       generateJobs: vi.fn(),
@@ -445,6 +446,37 @@ describe('processUserCronRun', () => {
 
     expect(result.status).toBe('skipped');
     expect(deps.loadUser).not.toHaveBeenCalled();
+  });
+
+  it('retries a completed run that stored zero jobs', async () => {
+    const deps = {
+      loadUser: vi.fn().mockResolvedValue({
+        id: 'user_123',
+        data: {
+          plan: 'free',
+          receiveDailyAlerts: true,
+          lastActiveAt: recentActiveAt,
+          careerPaths: ['Software Engineer'],
+          resumeText: 'Built React apps with TypeScript for five years.',
+        },
+      }),
+      getExistingRun: vi.fn().mockResolvedValue({
+        id: 'user_123_2026-04-16',
+        status: 'completed',
+        jobsStored: 0,
+      } as CronRunRecord),
+      markRun: vi.fn(),
+      generateJobs: vi.fn().mockResolvedValue({ jobs: [{ title: 'Engineer', company: 'Acme' }] }),
+      storeJobs: vi.fn(),
+    };
+
+    const result = await processUserCronRun(
+      { userId: 'user_123', runDate: '2026-04-16' },
+      deps
+    );
+
+    expect(result.status).toBe('completed');
+    expect(deps.generateJobs).toHaveBeenCalled();
   });
 
   it('marks the run failed when storage throws', async () => {

@@ -8,6 +8,7 @@ export interface CronEligibleUser {
   plan?: string;
   receiveDailyAlerts?: boolean;
   lastActiveAt?: string;
+  createdAt?: string;
   deliveryTimezone?: string;
   preferredDeliveryHour?: number;
   nextJobDeliveryAt?: string;
@@ -18,6 +19,7 @@ export interface CronRunRecord {
   id: string;
   status: 'queued' | 'processing' | 'completed' | 'failed' | 'skipped';
   failureReason?: string;
+  jobsStored?: number;
 }
 
 export interface LoadedCronUser {
@@ -69,12 +71,14 @@ export function getLastActiveMs(lastActiveAt?: string | null): number | null {
 }
 
 export function isRecentlyActiveUser(
-  user: Pick<CronEligibleUser, 'lastActiveAt'>,
+  user: Pick<CronEligibleUser, 'lastActiveAt' | 'createdAt'>,
   now: Date = new Date(),
   maxInactiveDays: number = CRON_INACTIVITY_DAYS
 ): boolean {
-  const lastActiveMs = getLastActiveMs(user.lastActiveAt);
-  if (lastActiveMs === null) return false;
+  const lastActiveMs =
+    getLastActiveMs(user.lastActiveAt) ?? getLastActiveMs(user.createdAt);
+  // New or legacy profiles without activity timestamps still receive matches.
+  if (lastActiveMs === null) return true;
   const cutoff = now.getTime() - maxInactiveDays * MS_PER_DAY;
   return lastActiveMs >= cutoff;
 }
@@ -87,8 +91,9 @@ export function shouldPauseForInactivity(
 }
 
 export function isActiveCronUser(user: CronEligibleUser, now: Date = new Date()): boolean {
+  const plan = (user.plan || 'free').trim().toLowerCase();
   return (
-    Boolean(user.plan) &&
+    (plan === 'free' || plan === 'pro') &&
     user.receiveDailyAlerts !== false &&
     isRecentlyActiveUser(user, now)
   );
@@ -190,7 +195,15 @@ export async function processUserCronRun(
   const runId = buildCronRunId(input.userId, input.runDate);
   const existingRun = await deps.getExistingRun(runId);
 
-  if (existingRun?.status === 'completed' || existingRun?.status === 'processing') {
+  if (existingRun?.status === 'processing') {
+    return { runId, status: 'skipped' as const };
+  }
+
+  if (
+    existingRun?.status === 'completed' &&
+    typeof existingRun.jobsStored === 'number' &&
+    existingRun.jobsStored > 0
+  ) {
     return { runId, status: 'skipped' as const };
   }
 

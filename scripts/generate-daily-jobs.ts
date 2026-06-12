@@ -23,12 +23,11 @@ import { getFirestore } from 'firebase-admin/firestore';
 // These modules are pure TypeScript with no browser-specific imports.
 // `tsx` resolves them directly at runtime.
 import { createOpenRouterCaller } from '../src/services/openRouterCaller';
-import { researchJobs, jobFingerprint } from '../src/services/jobResearcher';
+import { discoverJobsForMatching } from '../src/services/discoverJobs';
+import { jobFingerprint } from '../src/services/jobResearcher';
 import { matchAndRankJobs } from '../src/services/jobMatchingEngine';
-import { loadAtsAllowlist } from '../src/services/jobSources/atsAllowlist';
-import { fetchAtsJobs } from '../src/services/jobSources/atsOrchestrator';
-import { verifyHttpUrl } from '../src/services/urlVerifier';
 import {
+  evaluateDueUsers,
   isActiveCronUser,
   processUserCronRun,
 } from '../src/services/cronEngine';
@@ -38,7 +37,7 @@ import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaul
 import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 
 const MAX_SEEN_FINGERPRINTS = 500;
-const BATCH_SIZE = 100;
+const USER_PAGE_SIZE = 200;
 
 function resolveCareerPaths(profile: Record<string, unknown>): string[] {
   const fromCareerPaths = Array.isArray(profile.careerPaths) ? profile.careerPaths : [];
@@ -117,45 +116,17 @@ async function processUser(
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
-        const targetDiscoveryCount = Math.max(30, limit * 6);
+        const targetDiscoveryCount = profile.plan === 'pro' ? 100 : 60;
 
-        const atsSources = await loadAtsAllowlist(() => db).catch(() => []);
-        const atsJobs = atsSources.length
-          ? await fetchAtsJobs(atsSources, {
-              fetchFn: fetch,
-              verifyUrl: async (url) => await verifyHttpUrl(url),
-              seenFingerprints,
-              maxJobs: targetDiscoveryCount,
-              concurrency: 8,
-              perSourceTimeoutMs: 4500,
-            })
-          : [];
-
-        const byFingerprint = new Set<string>();
-        const combined: any[] = [];
-        for (const job of atsJobs) {
-          if (!job?.fingerprint || byFingerprint.has(job.fingerprint)) continue;
-          byFingerprint.add(job.fingerprint);
-          combined.push(job);
-        }
-
-        if (combined.length < targetDiscoveryCount) {
-          const missing = targetDiscoveryCount - combined.length;
-          const { jobs: feedJobs, sources } = await researchJobs({
-            careerPaths,
-            resumeText,
-            jobType,
-            location,
-            targetCount: Math.max(20, missing),
-          });
-          console.log(`  discovered ${feedJobs.length} jobs from feeds`, sources);
-          for (const job of feedJobs) {
-            if (!job?.fingerprint || byFingerprint.has(job.fingerprint)) continue;
-            byFingerprint.add(job.fingerprint);
-            combined.push(job);
-            if (combined.length >= targetDiscoveryCount) break;
-          }
-        }
+        const { jobs: combined } = await discoverJobsForMatching({
+          careerPaths,
+          resumeText,
+          jobType,
+          location,
+          targetCount: targetDiscoveryCount,
+          seenFingerprints,
+          getAdminDb: () => db,
+        });
 
         console.log(`  total discovered ${combined.length} jobs`);
         if (combined.length === 0) {
@@ -177,6 +148,7 @@ async function processUser(
             jobType,
             seenFingerprints,
             limit,
+            minMatchScore: 55,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
@@ -216,7 +188,7 @@ async function processUser(
           stripUndefinedDeep({
             dailyJobs: jobs,
             lastJobFetchTime: fetchedAt,
-            lastSuccessfulJobRunLocalDate: date,
+            ...(jobs.length > 0 ? { lastSuccessfulJobRunLocalDate: date } : {}),
             seenJobFingerprints: nextFingerprints,
             dailyJobsMeta: {
               requestedLimit,
@@ -231,31 +203,29 @@ async function processUser(
           { merge: true }
         );
 
-        if (jobs.length > 0) {
-          const sources: Record<string, number> = {};
-          for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
+        const sources: Record<string, number> = {};
+        for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
 
-          await db
-            .collection('users')
-            .doc(uid)
-            .collection('daily_matches')
-            .doc(date)
-            .set(
-              stripUndefinedDeep({
-                userId: uid,
-                date,
-                generatedAt: fetchedAt,
-                jobs,
-                jobCount: jobs.length,
-                sources,
-                requestedLimit,
-                returnedCount: jobs.length,
-                deliveryTimezone,
-                deliveryLocalDate: date,
-                qualityLimited: jobs.length < requestedLimit,
-              })
-            );
-        }
+        await db
+          .collection('users')
+          .doc(uid)
+          .collection('daily_matches')
+          .doc(date)
+          .set(
+            stripUndefinedDeep({
+              userId: uid,
+              date,
+              generatedAt: fetchedAt,
+              jobs,
+              jobCount: jobs.length,
+              sources,
+              requestedLimit,
+              returnedCount: jobs.length,
+              deliveryTimezone,
+              deliveryLocalDate: date,
+              qualityLimited: jobs.length < requestedLimit,
+            })
+          );
       },
     }
   );
@@ -287,46 +257,55 @@ async function main() {
   }
 
   // ── All-users mode (scheduled daily cron) ────────────────────────────────
-  console.log('[generate-daily-jobs] Cron run');
+  console.log('[generate-daily-jobs] Cron run — loading active users');
 
-  // Two queries merged so users without lastJobFetchTime (new accounts) are
-  // also included — they only appear in the createdAt-ordered query.
-  const [primarySnap, secondarySnap] = await Promise.all([
-    db.collection('users').orderBy('lastJobFetchTime', 'asc').limit(BATCH_SIZE).get(),
-    db.collection('users').orderBy('createdAt', 'asc').limit(BATCH_SIZE).get(),
-  ]);
+  const activeUsers: { id: string; data: FirebaseFirestore.DocumentData }[] = [];
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
-  const seenIds = new Set<string>();
-  const allDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-  for (const d of [...primarySnap.docs, ...secondarySnap.docs]) {
-    if (!seenIds.has(d.id)) {
-      seenIds.add(d.id);
-      allDocs.push(d);
+  for (;;) {
+    let q = db.collection('users').orderBy('createdAt', 'asc').limit(USER_PAGE_SIZE);
+    if (cursor) q = q.startAfter(cursor);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    for (const userDoc of snap.docs) {
+      const profile = userDoc.data();
+      if (isActiveCronUser(profile)) {
+        activeUsers.push({ id: userDoc.id, data: profile });
+      }
     }
+
+    cursor = snap.docs[snap.docs.length - 1];
+    if (snap.size < USER_PAGE_SIZE) break;
   }
 
-  let processed = 0, skipped = 0, failed = 0;
+  const { due, skipped } = evaluateDueUsers(
+    activeUsers.map((u) => ({ id: u.id, data: u.data }))
+  );
 
-  for (const userDoc of allDocs) {
-    const profile = userDoc.data();
-    if (!isActiveCronUser(profile)) {
-      skipped++;
-      continue;
-    }
+  console.log(
+    `[generate-daily-jobs] ${activeUsers.length} active users, ${due.length} due, ${skipped.length} skipped`
+  );
 
-    console.log(`[${userDoc.id}] processing…`);
+  let processed = 0;
+  let failed = 0;
+
+  for (const user of due) {
+    const runDate =
+      user.data.deliveryLocalDate ||
+      formatLocalDate(now, user.data.deliveryTimezone || 'UTC');
+    console.log(`[${user.id}] processing (runDate=${runDate})…`);
     try {
-      const runDate = formatLocalDate(now, profile.deliveryTimezone || 'UTC');
-      await processUser(userDoc.id, runDate, db);
+      await processUser(user.id, runDate, db);
       processed++;
     } catch (err) {
-      console.error(`[${userDoc.id}] failed:`, err);
+      console.error(`[${user.id}] failed:`, err);
       failed++;
     }
   }
 
   console.log(
-    `[generate-daily-jobs] Done — processed: ${processed}, skipped: ${skipped}, failed: ${failed}`
+    `[generate-daily-jobs] Done — processed: ${processed}, failed: ${failed}, skipped: ${skipped.length}`
   );
 }
 
