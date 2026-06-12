@@ -164,7 +164,17 @@ function mapAtsAllowlistToApifyAts(profileAts: Array<'greenhouse' | 'lever'>): s
 }
 
 function apifyTitleSearch(careerPaths: string[]): string[] {
-  return careerPaths.map((value) => value.trim()).filter(Boolean).slice(0, 10);
+  const searches = new Set<string>();
+  for (const value of careerPaths) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    searches.add(trimmed);
+    // Also search the core role before industry suffixes, e.g.
+    // "Category Manager - Fashion E-commerce" → "Category Manager"
+    const core = trimmed.split(/\s[-–|]\s/)[0]?.trim();
+    if (core && core.length >= 3) searches.add(core);
+  }
+  return [...searches].slice(0, 10);
 }
 
 function normalizeApifyJobs(items: any[]): DiscoveredJob[] {

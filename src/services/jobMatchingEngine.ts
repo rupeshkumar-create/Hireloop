@@ -34,7 +34,7 @@ const ROLE_FUNCTION_KEYWORDS: Record<string, string[]> = {
   product: ['product', 'pm', 'owner', 'program'],
   design: ['design', 'designer', 'ux', 'ui', 'creative', 'visual', 'brand'],
   data: ['data', 'analyst', 'analytics', 'scientist', 'ml', 'machine', 'learning', 'research'],
-  marketing: ['marketing', 'growth', 'seo', 'content', 'communications', 'demand'],
+  marketing: ['marketing', 'growth', 'seo', 'content', 'communications', 'demand', 'category', 'merchandising', 'ecommerce', 'e-commerce', 'fashion', 'retail', 'commercial', 'brand'],
   sales: ['sales', 'account', 'revenue', 'sdr', 'bdr'],
   operations: ['operations', 'ops', 'supply', 'logistics', 'facilities'],
   finance: ['finance', 'financial', 'accounting', 'accountant', 'controller', 'treasury'],
@@ -46,6 +46,13 @@ const ROLE_FUNCTION_KEYWORDS: Record<string, string[]> = {
 const DEFAULT_MIN_MATCH_SCORE = 78;
 const MIN_DETERMINISTIC_FOR_POOL = 38;
 const MIN_DETERMINISTIC_WITHOUT_AI = 52;
+
+const REMOTE_LOC_RE = /remote|anywhere|work\s*from\s*home|wfh/i;
+
+function jobCountsAsRemote(job: DiscoveredJob): boolean {
+  if (job.workType === 'remote') return true;
+  return REMOTE_LOC_RE.test(job.location || '');
+}
 
 type AiVerdict = 'perfect' | 'strong' | 'reasonable' | 'stretch' | 'wrong';
 
@@ -99,19 +106,27 @@ export function passesCareerPathGate(input: {
   const phraseScore = titlePhraseScore(job.title, careerPaths);
   if (phraseScore >= 22) return true;
 
+  const careerTokens = unique(careerPaths.flatMap(tokenize));
+  const titleTokens = tokenize(job.title);
+  const tokenOverlap = careerTokens.filter((t) => titleTokens.includes(t)).length;
+
   const careerFunctions = new Set<string>();
   for (const path of careerPaths) inferRoleFunctions(path).forEach((fn) => careerFunctions.add(fn));
   for (const role of structuredProfile?.roles || []) {
     inferRoleFunctions(role).forEach((fn) => careerFunctions.add(fn));
   }
 
+  // Niche / non-tech paths (e.g. "Category Manager - Fashion E-commerce") often
+  // don't map to a coarse function bucket — rely on title token overlap instead.
+  if (careerFunctions.size === 0) {
+    return tokenOverlap >= 1 || phraseScore >= 8;
+  }
+
   const jobFunctions = inferRoleFunctions(job.title);
   const sharedFunctions = [...jobFunctions].filter((fn) => careerFunctions.has(fn));
-  if (sharedFunctions.length === 0) return false;
-
-  const careerTokens = unique(careerPaths.flatMap(tokenize));
-  const titleTokens = tokenize(job.title);
-  const tokenOverlap = careerTokens.filter((t) => titleTokens.includes(t)).length;
+  if (sharedFunctions.length === 0) {
+    return tokenOverlap >= 2 && phraseScore >= 10;
+  }
 
   // Same function family + at least two meaningful title tokens from career paths.
   return tokenOverlap >= 2 && phraseScore >= 10;
@@ -567,7 +582,7 @@ export async function matchAndRankJobs(
       }
       const result = jobMatchesUserPreferences(
         {
-          isRemote: job.workType === 'remote',
+          isRemote: jobCountsAsRemote(job),
           salary: job.salary,
           location: job.location,
           description: job.description,
@@ -608,7 +623,7 @@ export async function matchAndRankJobs(
   const scored = initialCandidates
     .map(({ job, detScore }) => {
       const aiData = aiResults[job.fingerprint];
-      if (aiData?.verdict === 'stretch' || aiData?.verdict === 'wrong') {
+      if (aiData?.verdict === 'wrong') {
         return null;
       }
       // Weighted average: AI score (85%) + Deterministic score (15%) if AI available
@@ -655,6 +670,46 @@ export async function matchAndRankJobs(
       );
     }
     if (final.length > 0) usedQualityBackfill = true;
+  }
+
+  // 6. Emergency fallback — never return zero when discovery found viable listings.
+  if (final.length === 0 && discoveredJobs.length > 0) {
+    const emergencyCompanies = new Set<string>();
+    const emergencyPool = discoveredJobs
+      .map((job) => ({
+        job,
+        detScore: deterministicMatchScore({ job, careerPaths, resumeText, structuredProfile }),
+      }))
+      .filter(({ job, detScore }) => {
+        if (detScore < 12) return false;
+        if (normalizedPreferences.remoteOnly && !jobCountsAsRemote(job)) return false;
+        const pref = jobMatchesUserPreferences(
+          {
+            isRemote: jobCountsAsRemote(job),
+            salary: job.salary,
+            location: job.location,
+            description: job.description,
+          },
+          normalizedPreferences,
+          userCountry
+        );
+        return pref.passed;
+      })
+      .sort((a, b) => b.detScore - a.detScore);
+
+    for (const { job, detScore } of emergencyPool) {
+      if (final.length >= limit) break;
+      const companyKey = job.company.toLowerCase().trim();
+      if (emergencyCompanies.has(companyKey)) continue;
+      emergencyCompanies.add(companyKey);
+      final.push(
+        buildDailyJob(job, Math.max(detScore, 35), careerPaths, resumeText, aiResults[job.fingerprint])
+      );
+    }
+    if (final.length > 0) {
+      usedQualityBackfill = true;
+      console.log(`[jobMatchingEngine] Emergency fallback delivered ${final.length} jobs.`);
+    }
   }
 
   if (careerPathFilteredCount > 0 || seniorityFilteredCount > 0) {
