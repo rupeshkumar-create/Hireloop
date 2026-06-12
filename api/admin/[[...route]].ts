@@ -5,10 +5,10 @@ type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
 function routeKey(req: VercelRequest): string {
   const route = req.query.route;
   if (route) {
-    const key = Array.isArray(route) ? route[0] : route;
+    const key = Array.isArray(route) ? route.join('/') : route;
     if (key) return key;
   }
-  // Vercel optional catch-all often omits req.query.route on production — parse path.
+
   const path = (req.url ?? '').split('?')[0];
   const match = path.match(/^\/api\/admin\/([^/?]+)/);
   return match?.[1] ?? '';

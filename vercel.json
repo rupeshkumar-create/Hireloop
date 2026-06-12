@@ -5,14 +5,7 @@
   "framework": "vite",
   "functions": {
     "api/cron/[job].ts": { "maxDuration": 60 },
-    "api/blog/index.ts": { "maxDuration": 60 },
     "api/blog/[[...route]].ts": { "maxDuration": 60 },
-    "api/openai.ts": { "maxDuration": 60 },
-    "api/apollo.ts": { "maxDuration": 60 },
-    "api/admin/content-growth.ts": { "maxDuration": 60 },
-    "api/admin-users.ts": { "maxDuration": 60 },
-    "api/admin-ghost-discover.ts": { "maxDuration": 60 },
-    "api/admin-bootstrap.ts": { "maxDuration": 60 },
     "api/admin/[[...route]].ts": { "maxDuration": 60 },
     "api/ai/[[...route]].ts": { "maxDuration": 60 },
     "api/public/[[...route]].ts": { "maxDuration": 30 },
@@ -21,16 +14,12 @@
   },
   "rewrites": [
     {
-      "source": "/api/admin/users",
-      "destination": "/api/admin-users"
+      "source": "/api/openai",
+      "destination": "/api/ai/openai"
     },
     {
-      "source": "/api/admin/ghost-discover",
-      "destination": "/api/admin-ghost-discover"
-    },
-    {
-      "source": "/api/admin/bootstrap",
-      "destination": "/api/admin-bootstrap"
+      "source": "/api/apollo",
+      "destination": "/api/ai/apollo"
     },
     {
       "source": "/api/cron",
