@@ -1,8 +1,8 @@
 /**
  * /api/cron/tick
  *
- * Optional batch runner for manual/admin use (force=all or force=daily-blog).
- * Production scheduling uses GitHub Actions — see .github/workflows/content-cron.yml.
+ * Optional batch runner for manual/admin use (force=all or force=daily-alerts).
+ * Scout scheduling uses GitHub Actions — see `.github/workflows/generate-jobs.yml`.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireCronSecret } from '../../../cronAuth.js';
@@ -18,9 +18,6 @@ type Handler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>
 
 const JOB_LOADERS: Record<CronJobId, () => Promise<{ default: Handler }>> = {
   'daily-alerts': () => import('./dailyAlerts.js'),
-  'daily-blog': () => import('./dailyBlog.js'),
-  'weekly-analysis': () => import('./weeklyAnalysis.js'),
-  'monthly-learning': () => import('./monthlyLearning.js'),
 };
 
 function createCollectingRes() {

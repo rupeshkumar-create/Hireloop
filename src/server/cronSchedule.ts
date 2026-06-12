@@ -1,16 +1,12 @@
 /**
  * Central schedule for Hireschema background jobs.
- * Production runs on Vercel Hobby — long jobs use GitHub Actions:
- *   - Scout: `.github/workflows/generate-jobs.yml`
- *   - Content: `.github/workflows/content-cron.yml`
+ * Production runs on Vercel Hobby — Scout uses GitHub Actions:
+ *   `.github/workflows/generate-jobs.yml`
+ * Blog content is updated manually (no automated publish cron).
  * `/api/cron/tick` remains for manual batch runs with CRON_SECRET (60s cap on Vercel).
  */
 
-export type CronJobId =
-  | 'daily-alerts'
-  | 'daily-blog'
-  | 'weekly-analysis'
-  | 'monthly-learning';
+export type CronJobId = 'daily-alerts';
 
 export interface CronJobSchedule {
   id: CronJobId;
@@ -25,7 +21,7 @@ export interface CronJobSchedule {
   dayOfMonthUtc?: number;
 }
 
-/** Scheduled jobs — Scout runs via GitHub Actions; content via content-cron.yml. */
+/** Scheduled jobs — Scout runs via GitHub Actions. */
 export const CRON_JOBS: CronJobSchedule[] = [
   {
     id: 'daily-alerts',
@@ -33,29 +29,9 @@ export const CRON_JOBS: CronJobSchedule[] = [
     hourUtc: 8,
     minuteUtc: 0,
   },
-  {
-    id: 'daily-blog',
-    label: 'Daily blog publish (GitHub Actions)',
-    hourUtc: 8,
-    minuteUtc: 5,
-  },
-  {
-    id: 'weekly-analysis',
-    label: 'Weekly content strategy',
-    hourUtc: 8,
-    minuteUtc: 0,
-    dayOfWeekUtc: 6, // Saturday
-  },
-  {
-    id: 'monthly-learning',
-    label: 'Monthly learning loop',
-    hourUtc: 8,
-    minuteUtc: 0,
-    dayOfMonthUtc: 1,
-  },
 ];
 
-const WINDOW_MINUTES = 24 * 60; // Rest of UTC day after scheduled time (catch late Vercel cron invocations)
+const WINDOW_MINUTES = 24 * 60;
 
 function matchesDayOfWeek(now: Date, dayOfWeek?: number): boolean {
   if (dayOfWeek === undefined) return true;
@@ -73,7 +49,6 @@ function minutesSinceScheduled(now: Date, hourUtc: number, minuteUtc: number): n
   return elapsedMinutes - scheduledMinutes;
 }
 
-/** True when `now` is within the run window after the scheduled time. */
 export function isCronJobDue(schedule: CronJobSchedule, now: Date = new Date()): boolean {
   if (!matchesDayOfWeek(now, schedule.dayOfWeekUtc)) return false;
   if (!matchesDayOfMonth(now, schedule.dayOfMonthUtc)) return false;

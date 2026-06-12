@@ -63,7 +63,6 @@ import {
   buildOperationalChecks,
   buildStrategyAdminView,
 } from './adminDashboard.js';
-import { ensureDailyBlogPublish } from './ensureDailyPublish.js';
 import {
   BLOG_TARGET_WORD_COUNT,
   countWords,
@@ -840,12 +839,6 @@ export async function getContentGrowthDashboard() {
       metricsBySlug.get(p.slug)?.ctaClicks ?? 0
     )
   );
-
-  if (!postPublishedToday && new Date().getUTCHours() >= 8) {
-    void ensureDailyBlogPublish('admin-dashboard', { posts }).catch((error) => {
-      console.error('[contentGrowth] ensureDailyBlogPublish failed:', error);
-    });
-  }
 
   const operational = buildOperationalChecks(state, strategy, {
     openRouter: Boolean(process.env.OPENROUTER_API_KEY),

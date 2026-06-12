@@ -87,8 +87,8 @@ async function main() {
       }
     ),
     check(
-      'GET /api/admin/content-growth (no auth)',
-      '/api/admin/content-growth',
+      'GET /api/admin/users (no auth)',
+      '/api/admin/users',
       { method: 'GET', headers: { Authorization: 'Bearer invalid' } },
       ({ res, contentType, json }) => {
         if (res.status !== 401 && res.status !== 403) {

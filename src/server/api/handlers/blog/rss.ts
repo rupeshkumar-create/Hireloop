@@ -3,7 +3,6 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listBlogPosts } from '../../../marketingEngine.js';
-import { ensureDailyBlogPublish } from '../../../contentGrowth/ensureDailyPublish.js';
 
 const BASE = 'https://hireschema.com';
 
@@ -14,9 +13,6 @@ function escapeXml(s: string): string {
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     const posts = await listBlogPosts(50);
-    void ensureDailyBlogPublish('rss', { posts }).catch((error) => {
-      console.error('[rss] ensureDailyBlogPublish failed:', error);
-    });
     const items = posts
       .map(
         (p) => `    <item>
@@ -35,7 +31,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   <channel>
     <title>HireSchema Hiring Guides</title>
     <link>${BASE}/blog</link>
-    <description>Daily recruiter-focused hiring guides on remote job search, AI matching, salary data, and interview prep.</description>
+    <description>Hiring guides on remote job search, AI matching, salary data, and interview prep.</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${BASE}/blog/rss.xml" rel="self" type="application/rss+xml"/>

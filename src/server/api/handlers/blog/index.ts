@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getBlogPostBySlug, listBlogPosts } from '../../../marketingEngine.js';
 import { enrichBlogPostLinks } from '../../../contentGrowth/enrichPostLinks.js';
-import { ensureDailyBlogPublish } from '../../../contentGrowth/ensureDailyPublish.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -20,9 +19,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const limit = Math.min(Number(req.query.limit) || 20, 500);
     const posts = await listBlogPosts(limit);
-    void ensureDailyBlogPublish('blog-list', { posts }).catch((error) => {
-      console.error('[blog] ensureDailyBlogPublish failed:', error);
-    });
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ posts });
   } catch (error) {

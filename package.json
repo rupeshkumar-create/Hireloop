@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "tsx scripts/generate-llms-txt.ts && tsx scripts/generate-sitemap.ts && vite build && node scripts/postbuild-dispatch-blog.mjs",
+    "build": "tsx scripts/generate-llms-txt.ts && tsx scripts/generate-sitemap.ts && vite build",
     "generate:llms": "tsx scripts/generate-llms-txt.ts",
     "generate:sitemap": "tsx scripts/generate-sitemap.ts",
     "preview": "vite preview",
@@ -18,7 +18,6 @@
     "seed:geo": "tsx scripts/seed-geo-posts.ts",
     "seed:all": "tsx scripts/seed-all-posts.ts",
     "seed:all:full": "tsx scripts/seed-all-batches.ts",
-    "seed:production": "tsx scripts/trigger-production-seed.ts",
     "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {

@@ -3,7 +3,6 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listBlogPosts } from '../../marketingEngine.js';
-import { ensureDailyBlogPublish } from '../../contentGrowth/ensureDailyPublish.js';
 
 const BASE = 'https://hireschema.com';
 const SITEMAP_POST_LIMIT = 500;
@@ -22,9 +21,6 @@ const STATIC_PAGES = [
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     const posts = await listBlogPosts(SITEMAP_POST_LIMIT, { includeScheduled: false });
-    void ensureDailyBlogPublish('sitemap', { posts }).catch((error) => {
-      console.error('[sitemap] ensureDailyBlogPublish failed:', error);
-    });
     const today = new Date().toISOString().split('T')[0];
 
     const urls = [

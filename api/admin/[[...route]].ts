@@ -16,7 +16,6 @@ function routeKey(req: VercelRequest): string {
 
 const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
   users: () => import('../../src/server/api/handlers/admin/users.js'),
-  'content-growth': () => import('../../src/server/api/handlers/admin/contentGrowth.js'),
   'ghost-discover': () => import('../../src/server/api/handlers/admin/ghostDiscover.js'),
   bootstrap: () => import('../../src/server/api/handlers/admin/bootstrap.js'),
 };
