@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               jobType,
               seenFingerprints,
               limit,
-              minMatchScore: 78,
+              minMatchScore: 55,
               matchingPreferences: profile.matchingPreferences || profile.preferences,
               deliveryTimezone: profile.deliveryTimezone,
               structuredProfile: profile.structuredProfile,
@@ -175,12 +175,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 warnings,
               },
               lastJobFetchTime: fetchedAt,
-              lastSuccessfulJobRunLocalDate: date,
-              nextJobDeliveryAt: computeNextJobDeliveryAt(
-                deliveryTimezone,
-                preferredDeliveryHour,
-                new Date(fetchedAt)
-              ),
+              ...(jobs.length > 0 ? { lastSuccessfulJobRunLocalDate: date } : {}),
+              nextJobDeliveryAt: jobs.length > 0
+                ? computeNextJobDeliveryAt(
+                    deliveryTimezone,
+                    preferredDeliveryHour,
+                    new Date(fetchedAt)
+                  )
+                : profile.nextJobDeliveryAt,
               matchReadiness: profile.matchReadiness,
               seenJobFingerprints: nextFingerprints,
             }),

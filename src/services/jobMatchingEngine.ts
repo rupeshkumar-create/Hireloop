@@ -628,15 +628,33 @@ export async function matchAndRankJobs(
   // Ensure each company only appears once in the daily match set.
   const seenCompanies = new Set<string>();
   const final: DailyJob[] = [];
+  let usedQualityBackfill = false;
 
   for (const item of scored) {
     if (final.length >= limit) break;
-    
+
     const companyKey = item.job.company.toLowerCase().trim();
     if (!seenCompanies.has(companyKey)) {
       seenCompanies.add(companyKey);
       final.push(item.dailyJob);
     }
+  }
+
+  // 5. Quality backfill — prefer showing best-available matches over an empty dashboard.
+  if (final.length === 0 && initialCandidates.length > 0) {
+    const relaxedMin = callAI ? 40 : 30;
+    const backfillCompanies = new Set<string>();
+    for (const { job, detScore } of initialCandidates) {
+      if (final.length >= limit) break;
+      if (detScore < relaxedMin) continue;
+      const companyKey = job.company.toLowerCase().trim();
+      if (backfillCompanies.has(companyKey)) continue;
+      backfillCompanies.add(companyKey);
+      final.push(
+        buildDailyJob(job, Math.max(detScore, relaxedMin), careerPaths, resumeText, aiResults[job.fingerprint])
+      );
+    }
+    if (final.length > 0) usedQualityBackfill = true;
   }
 
   if (careerPathFilteredCount > 0 || seniorityFilteredCount > 0) {
@@ -645,10 +663,13 @@ export async function matchAndRankJobs(
       `seniority gate removed ${seniorityFilteredCount} jobs.`
     );
   }
+  if (usedQualityBackfill) {
+    console.log(`[jobMatchingEngine] Quality backfill delivered ${final.length} jobs below strict threshold.`);
+  }
 
   return {
     jobs: final,
-    usedFallback: usedSeenFallback,
+    usedFallback: usedSeenFallback || usedQualityBackfill,
     enrichedCount: final.length,
     scoredCount: scored.length,
     qualityFilteredCount: Math.max(0, discoveredJobs.length - scored.length),

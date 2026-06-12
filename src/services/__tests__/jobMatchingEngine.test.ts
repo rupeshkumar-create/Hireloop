@@ -38,4 +38,19 @@ describe('matchAndRankJobs', () => {
     expect(result.usedFallback).toBe(true);
     expect(result.scoredCount).toBe(1);
   });
+
+  it('backfills with relaxed scores when strict threshold would return zero jobs', async () => {
+    const result = await matchAndRankJobs(
+      [discoveredJob()],
+      {
+        careerPaths: ['Frontend Engineer'],
+        resumeText: 'React TypeScript frontend engineer',
+        limit: 1,
+        minMatchScore: 95,
+      }
+    );
+
+    expect(result.jobs.length).toBeGreaterThan(0);
+    expect(result.usedFallback).toBe(true);
+  });
 });

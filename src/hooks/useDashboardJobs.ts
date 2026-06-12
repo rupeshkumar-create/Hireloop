@@ -362,7 +362,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     const fetchDate = resolveLocalDateForLastFetch(profile, now);
     const scoutFinishedToday =
       profile.lastSuccessfulJobRunLocalDate === today ||
-      (fetchDate === today && typeof profile.lastJobFetchTime === 'string');
+      (fetchDate === today &&
+        typeof profile.lastJobFetchTime === 'string' &&
+        (profile.dailyJobs?.length ?? 0) > 0);
 
     if (fetchDate === today && profile.dailyJobs && profile.dailyJobs.length > 0) {
       const { visible, paywall } = splitJobsByPlan(profile.dailyJobs as DailyJob[], profile?.plan);
