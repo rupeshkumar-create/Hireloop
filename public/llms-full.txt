@@ -8,7 +8,7 @@ site: https://hireschema.com
 canonical: https://www.hireschema.com/llms-full.txt
 version: 2.1
 status: public-beta
-generated: 2026-06-12T17:37:26.334Z
+generated: 2026-06-12T18:08:18.137Z
 total_guides: 500
 language: en-US
 audience: job seekers, remote workers, career changers
@@ -7826,7 +7826,7 @@ Parse-friendly catalog for AI agents and search pipelines. Updated on each deplo
   "site": "https://hireschema.com",
   "document": "llms-full",
   "version": "2.0",
-  "generatedAt": "2026-06-12T17:37:26.334Z",
+  "generatedAt": "2026-06-12T18:08:18.137Z",
   "totalGuides": 500,
   "primaryClusters": {
     "ai-job-matching": 83,
