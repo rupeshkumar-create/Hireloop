@@ -78,6 +78,13 @@ export function Blog() {
           </h1>
           <p className="blog-lp-lede">
             Actionable guides to help you find remote roles, tailor your applications, negotiate pay, and prepare for interviews.
+            {!loading && !error && posts.length > 0 ? (
+              <span className="block mt-2 text-sm opacity-80">
+                {filtered.length === posts.length
+                  ? `${posts.length} guides available`
+                  : `${filtered.length} of ${posts.length} guides in this topic`}
+              </span>
+            ) : null}
           </p>
         </header>
 

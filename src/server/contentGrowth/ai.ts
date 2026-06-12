@@ -41,6 +41,21 @@ export async function chat(model: string, system: string, user: string): Promise
 }
 
 export async function chatJSON<T>(model: string, system: string, user: string): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await chatJSONOnce<T>(model, system, user);
+    } catch (error) {
+      lastError = error;
+      if (attempt === 2) break;
+      console.warn(`[contentGrowth/ai] chatJSON retry ${attempt} for ${model}`);
+    }
+  }
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(message);
+}
+
+async function chatJSONOnce<T>(model: string, system: string, user: string): Promise<T> {
   const openrouter = getOpenRouterClient();
   let raw = '{}';
   try {
@@ -60,7 +75,19 @@ export async function chatJSON<T>(model: string, system: string, user: string): 
     throw new Error(`OpenRouter chatJSON failed (${model}): ${message}`);
   }
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (parseError) {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as T;
+    }
+    throw new Error(
+      `OpenRouter chatJSON parse failed (${model}): ${
+        parseError instanceof Error ? parseError.message : String(parseError)
+      }`
+    );
+  }
 }
 
 /**

@@ -21,7 +21,7 @@ const STATIC_PAGES = [
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
-    const posts = await listBlogPosts(SITEMAP_POST_LIMIT);
+    const posts = await listBlogPosts(SITEMAP_POST_LIMIT, { includeScheduled: false });
     void ensureDailyBlogPublish('sitemap', { posts }).catch((error) => {
       console.error('[sitemap] ensureDailyBlogPublish failed:', error);
     });

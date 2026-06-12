@@ -110,8 +110,25 @@ async function main() {
           break;
         }
       }
-      const result = await runDailyContentPipeline({ dryRun });
-      console.log(JSON.stringify({ success: true, job, dryRun, result }, null, 2));
+      try {
+        const result = await runDailyContentPipeline({ dryRun });
+        console.log(JSON.stringify({ success: true, job, dryRun, result }, null, 2));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('Duplicate content blocked')) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              job,
+              skipped: true,
+              reason: 'duplicate_topic_removed',
+              detail: message,
+            })
+          );
+          break;
+        }
+        throw error;
+      }
       break;
     }
     case 'weekly-analysis':

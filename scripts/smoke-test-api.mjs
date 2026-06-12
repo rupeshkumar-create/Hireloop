@@ -35,13 +35,16 @@ async function main() {
 
   const results = await Promise.all([
     check(
-      'GET /api/blog?limit=3',
-      '/api/blog?limit=3',
+      'GET /api/blog?limit=500',
+      '/api/blog?limit=500',
       { method: 'GET' },
       ({ res, contentType, json }) => {
         if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
         if (!contentType.includes('application/json')) throw new Error(`expected JSON, got ${contentType}`);
         if (!json || !Array.isArray(json.posts)) throw new Error('expected { posts: [] }');
+        if (json.posts.length < 500) {
+          throw new Error(`expected at least 500 posts, got ${json.posts.length}`);
+        }
       }
     ),
     check(

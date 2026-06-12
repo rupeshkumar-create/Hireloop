@@ -19,6 +19,10 @@ import {
   getEvergreenPostBySlug,
   getEvergreenPostSummaries,
 } from './contentGrowth/evergreen/publicListing.js';
+import {
+  getProgrammaticPostBySlug,
+  getProgrammaticPostSummaries,
+} from './contentGrowth/programmatic/publicListing.js';
 
 const STRATEGY_DOC = 'marketing/strategy';
 const BLOG_COLLECTION = 'blog_posts';
@@ -373,7 +377,18 @@ export async function saveBlogPost(post: BlogPost): Promise<string> {
   return normalized.slug;
 }
 
-export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content'>[]> {
+export async function listBlogPosts(
+  limit = 20,
+  options?: { includeScheduled?: boolean }
+): Promise<Omit<BlogPost, 'content'>[]> {
+  const mergeWithCatalog = (fromDb: Omit<BlogPost, 'content'>[]) => {
+    const seen = new Set(fromDb.map((post) => post.slug));
+    const catalog = getProgrammaticPostSummaries(limit, options).filter((post) => !seen.has(post.slug));
+    return [...fromDb, ...catalog]
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      .slice(0, limit);
+  };
+
   const db = getAdminDb();
 
   const mapDoc = (d: { data: () => BlogPost }) => {
@@ -416,10 +431,14 @@ export async function listBlogPosts(limit = 20): Promise<Omit<BlogPost, 'content
         .slice(0, limit);
     }
 
-    if (fromDb.length > 0) return fromDb;
+    if (fromDb.length > 0) return mergeWithCatalog(fromDb);
+    const catalogOnly = getProgrammaticPostSummaries(limit, options);
+    if (catalogOnly.length > 0) return catalogOnly;
     return getEvergreenPostSummaries(limit);
   } catch (error) {
-    console.warn('[listBlogPosts] Firestore unavailable — serving evergreen guides:', error);
+    console.warn('[listBlogPosts] Firestore unavailable — serving programmatic catalog:', error);
+    const catalogOnly = getProgrammaticPostSummaries(limit, options);
+    if (catalogOnly.length > 0) return catalogOnly;
     return getEvergreenPostSummaries(limit);
   }
 }
@@ -430,9 +449,10 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
     const doc = await db.collection(BLOG_COLLECTION).doc(slug).get();
     if (doc.exists) return doc.data() as BlogPost;
   } catch (error) {
-    console.warn('[getBlogPostBySlug] Firestore unavailable — trying evergreen catalog:', error);
+    console.warn('[getBlogPostBySlug] Firestore unavailable — trying programmatic catalog:', error);
   }
-  return getEvergreenPostBySlug(slug);
+
+  return getProgrammaticPostBySlug(slug) ?? getEvergreenPostBySlug(slug);
 }
 
 // ─── Weekly Analysis ──────────────────────────────────────────────────────────

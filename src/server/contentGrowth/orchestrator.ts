@@ -300,7 +300,16 @@ async function runDailyContentPipelineOnce(options: PublishOptions = {}): Promis
 
     const dup = isDuplicateTopic(generated.title, slug, existingSummaries);
     if (dup.isDuplicate) {
-      throw new Error(`Duplicate content blocked: ${dup.reason}`);
+      const trimmedStrategy: MarketingStrategy = {
+        ...strategy,
+        pendingTopics: strategy.pendingTopics.slice(1),
+        usedTopics: [...strategy.usedTopics, topic.title],
+        lastUpdated: new Date().toISOString(),
+      };
+      await saveStrategy(trimmedStrategy);
+      throw new Error(
+        `Duplicate content blocked (${dup.reason}). Topic removed from queue — cron will try a fresh topic on the next run.`
+      );
     }
 
     tracker.start('internal_links');
