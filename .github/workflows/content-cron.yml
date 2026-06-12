@@ -102,7 +102,7 @@ jobs:
         env:
           JOB: ${{ steps.resolve.outputs.job }}
           DRY_RUN: ${{ steps.resolve.outputs.dry_run == 'true' && 'true' || 'false' }}
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ env.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
-          FIRESTORE_DATABASE_ID: ${{ env.FIRESTORE_DATABASE_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
         run: npx tsx scripts/run-content-cron.ts

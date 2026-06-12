@@ -33,7 +33,7 @@ import { getAdminDb } from '../src/server/firebaseAdmin.js';
 type ContentCronJob = 'daily-blog' | 'weekly-trends' | 'weekly-analysis' | 'monthly-learning';
 
 function resolveJob(): ContentCronJob {
-  const raw = (process.env.JOB || 'weekly-trends').trim();
+  const raw = (process.env.JOB || 'daily-blog').trim();
   if (
     raw === 'daily-blog' ||
     raw === 'weekly-trends' ||
@@ -42,7 +42,7 @@ function resolveJob(): ContentCronJob {
   ) {
     return raw;
   }
-  throw new Error(`Unknown JOB "${raw}". Use weekly-trends, weekly-analysis, or monthly-learning.`);
+  throw new Error(`Unknown JOB "${raw}". Use daily-blog, weekly-trends, weekly-analysis, or monthly-learning.`);
 }
 
 async function runWeeklyAnalysisJob() {
@@ -128,6 +128,10 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('[run-content-cron] Failed:', error instanceof Error ? error.message : error);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error('[run-content-cron] Failed:', message);
+  if (error instanceof Error && error.stack) {
+    console.error(error.stack);
+  }
   process.exit(1);
 });

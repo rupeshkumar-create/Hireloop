@@ -33,6 +33,7 @@ import {
   assignClusterId,
   updateCluster,
 } from './agents.js';
+import { MODELS } from './ai.js';
 import { generateCoverDataUri, buildImageAltText } from './coverImage.js';
 import { runQualityGate, autoFixSeoFields } from './qualityGate.js';
 import { PipelineTracker, getCronSchedule, type PipelineRun } from './pipeline.js';
@@ -276,7 +277,7 @@ async function runDailyContentPipelineOnce(options: PublishOptions = {}): Promis
 
     tracker.start('generate');
     const generated = await runContentGenerationAgent(topic, research, strategy, clusterId);
-    tracker.complete('generate', { model: 'anthropic/claude-opus-4-6', title: generated.title });
+    tracker.complete('generate', { model: MODELS.writing, title: generated.title });
 
     let content = generated.content;
     if (!content.startsWith('#')) {
@@ -896,8 +897,8 @@ export async function getContentGrowthDashboard() {
       totalPageviews: metrics.reduce((s, m) => s + m.pageviews, 0),
     },
     models: {
-      research: 'perplexity/sonar-pro',
-      writing: 'anthropic/claude-opus-4-6',
+      research: MODELS.research,
+      writing: MODELS.writing,
       dailyAiCalls: 2,
       coverImages: 'deterministic-svg (zero AI)',
     },

@@ -185,7 +185,8 @@ export interface ContentGrowthRunLog {
     | 'content_expand'
     | 'evergreen_seed'
     | 'strategy_update'
-    | 'analytics_sync';
+    | 'analytics_sync'
+    | 'weekly_trend';
   status: 'success' | 'error' | 'partial';
   details: Record<string, unknown>;
   createdAt: string;

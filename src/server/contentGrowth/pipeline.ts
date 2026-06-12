@@ -6,6 +6,7 @@ export type PipelineStepId =
   | 'load_strategy'
   | 'research'
   | 'generate'
+  | 'expand'
   | 'internal_links'
   | 'quality_gate'
   | 'cover_image'
@@ -40,6 +41,7 @@ const STEP_DEFINITIONS: { id: PipelineStepId; label: string }[] = [
   { id: 'load_strategy', label: 'Load content strategy' },
   { id: 'research', label: 'Research topic (Perplexity)' },
   { id: 'generate', label: 'Generate article (Claude Opus)' },
+  { id: 'expand', label: 'Expand to word minimum' },
   { id: 'internal_links', label: 'Build internal links' },
   { id: 'quality_gate', label: 'Quality gate (SEO + LLM score)' },
   { id: 'cover_image', label: 'Generate cover SVG' },

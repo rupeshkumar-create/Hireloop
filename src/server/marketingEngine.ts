@@ -7,7 +7,7 @@
  *  - Update strategy every weekend based on what's working
  *
  * Model routing (all via OpenRouter — see contentGrowth/ai.ts):
- *  Daily publish = 2 calls: sonar-pro (research) + claude-opus-4-6 (write + SEO)
+ *  Daily publish = 2 calls: sonar-pro (research) + claude-opus-4.6 (write + SEO)
  *  Cover images = deterministic SVG (zero AI calls)
  */
 

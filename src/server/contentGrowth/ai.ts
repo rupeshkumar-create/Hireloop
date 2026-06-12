@@ -25,29 +25,40 @@ function getOpenRouterClient(): OpenAI {
 
 export async function chat(model: string, system: string, user: string): Promise<string> {
   const openrouter = getOpenRouterClient();
-  const res = await openrouter.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-  });
-  return res.choices[0]?.message?.content?.trim() ?? '';
+  try {
+    const res = await openrouter.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+    return res.choices[0]?.message?.content?.trim() ?? '';
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`OpenRouter chat failed (${model}): ${message}`);
+  }
 }
 
 export async function chatJSON<T>(model: string, system: string, user: string): Promise<T> {
   const openrouter = getOpenRouterClient();
-  const res = await openrouter.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: 'system',
-        content: system + '\n\nRespond ONLY with valid JSON. No markdown fences, no explanation.',
-      },
-      { role: 'user', content: user },
-    ],
-  });
-  const raw = res.choices[0]?.message?.content?.trim() ?? '{}';
+  let raw = '{}';
+  try {
+    const res = await openrouter.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: system + '\n\nRespond ONLY with valid JSON. No markdown fences, no explanation.',
+        },
+        { role: 'user', content: user },
+      ],
+    });
+    raw = res.choices[0]?.message?.content?.trim() ?? '{}';
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`OpenRouter chatJSON failed (${model}): ${message}`);
+  }
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
   return JSON.parse(cleaned) as T;
 }
@@ -57,17 +68,17 @@ export async function chatJSON<T>(model: string, system: string, user: string): 
  *
  * Daily blog publish uses exactly 2 calls:
  *   1. research  → perplexity/sonar-pro   (live web data)
- *   2. writing   → anthropic/claude-opus-4-6 (article + SEO metadata in one shot)
+ *   2. writing   → anthropic/claude-opus-4.6 (article + SEO metadata in one shot)
  *
  * Weekly/monthly crons add 1–2 calls each (not daily).
  * Cover images: deterministic SVG — zero AI calls.
  */
 export const MODELS = {
   research: 'perplexity/sonar-pro',
-  outline: 'anthropic/claude-sonnet-4-6',
-  writing: 'anthropic/claude-opus-4-6',
-  humanizer: 'anthropic/claude-sonnet-4-6',
-  copyCheck: 'anthropic/claude-sonnet-4-6',
-  metadata: 'anthropic/claude-sonnet-4-6',
-  strategy: 'anthropic/claude-opus-4-6',
+  outline: 'anthropic/claude-sonnet-4.6',
+  writing: 'anthropic/claude-opus-4.6',
+  humanizer: 'anthropic/claude-sonnet-4.6',
+  copyCheck: 'anthropic/claude-sonnet-4.6',
+  metadata: 'anthropic/claude-sonnet-4.6',
+  strategy: 'anthropic/claude-opus-4.6',
 } as const;
