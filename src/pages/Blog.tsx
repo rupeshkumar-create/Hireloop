@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { SeoHead } from '../components/seo/SeoHead';
+import { DEFAULT_OG_IMAGE } from '../lib/siteSeo';
 
 interface BlogPostSummary {
   slug: string;
@@ -64,9 +65,10 @@ export function Blog() {
     <>
       <SeoHead
         title="Hiring Guides & Remote Job Insights | HireSchema"
-        description="Practical guides for remote job seekers — search strategies, resume tips, salary data, and interview prep."
+        description="Practical guides for remote job seekers — search strategies, resume tips, salary data, and interview prep. Updated weekly."
         canonicalUrl="https://hireschema.com/blog"
         ogType="website"
+        ogImage={DEFAULT_OG_IMAGE}
         keywords={['remote job search', 'hiring guides', 'resume tips', 'salary negotiation', 'interview prep']}
       />
 
@@ -78,6 +80,7 @@ export function Blog() {
           </h1>
           <p className="blog-lp-lede">
             Actionable guides to help you find remote roles, tailor your applications, negotiate pay, and prepare for interviews.
+            New guides are added weekly.
             {!loading && !error && posts.length > 0 ? (
               <span className="block mt-2 text-sm opacity-80">
                 {filtered.length === posts.length

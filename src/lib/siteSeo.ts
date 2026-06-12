@@ -4,6 +4,7 @@ export const SITE_URL = 'https://hireschema.com';
 export const SITE_NAME = 'HireSchema';
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+export const DEFAULT_OG_IMAGE_ALT = 'HireSchema — AI remote job matching and daily job alerts';
 
 export const HOME_KEYWORDS = [
   'remote jobs',

@@ -12,6 +12,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Onboarding } from './pages/Onboarding';
 import { LandingPage } from './pages/LandingPage';
+import { RemoteJobsPage } from './pages/RemoteJobsPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Blog } from './pages/Blog';
@@ -174,6 +175,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/remote-jobs" element={<RemoteJobsPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/privacy" element={<WebsiteLayout><PrivacyPolicy /></WebsiteLayout>} />
           <Route path="/terms" element={<WebsiteLayout><TermsOfService /></WebsiteLayout>} />

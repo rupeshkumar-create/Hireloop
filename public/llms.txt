@@ -7,7 +7,7 @@ document: llms
 site: https://hireschema.com
 canonical: https://www.hireschema.com/llms.txt
 version: 2.0
-generated: 2026-06-12T15:02:30.526Z
+generated: 2026-06-12T17:11:18.245Z
 total_guides: 500
 language: en-US
 audience: job seekers, remote workers, career changers

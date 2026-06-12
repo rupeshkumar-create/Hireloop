@@ -10,7 +10,7 @@ const SITEMAP_POST_LIMIT = 500;
 const STATIC_PAGES = [
   { loc: '/', priority: '1.0', changefreq: 'weekly' },
   { loc: '/remote-jobs', priority: '0.95', changefreq: 'weekly' },
-  { loc: '/blog', priority: '0.9', changefreq: 'daily' },
+  { loc: '/blog', priority: '0.9', changefreq: 'weekly' },
   { loc: '/login', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy', priority: '0.3', changefreq: 'yearly' },
   { loc: '/terms', priority: '0.3', changefreq: 'yearly' },

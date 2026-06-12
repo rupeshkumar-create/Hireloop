@@ -6,6 +6,7 @@ import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { SeoHead } from '../components/seo/SeoHead';
 import {
   SITE_URL,
+  DEFAULT_OG_IMAGE,
   HOME_FAQ,
   HOME_KEYWORDS,
   buildBreadcrumbSchema,
@@ -890,6 +891,7 @@ export function LandingPage() {
         description="Find remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path with AI, and delivers personalized remote job alerts — plus resume tailoring and interview prep."
         canonicalUrl={`${SITE_URL}/`}
         ogType="website"
+        ogImage={DEFAULT_OG_IMAGE}
         keywords={HOME_KEYWORDS}
         schema={{
           organization: buildOrganizationSchema(),
@@ -920,6 +922,7 @@ export function LandingPage() {
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
             <Link to="/blog" className="lp-nav-link">Hiring Guides</Link>
+            <Link to="/remote-jobs" className="lp-nav-link">Remote Jobs</Link>
             <a href="#pricing" className="lp-nav-link">Pricing</a>
             <Link to="/login" className="lp-nav-link">Sign in</Link>
             <Link to="/login" className="lp-btn-p">Start free</Link>
@@ -936,6 +939,7 @@ export function LandingPage() {
           <a href="#how" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>How it works</a>
           <a href="#features" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
           <Link to="/blog" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Hiring Guides</Link>
+          <Link to="/remote-jobs" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Remote Jobs</Link>
           <a href="#pricing" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
           <Link to="/login" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
           <Link to="/login" className="lp-btn-p" style={{ marginTop: 12, textAlign: 'center' }} onClick={() => setMobileMenuOpen(false)}>
@@ -1198,9 +1202,9 @@ export function LandingPage() {
       <section id="blog" className="lp-section">
         <div className="lp-container">
           <p className="lp-eyebrow lp-reveal">Hiring Guides</p>
-          <h2 className="lp-display lp-ds lp-reveal">Remote job search advice, updated daily.</h2>
+          <h2 className="lp-display lp-ds lp-reveal">Remote job search advice, updated weekly.</h2>
           <p className="lp-body-lg lp-reveal" style={{ maxWidth: 640, marginTop: 12 }}>
-            Practical guides on remote hiring, ATS strategy, and career growth — written for real job seekers.
+            Practical guides on remote hiring, ATS strategy, and career growth — written for real job seekers and refreshed every week.
           </p>
           {blogPosts.length > 0 ? (
             <div className="lp-blog-grid lp-reveal">
@@ -1230,7 +1234,7 @@ export function LandingPage() {
               })}
             </div>
           ) : (
-            <p className="lp-body-sm lp-reveal" style={{ marginTop: 20 }}>Fresh guides publish daily — check back soon.</p>
+            <p className="lp-body-sm lp-reveal" style={{ marginTop: 20 }}>New guides publish weekly — check back soon.</p>
           )}
           <div className="lp-reveal" style={{ marginTop: 24 }}>
             <Link to="/blog" className="lp-btn-g">View all hiring guides</Link>
@@ -1296,7 +1300,7 @@ export function LandingPage() {
                   <li><a href="#blog">Updates</a></li>
                   <li><a href="mailto:hello@hireschema.com">Contact</a></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>
-                  <li><a href="/remote-jobs">Remote Jobs</a></li>
+                  <li><Link to="/remote-jobs">Remote Jobs</Link></li>
                 </ul>
               </div>
 
