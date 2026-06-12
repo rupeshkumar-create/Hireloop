@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { SeoHead } from '../components/seo/SeoHead';
@@ -16,7 +16,7 @@ interface BlogPostSummary {
   directAnswer?: string;
 }
 
-import { BLOG_CLUSTERS, blogCardEyebrow } from '../lib/blogClusters';
+import { BLOG_CLUSTERS, blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -103,11 +103,14 @@ export function Blog() {
 
         {loading && (
           <div className="blog-lp-grid">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="blog-lp-card animate-pulse opacity-60">
-                <div className="mb-3 h-3 w-20 rounded bg-[var(--lp-border)]" />
-                <div className="mb-2 h-5 w-full rounded bg-[var(--lp-border)]" />
-                <div className="h-12 w-full rounded bg-[var(--lp-border)]" />
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="blog-lp-card blog-lp-card-skeleton animate-pulse">
+                <div className="blog-lp-card-cover-skeleton" />
+                <div className="blog-lp-card-body">
+                  <div className="mb-3 h-3 w-24 rounded bg-[var(--lp-border)]" />
+                  <div className="mb-2 h-5 w-full rounded bg-[var(--lp-border)]" />
+                  <div className="h-12 w-full rounded bg-[var(--lp-border)]" />
+                </div>
               </div>
             ))}
           </div>
@@ -132,23 +135,38 @@ export function Blog() {
           <div className="blog-lp-grid">
             {filtered.map((post) => {
               const eyebrow = blogCardEyebrow(post);
+              const accent = clusterAccent(post.clusterId);
+              const coverSrc = blogCoverUrl(post.slug);
               return (
-              <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-lp-card">
-                {eyebrow ? (
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="blog-lp-badge">{eyebrow}</span>
+              <Link
+                key={post.slug}
+                to={`/blog/${post.slug}`}
+                className="blog-lp-card"
+                style={{ '--blog-card-accent': accent } as CSSProperties}
+              >
+                <div className="blog-lp-card-cover">
+                  <img
+                    src={coverSrc}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {eyebrow ? (
+                    <span className="blog-lp-card-cover-label">{eyebrow}</span>
+                  ) : null}
+                </div>
+                <div className="blog-lp-card-body">
+                  <h2 className="blog-lp-card-title">{post.title}</h2>
+                  <p className="blog-lp-card-excerpt line-clamp-3">
+                    {post.directAnswer || post.seoDescription || post.excerpt}
+                  </p>
+                  <div className="blog-lp-card-footer">
+                    <span>{formatDate(post.publishedAt)}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {post.readTimeMinutes} min
+                    </span>
                   </div>
-                ) : null}
-                <h2 className="blog-lp-card-title">{post.title}</h2>
-                <p className="blog-lp-card-excerpt line-clamp-3">
-                  {post.directAnswer || post.seoDescription || post.excerpt}
-                </p>
-                <div className="mt-4 flex items-center justify-between blog-lp-meta">
-                  <span>{formatDate(post.publishedAt)}</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {post.readTimeMinutes} min
-                  </span>
                 </div>
               </Link>
               );

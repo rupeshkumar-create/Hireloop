@@ -48,6 +48,7 @@ export function getProgrammaticPostSummaries(
       faq: [],
       directAnswer: spec.directAnswer,
       clusterId: spec.clusterId,
+      coverImageUrl: `https://hireschema.com/api/blog/cover?slug=${encodeURIComponent(spec.slug)}`,
     }));
 }
 

@@ -6,6 +6,10 @@ import {
   TARGET_PROGRAMMATIC_COUNT,
   assertProgrammaticCatalogSize,
 } from '../programmatic/catalog.js';
+import {
+  PRIMARY_FILTER_CLUSTERS,
+  countByPrimaryCluster,
+} from '../programmatic/clusterRebalance.js';
 import { buildEvergreenMarkdown } from '../evergreen/buildArticle.js';
 import { BLOG_TARGET_WORD_COUNT, countWords, meetsMinimumWordCount } from '../wordCount.js';
 
@@ -31,6 +35,13 @@ describe('500-post programmatic catalog', () => {
       expect(dates[i]).toBeGreaterThan(dates[i - 1]!);
     }
     expect(dates[dates.length - 1]!).toBeLessThanOrEqual(now + 24 * 60 * 60 * 1000);
+  });
+
+  it('each primary blog filter cluster has at least 20 posts', () => {
+    const counts = countByPrimaryCluster(ALL_PROGRAMMATIC_SPECS);
+    for (const clusterId of PRIMARY_FILTER_CLUSTERS) {
+      expect(counts[clusterId], clusterId).toBeGreaterThanOrEqual(20);
+    }
   });
 
   it('sample specs meet word target', () => {

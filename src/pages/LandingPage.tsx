@@ -15,6 +15,7 @@ import {
   buildWebSiteSchema,
 } from '../lib/siteSeo';
 import { PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
+import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -566,16 +567,50 @@ const LP_STYLE = `
     .lp-feat-item-hdr { flex-direction:column; gap:6px; }
     .lp-feat-tag { padding-top:0; }
   }
-  .lp-blog-grid { display:grid; gap:16px; margin-top:28px; }
+  .lp-blog-grid { display:grid; gap:20px; margin-top:28px; }
   @media(min-width:768px){ .lp-blog-grid { grid-template-columns:repeat(3,1fr); } }
   .lp-blog-card {
-    display:block; padding:20px; border:1px solid var(--lp-border); border-radius:12px;
-    background:var(--lp-surface); text-decoration:none; color:inherit; transition:border-color .2s;
+    display:flex; flex-direction:column; overflow:hidden;
+    border:1px solid var(--lp-border); border-radius:16px;
+    background:var(--lp-surface); text-decoration:none; color:inherit;
+    transition:border-color .22s, box-shadow .22s, transform .22s;
   }
-  .lp-blog-card:hover { border-color:var(--lp-accent); }
-  .lp-blog-card h3 { font-size:17px; font-weight:500; margin:0 0 8px; line-height:1.35; }
-  .lp-blog-card p { margin:0; font-size:14px; color:var(--lp-muted); line-height:1.5; }
-  .lp-blog-meta { margin-top:12px; font-family:var(--lp-font-m); font-size:11px; color:var(--lp-muted); }
+  .lp-blog-card:hover {
+    border-color:var(--lp-blog-accent, var(--lp-accent));
+    box-shadow:0 18px 40px oklch(20% 0.02 60 / 0.08);
+    transform:translateY(-3px);
+  }
+  .lp-blog-cover {
+    position:relative; aspect-ratio:1200/630; overflow:hidden;
+    background:oklch(22% 0.02 260); border-bottom:1px solid var(--lp-border);
+  }
+  .lp-blog-cover img {
+    display:block; width:100%; height:100%; object-fit:cover;
+    transition:transform .32s ease;
+  }
+  .lp-blog-card:hover .lp-blog-cover img { transform:scale(1.03); }
+  .lp-blog-cover-label {
+    position:absolute; left:14px; bottom:14px;
+    font-family:var(--lp-font-m); font-size:9px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase;
+    padding:5px 10px; border-radius:9999px; color:#f8fafc;
+    background:oklch(15% 0.02 260 / 0.72); backdrop-filter:blur(8px);
+    border:1px solid oklch(100% 0 0 / 0.12);
+  }
+  .lp-blog-body { padding:18px 20px 20px; display:flex; flex-direction:column; flex:1; }
+  .lp-blog-card h3 {
+    font-family:var(--lp-font-d); font-size:17px; font-weight:400;
+    margin:0 0 8px; line-height:1.35; letter-spacing:-0.01em;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .lp-blog-card p {
+    margin:0; font-size:14px; color:var(--lp-muted); line-height:1.55;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .lp-blog-meta {
+    margin-top:auto; padding-top:12px; border-top:1px solid var(--lp-border);
+    font-family:var(--lp-font-m); font-size:11px; color:var(--lp-muted);
+  }
   @media(prefers-reduced-motion:reduce){
     .lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s { opacity:1 !important; transform:none !important; }
     .lp-jcard-inner { transition:none !important; }
@@ -588,6 +623,7 @@ interface LandingBlogPost {
   excerpt: string;
   publishedAt: string;
   category: string;
+  clusterId?: string;
 }
 
 const MARQUEE_ITEMS = [
@@ -1168,15 +1204,30 @@ export function LandingPage() {
           </p>
           {blogPosts.length > 0 ? (
             <div className="lp-blog-grid lp-reveal">
-              {blogPosts.map((post) => (
-                <Link key={post.slug} to={`/blog/${post.slug}`} className="lp-blog-card">
-                  <h3>{post.title}</h3>
-                  <p>{post.excerpt}</p>
-                  <div className="lp-blog-meta">
-                    {post.category} · {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {blogPosts.map((post) => {
+                const eyebrow = blogCardEyebrow(post);
+                const accent = clusterAccent(post.clusterId);
+                return (
+                <Link
+                  key={post.slug}
+                  to={`/blog/${post.slug}`}
+                  className="lp-blog-card"
+                  style={{ ['--lp-blog-accent' as string]: accent }}
+                >
+                  <div className="lp-blog-cover">
+                    <img src={blogCoverUrl(post.slug)} alt="" loading="lazy" decoding="async" />
+                    {eyebrow ? <span className="lp-blog-cover-label">{eyebrow}</span> : null}
+                  </div>
+                  <div className="lp-blog-body">
+                    <h3>{post.title}</h3>
+                    <p>{post.excerpt}</p>
+                    <div className="lp-blog-meta">
+                      {post.category} · {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="lp-body-sm lp-reveal" style={{ marginTop: 20 }}>Fresh guides publish daily — check back soon.</p>

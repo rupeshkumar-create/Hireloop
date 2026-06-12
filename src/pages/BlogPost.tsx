@@ -5,6 +5,7 @@ import { SeoHead } from '../components/seo/SeoHead';
 import { BlogArticleMarkdown } from '../components/blog/BlogArticleMarkdown';
 import { prepareBlogBodyContent } from '../lib/blogContent';
 import { usePageAnalytics, trackCtaClick } from '../hooks/usePageAnalytics';
+import { blogCoverUrl, clusterLabel } from '../lib/blogClusters';
 
 interface BlogPostData {
   slug: string;
@@ -118,6 +119,8 @@ export function BlogPost() {
 
   const canonicalUrl = `https://hireschema.com/blog/${post.slug}`;
   const lede = post.directAnswer || post.seoDescription;
+  const coverSrc = post.coverImageDataUri || post.coverImageUrl || blogCoverUrl(post.slug);
+  const topicLabel = clusterLabel(post.clusterId) ?? post.category;
 
   return (
     <>
@@ -127,7 +130,7 @@ export function BlogPost() {
         canonicalUrl={canonicalUrl}
         keywords={post.targetKeywords}
         schema={post.schema}
-        ogImage={post.coverImageUrl}
+        ogImage={post.coverImageUrl || `https://hireschema.com${blogCoverUrl(post.slug)}`}
       />
 
       <article className="blog-lp-container">
@@ -136,9 +139,16 @@ export function BlogPost() {
           All hiring guides
         </Link>
 
+        <div className="blog-lp-cover blog-lp-cover-hero">
+          <img
+            src={coverSrc}
+            alt={post.imageAltText || post.title}
+          />
+        </div>
+
         <header className="blog-lp-article-header">
           <div className="blog-lp-meta-row">
-            <span className="blog-lp-badge">{post.category}</span>
+            <span className="blog-lp-badge">{topicLabel}</span>
             <span className="blog-lp-meta inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {post.readTimeMinutes} min read
@@ -152,21 +162,12 @@ export function BlogPost() {
 
           {post.tags?.length > 0 && (
             <div className="blog-lp-tags-row">
-              {post.tags.map((tag) => (
+              {post.tags.slice(0, 6).map((tag) => (
                 <span key={tag} className="blog-lp-tag">{tag}</span>
               ))}
             </div>
           )}
         </header>
-
-        {(post.coverImageUrl || post.coverImageDataUri) && (
-          <div className="blog-lp-cover">
-            <img
-              src={post.coverImageDataUri || post.coverImageUrl}
-              alt={post.imageAltText || post.title}
-            />
-          </div>
-        )}
 
         <BlogArticleMarkdown content={bodyContent} />
 
