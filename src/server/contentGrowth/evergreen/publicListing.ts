@@ -2,7 +2,7 @@
  * Serve evergreen guides from code when Firestore has no posts yet.
  * Ensures /blog works immediately; seedEvergreenPosts() persists to Firestore for admin.
  */
-import type { BlogPost } from '../marketingEngine.js';
+import type { BlogPost } from '../../marketingEngine.js';
 import { buildInternalLinks, injectInternalLinks } from '../linking.js';
 import { EVERGREEN_SPECS } from './catalog.js';
 import { buildEvergreenMarkdown, extractFaqFromMarkdown } from './buildArticle.js';

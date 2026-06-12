@@ -24,7 +24,7 @@ import { discoverRedditThreads, redditThreadToTopic, scoreThreadNovelty } from '
 import { runAdvancedWritingPipeline, runDeepResearchAgent, type TrendTopic } from './writingPipeline.js';
 import { pingBlogSlugs } from './indexNow.js';
 import { countWords, meetsMinimumWordCount, BLOG_TARGET_WORD_COUNT } from './wordCount.js';
-import type { EnhancedBlogPostFields } from '../types/contentGrowth.js';
+import type { EnhancedBlogPostFields } from '../../types/contentGrowth.js';
 import type { BlogPost } from '../marketingEngine.js';
 
 const MAX_WEEKLY_POSTS = 3;

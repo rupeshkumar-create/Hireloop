@@ -3,7 +3,7 @@
  * Track page-level metrics for the Content Growth learning loop.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { incrementPageview, recordCtaClick } from '../../../contentGrowth/storage.js';
+import { incrementPageview, recordCtaClick } from '../../contentGrowth/storage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

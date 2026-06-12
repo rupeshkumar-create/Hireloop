@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { HireschemaLogo } from './brand/HireschemaLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ui/theme-toggle';
+import { Button } from './ui/button';
 
 export function WebsiteLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
