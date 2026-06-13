@@ -18,6 +18,7 @@ import { buildMatchFeedItems, getDailyBatchSummary } from '../components/dashboa
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
 import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
+import { isDodoPaymentReturn } from '../lib/pricing';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 import { resolveTodayLocalDateKey } from '../lib/localDate';
 
@@ -146,7 +147,7 @@ export function Dashboard() {
       setShowWelcome(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    if (params.get('payment') === 'success') {
+    if (isDodoPaymentReturn(params)) {
       setAwaitingPaymentUpgrade(true);
       window.history.replaceState({}, document.title, window.location.pathname);
       toast.info('Payment received. Activating Pro…');
@@ -158,7 +159,17 @@ export function Dashboard() {
     if (profile?.plan?.toLowerCase() === 'pro') {
       setAwaitingPaymentUpgrade(false);
       toast.success('Welcome to Pro! AI application tools are now unlocked.');
+      return;
     }
+
+    const timeout = window.setTimeout(() => {
+      toast.message('Pro activation is taking a moment', {
+        description:
+          'If AI tools are still locked after a minute, refresh this page or email support@hireschema.com with the same address you used at checkout.',
+      });
+    }, 45_000);
+
+    return () => window.clearTimeout(timeout);
   }, [awaitingPaymentUpgrade, profile?.plan]);
 
   useEffect(() => {

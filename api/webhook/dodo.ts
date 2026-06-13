@@ -1,21 +1,24 @@
-import { createHmac, timingSafeEqual } from 'crypto';
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../src/server/firebaseAdmin.js';
+import {
+  extractCustomerEmail,
+  readWebhookRawBody,
+  resolvePlanFromEvent,
+  verifyStandardWebhookSignature,
+} from '../../src/server/dodoWebhook.js';
 
-function verifyDodoSignature(rawBody: string, signature: string | undefined, secret: string): boolean {
-  if (!signature) return false;
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+  const webhookSecret =
+    process.env.DODO_WEBHOOK_SECRET?.trim() ||
+    process.env.DODO_PAYMENTS_WEBHOOK_KEY?.trim();
   const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
 
   if (isProduction && !webhookSecret) {
@@ -23,29 +26,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).send('Webhook verification not configured');
   }
 
+  let rawBody: string;
+  try {
+    rawBody = await readWebhookRawBody(req);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Failed to read webhook body:', message);
+    return res.status(400).send('Invalid webhook body');
+  }
+
   if (webhookSecret) {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
-    const signature = req.headers['x-dodo-signature'] as string | undefined;
-    if (!verifyDodoSignature(rawBody, signature, webhookSecret)) {
+    const verified = verifyStandardWebhookSignature(rawBody, webhookSecret, {
+      id: req.headers['webhook-id'] as string | undefined,
+      timestamp: req.headers['webhook-timestamp'] as string | undefined,
+      signature: req.headers['webhook-signature'] as string | undefined,
+    });
+    if (!verified) {
+      console.error('Invalid Dodo webhook signature');
       return res.status(401).send('Invalid webhook signature');
     }
   }
 
   try {
-    const event = req.body;
+    const event = JSON.parse(rawBody) as Record<string, unknown>;
     const eventType = String(event.type || '');
+    const nextPlan = resolvePlanFromEvent(eventType, event);
 
-    const upgradeEvents = new Set(['payment.succeeded', 'subscription.created', 'subscription.renewed']);
-    const downgradeEvents = new Set([
-      'subscription.cancelled',
-      'subscription.canceled',
-      'subscription.expired',
-      'subscription.paused',
-      'payment.failed',
-    ]);
-
-    if (upgradeEvents.has(eventType) || downgradeEvents.has(eventType)) {
-      const email = event.data?.customer?.email || event.data?.email;
+    if (nextPlan) {
+      const email = extractCustomerEmail(event);
 
       if (email) {
         const db = getAdminDb();
@@ -54,18 +62,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (!snapshot.empty) {
           const userDoc = snapshot.docs[0];
-          const nextPlan = downgradeEvents.has(eventType) ? 'free' : 'pro';
           await userDoc.ref.update({
             plan: nextPlan,
             updatedAt: new Date().toISOString(),
-            ...(downgradeEvents.has(eventType)
-              ? { subscriptionStatus: eventType }
-              : { subscriptionStatus: 'active' }),
+            subscriptionStatus: nextPlan === 'pro' ? 'active' : eventType,
           });
-          console.log(`${downgradeEvents.has(eventType) ? 'Downgraded' : 'Upgraded'} user ${email} to ${nextPlan}.`);
+          console.log(`${nextPlan === 'pro' ? 'Upgraded' : 'Downgraded'} user ${email} to ${nextPlan}.`);
         } else {
           console.log(`Webhook received but user with email ${email} not found.`);
         }
+      } else {
+        console.log(`Webhook ${eventType} received without customer email.`);
       }
     }
 
