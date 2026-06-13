@@ -42,6 +42,40 @@ describe('blogContent', () => {
     expect(result).not.toMatch(/^##\s+Cost/m);
   });
 
+  it('keeps numbered tips as list items, not h3 headings', () => {
+    const content = [
+      'Seven Ways to Get Better Results From AI Job Matching',
+      '',
+      "These tactics work on any well-built matching platform, and they're especially effective with systems that show you component scores.",
+      '',
+      '1. **List specific tools, not categories.** "React, Next.js, TypeScript" beats "frontend technologies." Semantic matching handles synonyms, but specificity sharpens the score.',
+      '',
+      '2. **Set a salary floor.** Even if you\'re flexible, a floor removes the bottom 30% of listings that would waste your time and dilute your results.',
+    ].join('\n');
+
+    const result = prepareBlogBodyContent(content, { title: 'Test' });
+
+    expect(result).toContain('## Seven Ways to Get Better Results From AI Job Matching');
+    expect(result).toContain('1. **List specific tools, not categories.**');
+    expect(result).not.toMatch(/^###\s+1\./m);
+    expect(result).not.toMatch(/^###\s+2\./m);
+  });
+
+  it('repairs legacy ### numbered tips saved by old reformat', () => {
+    const content = [
+      '## Section',
+      '',
+      '### 1. **List specific tools, not categories.** "React, Next.js, TypeScript" beats "frontend technologies."',
+      '',
+      '### 2. **Set a salary floor.** Even if you\'re flexible, a floor removes the bottom 30% of listings.',
+    ].join('\n');
+
+    const result = prepareBlogBodyContent(content, { title: 'Test' });
+
+    expect(result).not.toMatch(/^###\s+1\./m);
+    expect(result).toContain('1. **List specific tools, not categories.**');
+  });
+
   it('strips structured sections when rendered separately', () => {
     const content = [
       'Opening paragraph.',

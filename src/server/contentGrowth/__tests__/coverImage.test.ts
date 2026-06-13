@@ -2,18 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { generateCoverSvg } from '../coverImage';
 
 describe('generateCoverSvg', () => {
-  it('uses larger title typography for short titles', () => {
+  it('uses headline-scale typography for short titles', () => {
     const svg = generateCoverSvg('Remote Job Search Tips', 'remote-job-search');
-    expect(svg).toContain('font-size="68"');
-    expect(svg).toContain('font-size="18"');
+    expect(svg).toMatch(/font-size="(84|96)"/);
   });
 
-  it('scales down typography for long multi-line titles', () => {
+  it('fills the banner with large multi-line titles', () => {
     const svg = generateCoverSvg(
       'How AI Remote Job Matching Actually Works (And How to Use It to Your Advantage)',
       'ai-job-matching'
     );
-    expect(svg).toContain('font-size="48"');
-    expect(svg).toMatch(/font-size="(42|48|56|68)"/);
+    expect(svg).toContain('font-size="72"');
+    expect(svg).toContain('How AI Remote Job Matching');
+    expect(svg).toContain('fill-opacity="0.06"');
   });
 });

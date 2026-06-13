@@ -9,8 +9,8 @@
       <stop offset="0%" stop-color="#38bdf8"/>
       <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.15"/>
     </linearGradient>
-    <radialGradient id="glow" cx="88%" cy="12%" r="50%">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.28"/>
+    <radialGradient id="glow" cx="92%" cy="8%" r="55%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.32"/>
       <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
     </radialGradient>
     <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
@@ -20,11 +20,12 @@
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
   <rect width="1200" height="630" fill="url(#grid)"/>
-  <rect x="0" y="0" width="1200" height="6" fill="#38bdf8"/>
-  <text x="64" y="82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" fill="#38bdf8" letter-spacing="5">HIRESCHEMA</text>
-  <text x="64" y="118" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#cbd5e1" letter-spacing="3">AI MATCHING GUIDE</text>
-    <text x="64" y="188" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="56" font-weight="650" fill="#f8fafc" letter-spacing="-0.025em">AI Remote Job Matching &amp;</text>
-    <text x="64" y="256" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="56" font-weight="650" fill="#f8fafc" letter-spacing="-0.025em">Daily Job Alerts</text>
-  <rect x="64" y="552" width="220" height="5" fill="url(#accent)" rx="2"/>
-  <text x="64" y="596" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="500" fill="#94a3b8">hireschema.com/blog</text>
+  <rect x="0" y="0" width="1200" height="7" fill="#38bdf8"/>
+  <text x="52" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700" fill="#38bdf8" letter-spacing="5">HIRESCHEMA</text>
+  <text x="52" y="112" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#e2e8f0" letter-spacing="3.5">AI MATCHING GUIDE</text>
+  <rect x="52" y="114" width="1096" height="452" fill="#38bdf8" fill-opacity="0.06" rx="12"/>
+    <text x="52" y="317" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="84" font-weight="700" fill="#f8fafc" letter-spacing="-0.03em">AI Remote Job Matching &amp; Daily Job</text>
+    <text x="52" y="411" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="84" font-weight="700" fill="#f8fafc" letter-spacing="-0.03em">Alerts</text>
+  <rect x="52" y="562" width="280" height="6" fill="url(#accent)" rx="3"/>
+  <text x="52" y="606" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500" fill="#94a3b8">hireschema.com/blog</text>
 </svg>

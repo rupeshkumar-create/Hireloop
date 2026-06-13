@@ -27,10 +27,17 @@ export function stripDuplicateTitle(content: string, title: string): string {
 const LABEL_LINE =
   /^[A-Za-z][A-Za-z0-9\s/&'()-]{0,32}:\s+\S/;
 
-/** Listicle entry titles like "6. Scale.jobs — Best Built-In Application Tools". */
+/** Listicle card titles like "6. Scale.jobs — Best Built-In Application Tools". */
 function isListicleEntryLine(trimmed: string): boolean {
   if (!/^\d+\.\s+/.test(trimmed)) return false;
-  return /[—–]/.test(trimmed) || trimmed.length >= 35;
+  if (isNumberedTipLine(trimmed)) return false;
+  return /[—–]/.test(trimmed);
+}
+
+/** Numbered tip with bold lead-in and body on one line — keep as ordered-list item. */
+function isNumberedTipLine(trimmed: string): boolean {
+  if (!/^\d+\.\s+/.test(trimmed)) return false;
+  return /^\d+\.\s+\*\*.+\*\*\.?\s+\S/.test(trimmed);
 }
 
 /** Bold the label portion of "Label: value" when not already formatted. */
@@ -123,17 +130,27 @@ export interface PrepareBlogBodyOptions {
   stripFaq?: boolean;
 }
 
-/** Demote legacy ## headings that are really label lines or listicle entries. */
+/** Demote legacy ## / ### headings that are really label lines or numbered tips. */
 export function repairMisclassifiedHeadings(content: string): string {
   return content
     .split('\n')
     .map((line) => {
       const trimmed = line.trim();
       const h2 = trimmed.match(/^##\s+(.+)$/);
-      if (!h2) return line;
-      const inner = h2[1].trim();
-      if (LABEL_LINE.test(inner)) return normalizeLabelLine(inner);
-      if (/^\d+\.\s+/.test(inner) && isListicleEntryLine(inner)) return `### ${inner}`;
+      if (h2) {
+        const inner = h2[1].trim();
+        if (LABEL_LINE.test(inner)) return normalizeLabelLine(inner);
+        if (/^\d+\.\s+/.test(inner)) {
+          return isListicleEntryLine(inner) ? `### ${inner}` : inner;
+        }
+        return line;
+      }
+      const h3 = trimmed.match(/^###\s+(.+)$/);
+      if (h3) {
+        const inner = h3[1].trim();
+        if (/^\d+\.\s+/.test(inner) && !isListicleEntryLine(inner)) return inner;
+        return line;
+      }
       return line;
     })
     .join('\n');
