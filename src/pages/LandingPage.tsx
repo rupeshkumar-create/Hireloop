@@ -6,6 +6,7 @@ import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { SeoHead } from '../components/seo/SeoHead';
 import { SITE_URL, SITE_STATUS, DEFAULT_OG_IMAGE, HOME_FAQ, HOME_KEYWORDS, buildBreadcrumbSchema, buildFaqPageSchema, buildOrganizationSchema, buildSoftwareApplicationSchema, buildWebSiteSchema } from '../lib/siteSeo';
 import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
+import { fetchLandingBlogPosts, type LandingBlogPost } from '../lib/landingBlogPosts';
 import { DAILY_MATCH_LIMIT } from '../lib/planLimits';
 import { PRO_ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
 
@@ -577,7 +578,7 @@ const LP_STYLE = `
     background:oklch(22% 0.02 260); border-bottom:1px solid var(--lp-border);
   }
   .lp-blog-cover img {
-    display:block; width:100%; height:100%; object-fit:cover;
+    display:block; width:100%; height:100%; object-fit:cover; object-position:left center;
     transition:transform .32s ease;
   }
   .lp-blog-card:hover .lp-blog-cover img { transform:scale(1.03); }
@@ -608,15 +609,6 @@ const LP_STYLE = `
     .lp-jcard-inner { transition:none !important; }
   }
 `;
-
-interface LandingBlogPost {
-  slug: string;
-  title: string;
-  excerpt: string;
-  publishedAt: string;
-  category: string;
-  clusterId?: string;
-}
 
 const MARQUEE_ITEMS = [
   'Remote · Worldwide', '50+ Resume Signals', 'AI Match Scoring', 'ATS Integrity Checks',
@@ -758,10 +750,13 @@ export function LandingPage() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/blog?limit=3')
-      .then((r) => r.json())
-      .then((data) => setBlogPosts((data.posts ?? []).slice(0, 3)))
-      .catch(() => setBlogPosts([]));
+    let cancelled = false;
+    void fetchLandingBlogPosts(3).then((posts) => {
+      if (!cancelled) setBlogPosts(posts);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // inject styles once
@@ -790,7 +785,7 @@ export function LandingPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // scroll reveals + stat counters
+  // scroll reveals + stat counters — re-run when blog cards mount async
   useEffect(() => {
     const io = new IntersectionObserver((entries) => {
       entries.forEach(e => {
@@ -798,7 +793,6 @@ export function LandingPage() {
         e.target.classList.add('lp-revealed');
 
         // counter animation
-        const numEl = e.target.querySelector<HTMLElement>('[data-count]') || (e.target.hasAttribute('data-count') ? e.target as HTMLElement : null);
         const countEls = e.target.querySelectorAll<HTMLElement>('[data-count]');
         countEls.forEach(el => animateCount(el));
 
@@ -806,10 +800,12 @@ export function LandingPage() {
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-    document.querySelectorAll('.lp-reveal,.lp-reveal-l,.lp-reveal-r,.lp-reveal-s,.lp-stat,.lp-step').forEach(el => io.observe(el));
+    document
+      .querySelectorAll('.lp-reveal:not(.lp-revealed),.lp-reveal-l:not(.lp-revealed),.lp-reveal-r:not(.lp-revealed),.lp-reveal-s:not(.lp-revealed),.lp-stat:not(.lp-revealed),.lp-step:not(.lp-revealed)')
+      .forEach(el => io.observe(el));
 
     return () => io.disconnect();
-  }, []);
+  }, [blogPosts.length]);
 
   // feature item scroll tracking — scroll-based for reliability
   useEffect(() => {

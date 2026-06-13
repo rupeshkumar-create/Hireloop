@@ -28,7 +28,7 @@ function escapeXml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function wrapTitle(title: string, maxCharsPerLine = 26): string[] {
+function wrapTitle(title: string, maxCharsPerLine = 28): string[] {
   const words = title.split(/\s+/);
   const lines: string[] = [];
   let current = '';
@@ -42,16 +42,24 @@ function wrapTitle(title: string, maxCharsPerLine = 26): string[] {
     }
   }
   if (current) lines.push(current);
-  return lines.slice(0, 3);
+  return lines.slice(0, 4);
+}
+
+function titleTypography(lineCount: number): { fontSize: number; lineHeight: number; startY: number } {
+  if (lineCount <= 1) return { fontSize: 68, lineHeight: 78, startY: 210 };
+  if (lineCount === 2) return { fontSize: 56, lineHeight: 68, startY: 188 };
+  if (lineCount === 3) return { fontSize: 48, lineHeight: 58, startY: 172 };
+  return { fontSize: 42, lineHeight: 52, startY: 158 };
 }
 
 export function generateCoverSvg(title: string, clusterId: string): string {
   const style = CLUSTER_STYLES[clusterId] ?? CLUSTER_STYLES['remote-job-search'];
   const lines = wrapTitle(title);
+  const { fontSize, lineHeight, startY } = titleTypography(lines.length);
   const lineElements = lines
     .map(
       (line, i) =>
-        `<text x="56" y="${168 + i * 46}" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="600" fill="#f8fafc" letter-spacing="-0.02em">${escapeXml(line)}</text>`
+        `<text x="64" y="${startY + i * lineHeight}" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="${fontSize}" font-weight="650" fill="#f8fafc" letter-spacing="-0.025em">${escapeXml(line)}</text>`
     )
     .join('\n    ');
 
@@ -66,8 +74,8 @@ export function generateCoverSvg(title: string, clusterId: string): string {
       <stop offset="0%" stop-color="${style.accent}"/>
       <stop offset="100%" stop-color="${style.accent}" stop-opacity="0.15"/>
     </linearGradient>
-    <radialGradient id="glow" cx="85%" cy="15%" r="45%">
-      <stop offset="0%" stop-color="${style.accent}" stop-opacity="0.22"/>
+    <radialGradient id="glow" cx="88%" cy="12%" r="50%">
+      <stop offset="0%" stop-color="${style.accent}" stop-opacity="0.28"/>
       <stop offset="100%" stop-color="${style.accent}" stop-opacity="0"/>
     </radialGradient>
     <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
@@ -77,12 +85,12 @@ export function generateCoverSvg(title: string, clusterId: string): string {
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
   <rect width="1200" height="630" fill="url(#grid)"/>
-  <rect x="0" y="0" width="1200" height="5" fill="${style.accent}"/>
-  <text x="56" y="78" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="${style.accent}" letter-spacing="4">HIRESCHEMA</text>
-  <text x="56" y="108" font-family="ui-monospace, monospace" font-size="11" fill="#94a3b8" letter-spacing="2.5">${escapeXml(style.label.toUpperCase())} GUIDE</text>
+  <rect x="0" y="0" width="1200" height="6" fill="${style.accent}"/>
+  <text x="64" y="82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" fill="${style.accent}" letter-spacing="5">HIRESCHEMA</text>
+  <text x="64" y="118" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#cbd5e1" letter-spacing="3">${escapeXml(style.label.toUpperCase())} GUIDE</text>
     ${lineElements}
-  <rect x="56" y="548" width="180" height="4" fill="url(#accent)" rx="2"/>
-  <text x="56" y="592" font-family="system-ui, sans-serif" font-size="13" fill="#64748b">hireschema.com/blog</text>
+  <rect x="64" y="552" width="220" height="5" fill="url(#accent)" rx="2"/>
+  <text x="64" y="596" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="500" fill="#94a3b8">hireschema.com/blog</text>
 </svg>`;
 }
 
