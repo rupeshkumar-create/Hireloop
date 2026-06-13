@@ -10,6 +10,7 @@ import type { DailyJob } from '../../src/types/dailyJob.js';
 import { formatLocalDate } from '../../src/lib/localDate.js';
 import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 import { evaluateScoutDedup } from '../../src/server/scoutDedup.js';
+import { getDiscoveryPoolTarget } from '../../src/lib/planLimits.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -87,7 +88,7 @@ async function runPipeline(
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
         let discovered: DiscoveredJob[] = [];
         try {
-          const targetCount = profile.plan === 'pro' ? 100 : 60;
+          const targetCount = getDiscoveryPoolTarget(profile.plan);
           const { jobs: feedJobs, sources } = await discoverJobsForMatching({
             careerPaths,
             resumeText,

@@ -331,7 +331,7 @@ describe('processUserCronRun', () => {
         careerPaths: [],
         resumeText: 'Senior frontend engineer with React, TypeScript, and design systems experience.',
       }),
-      1
+      10
     );
   });
 
@@ -399,7 +399,7 @@ describe('processUserCronRun', () => {
     expect(deps.generateJobs).toHaveBeenCalledWith(expect.any(Object), 10);
   });
 
-  it('uses the free plan limit for non-pro users', async () => {
+  it('delivers 10 daily matches for free users (same as Pro)', async () => {
     const deps = {
       loadUser: vi.fn().mockResolvedValue({
         id: 'user_free',
@@ -423,7 +423,7 @@ describe('processUserCronRun', () => {
 
     await processUserCronRun({ userId: 'user_free', runDate: '2026-04-16' }, deps);
 
-    expect(deps.generateJobs).toHaveBeenCalledWith(expect.any(Object), 1);
+    expect(deps.generateJobs).toHaveBeenCalledWith(expect.any(Object), 10);
   });
 
   it('does not re-process a completed run that already delivered jobs', async () => {

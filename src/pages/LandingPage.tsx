@@ -6,6 +6,8 @@ import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { SeoHead } from '../components/seo/SeoHead';
 import { SITE_URL, SITE_STATUS, DEFAULT_OG_IMAGE, HOME_FAQ, HOME_KEYWORDS, buildBreadcrumbSchema, buildFaqPageSchema, buildOrganizationSchema, buildSoftwareApplicationSchema, buildWebSiteSchema } from '../lib/siteSeo';
 import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
+import { DAILY_MATCH_LIMIT } from '../lib/planLimits';
+import { PRO_ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -861,8 +863,8 @@ export function LandingPage() {
   return (
     <div ref={rootRef} className="lp-root">
       <SeoHead
-        title="HireSchema — AI Remote Job Matching (Public Beta)"
-        description="Find remote jobs matched to your resume. HireSchema is in public beta — free access while we refine daily AI-scored remote job alerts, resume tailoring, and interview prep."
+        title="HireSchema — AI Remote Job Matching"
+        description="Find remote jobs matched to your resume. Free: 10 daily AI-scored matches. Pro ($19/mo): AI resume tailoring, cold emails, cover letters, and interview prep."
         canonicalUrl={`${SITE_URL}/`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
@@ -895,6 +897,7 @@ export function LandingPage() {
           <div className="lp-nav-actions">
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
+            <a href="#pricing" className="lp-nav-link">Pricing</a>
             <Link to="/blog" className="lp-nav-link">Hiring Guides</Link>
             <Link to="/remote-jobs" className="lp-nav-link">Remote Jobs</Link>
             <Link to="/login" className="lp-nav-link">Sign in</Link>
@@ -911,6 +914,7 @@ export function LandingPage() {
         <div className="lp-mobile-panel" role="menu" onClick={(e) => e.stopPropagation()}>
           <a href="#how" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>How it works</a>
           <a href="#features" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
+          <a href="#pricing" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
           <Link to="/blog" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Hiring Guides</Link>
           <Link to="/remote-jobs" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Remote Jobs</Link>
           <Link to="/login" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
@@ -925,7 +929,7 @@ export function LandingPage() {
         <div className="lp-container">
           <div className="lp-hero-grid">
             <div className="lp-hero-left">
-              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">Public Beta · AI Recruiting Agent · Remote Only</p>
+              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">AI Recruiting Agent · Remote Only</p>
               <h1 className="lp-display lp-dh lp-hero-hl lp-fi lp-fi-2">
                 The quiet agent<br />
                 that finds your<br />
@@ -938,7 +942,7 @@ export function LandingPage() {
                 <Link to="/login" className="lp-cta-main">
                   Start for free <ArrowIcon />
                 </Link>
-                <span className="lp-cta-note">Free during public beta · No credit card</span>
+                <span className="lp-cta-note">Free: {DAILY_MATCH_LIMIT} daily matches · Pro from ${PRO_MONTHLY_USD}/mo</span>
               </div>
             </div>
 
@@ -1120,6 +1124,45 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── Pricing ── */}
+      <section id="pricing" className="lp-pricing">
+        <div className="lp-container">
+          <p className="lp-eyebrow lp-reveal">Pricing</p>
+          <h2 className="lp-display lp-ds lp-reveal">Same Scout for everyone.<br />Pro unlocks AI apply tools.</h2>
+          <p className="lp-body-lg lp-reveal" style={{ maxWidth: 560, marginTop: 12 }}>
+            Apify discovery costs the same per run — so free users get the full {DAILY_MATCH_LIMIT} daily matches.
+            Pro adds AI assets when you save a role to your pipeline.
+          </p>
+          <div className="lp-pricing-grid lp-reveal">
+            <div className="lp-plan">
+              <span className="lp-plan-name">Free</span>
+              <div className="lp-plan-price">$0</div>
+              <span className="lp-plan-period">Forever free</span>
+              <ul className="lp-plan-features">
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />{DAILY_MATCH_LIMIT} AI-scored remote job matches daily</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Resume parsing &amp; career path matching</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Job tracker pipeline</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Remote-only filtering &amp; match scoring</li>
+              </ul>
+              <Link to="/login" className="lp-btn-g">Start free</Link>
+            </div>
+            <div className="lp-plan">
+              <span className="lp-plan-name">Pro</span>
+              <div className="lp-plan-price">${PRO_MONTHLY_USD}</div>
+              <span className="lp-plan-period">per month · or ${PRO_ANNUAL_USD}/year (save {PRO_ANNUAL_SAVINGS_PERCENT}%)</span>
+              <ul className="lp-plan-features">
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Everything in Free</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />AI tailored resume per saved role</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />1-click cold outreach emails</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Cover letters &amp; interview prep</li>
+                <li className="lp-plan-feature"><span className="lp-feat-dot" />Auto-generate assets when you save a job</li>
+              </ul>
+              <Link to="/login" className="lp-btn-p">Upgrade in app</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Testimonial ── */}
       <section className="lp-testi">
         <div className="lp-container">
@@ -1190,7 +1233,7 @@ export function LandingPage() {
               <Link to="/login" className="lp-cta-main" style={{ display: 'inline-flex' }}>
                 Start for free <ArrowIcon />
               </Link>
-              <p className="lp-body-sm" style={{ marginTop: 10 }}>Free during public beta. No credit card required.</p>
+              <p className="lp-body-sm" style={{ marginTop: 10 }}>Free: {DAILY_MATCH_LIMIT} daily matches. No credit card required.</p>
             </div>
           </div>
         </div>
@@ -1218,6 +1261,7 @@ export function LandingPage() {
               <div>
                 <span className="lp-footer-col-ttl">Product</span>
                 <ul className="lp-footer-col-list">
+                  <li><a href="#pricing">Pricing</a></li>
                   <li><Link to="/dashboard">Dashboard</Link></li>
                   <li><Link to="/jobs">Job Tracker</Link></li>
                   <li><Link to="/resume">Resume Profile</Link></li>

@@ -2,7 +2,7 @@
 
 export const SITE_URL = 'https://hireschema.com';
 export const SITE_NAME = 'HireSchema';
-export const SITE_STATUS = 'Public beta — free access while we refine the product';
+export const SITE_STATUS = 'Free: 10 daily AI-scored job matches. Pro: AI application tools from $19/mo.';
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 export const DEFAULT_OG_IMAGE_ALT = 'HireSchema — AI remote job matching and daily job alerts';
@@ -29,7 +29,12 @@ export const HOME_FAQ: { question: string; answer: string }[] = [
   {
     question: 'How do I find remote jobs with HireSchema?',
     answer:
-      'Upload your resume, set your career paths and preferences, and HireSchema runs a daily AI pipeline to discover remote roles, filter irrelevant listings, and surface high-fit matches. HireSchema is in public beta with free access while we refine the product.',
+      'Upload your resume, set your career paths and preferences, and HireSchema runs a daily AI pipeline to discover remote roles, filter irrelevant listings, and surface high-fit matches. Free includes 10 curated matches per day; Pro adds AI resume tailoring, cold emails, cover letters, and interview prep.',
+  },
+  {
+    question: 'What does HireSchema Pro cost?',
+    answer:
+      'Pro is $19 per month or $180 per year (billed annually). Free includes the same 10 daily AI-scored job matches — Pro unlocks AI application tools on saved roles.',
   },
   {
     question: 'Is HireSchema only for remote jobs?',
@@ -98,7 +103,7 @@ export function buildSoftwareApplicationSchema() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
-      description: 'Free tier: 1 curated remote job match per day. Pro tier: up to 10 matches per day.',
+      description: 'Free: 10 curated remote job matches per day. Pro: $19/mo or $180/yr for AI application tools.',
     },
     description:
       'AI remote job matching platform that delivers daily personalized job alerts based on your resume, career path, and preferences.',

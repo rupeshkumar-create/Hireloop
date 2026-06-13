@@ -4,7 +4,7 @@ import { ArrowRight, Briefcase, CheckCircle2, Loader2, RefreshCw } from 'lucide-
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppChrome } from '../contexts/AppChromeContext';
-import { isOnboardingComplete, isFreshlyOnboarded, isInFirstSession, shouldUseCompactFreePaywall } from '../lib/onboarding';
+import { isOnboardingComplete, isFreshlyOnboarded, isInFirstSession } from '../lib/onboarding';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { useDailyMatchHistory } from '../hooks/useDailyMatchHistory';
 import { useDashboardAI } from '../hooks/useDashboardAI';
@@ -14,7 +14,6 @@ import { ScoutReadinessBanner } from '../components/dashboard/ScoutReadinessBann
 import { DailyMatchHistoryTab } from '../components/dashboard/DailyMatchHistoryTab';
 import { FirstSessionView } from '../components/dashboard/FirstSessionView';
 import { FreeMatchUpsell } from '../components/dashboard/FreeMatchUpsell';
-import { LockedMatchCard } from '../components/dashboard/LockedMatchCard';
 import { buildMatchFeedItems, getDailyBatchSummary } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
@@ -136,8 +135,6 @@ export function Dashboard() {
   const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const inFirstSession = isInFirstSession(profile, pipelineCount);
   const showGuidedFirstSession = inFirstSession && !firstSessionExpanded;
-  const useCompactPaywall = shouldUseCompactFreePaywall(profile, profile?.plan, pipelineCount);
-
   useEffect(() => {
     setMinimal(showGuidedFirstSession);
     return () => setMinimal(false);
@@ -160,7 +157,7 @@ export function Dashboard() {
     if (!awaitingPaymentUpgrade) return;
     if (profile?.plan?.toLowerCase() === 'pro') {
       setAwaitingPaymentUpgrade(false);
-      toast.success('Welcome to Pro! Scout now delivers 10 matches daily.');
+      toast.success('Welcome to Pro! AI application tools are now unlocked.');
     }
   }, [awaitingPaymentUpgrade, profile?.plan]);
 
@@ -211,14 +208,8 @@ export function Dashboard() {
     [pendingJobs, topJobs, profile?.plan, paywallJobs]
   );
   const matchFeedItems = useMemo(
-    () =>
-      buildMatchFeedItems(
-        pendingJobs.length > 0 ? pendingJobs : topJobs,
-        profile?.plan,
-        paywallJobs,
-        { compactPaywall: useCompactPaywall }
-      ),
-    [pendingJobs, topJobs, profile?.plan, paywallJobs, useCompactPaywall]
+    () => buildMatchFeedItems(pendingJobs.length > 0 ? pendingJobs : topJobs, profile?.plan),
+    [pendingJobs, topJobs, profile?.plan]
   );
 
   const reviewIndex = selectedJob
@@ -415,7 +406,7 @@ export function Dashboard() {
       {showGuidedFirstSession ? (
         <FirstSessionView
           topJob={topJobs[0] || null}
-          batchSummary={batchSummary}
+          plan={profile?.plan}
           loadingJobs={loadingJobs}
           generatingJobs={generatingJobs}
           onReviewJob={openReviewJob}
@@ -607,45 +598,39 @@ export function Dashboard() {
               </div>
             </div>
           ) : matchFeedItems.length > 0 ? (
-            matchFeedItems.map((item) =>
-              item.kind === 'locked' ? (
-                <LockedMatchCard key={item.id} slot={item.slot} />
-              ) : (
-                (() => {
-                  const job = item.job;
-                  const score = job.matchScore || job.finalScore || 0;
-                  return (
-                    <article
-                      key={item.id}
-                      className="hs-card-row"
-                      onClick={() => openReviewJob(job)}
-                    >
-                      <div className="min-w-0">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="hs-company-mark">{companyInitials(job.company)}</span>
-                          <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
-                            {job.company} · {job.location || 'Remote'}
-                          </span>
-                        </div>
-                        <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
-                        <div className="hs-tags mb-3">
-                          {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
-                          {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
-                        </div>
-                        <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
-                          {job.aiSummary || job.aiInsight || job.description}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className="hs-score" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
-                        <span className="font-mono text-[9px] text-[var(--hs-app-muted)]">{formatPosted(job)}</span>
-                        {job.isHotJob ? <span className="hs-pill hs-pill-success text-[9px]">Hot</span> : null}
-                      </div>
-                    </article>
-                  );
-                })()
-              )
-            )
+            matchFeedItems.map((item) => {
+              const job = item.job;
+              const score = job.matchScore || job.finalScore || 0;
+              return (
+                <article
+                  key={item.id}
+                  className="hs-card-row"
+                  onClick={() => openReviewJob(job)}
+                >
+                  <div className="min-w-0">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="hs-company-mark">{companyInitials(job.company)}</span>
+                      <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
+                        {job.company} · {job.location || 'Remote'}
+                      </span>
+                    </div>
+                    <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
+                    <div className="hs-tags mb-3">
+                      {job.matchedCareerPath ? <span className="hs-tag">{job.matchedCareerPath}</span> : null}
+                      {job.salary ? <span className="hs-tag">{job.salary}</span> : null}
+                    </div>
+                    <p className="line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">
+                      {job.aiSummary || job.aiInsight || job.description}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="hs-score" style={{ '--score': `${score}%` } as React.CSSProperties}>{score}</span>
+                    <span className="font-mono text-[9px] text-[var(--hs-app-muted)]">{formatPosted(job)}</span>
+                    {job.isHotJob ? <span className="hs-pill hs-pill-success text-[9px]">Hot</span> : null}
+                  </div>
+                </article>
+              );
+            })
           ) : (
             <div className="p-10 text-center">
               <Briefcase className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-muted)]" />
@@ -655,9 +640,9 @@ export function Dashboard() {
               </p>
             </div>
           )}
-          {useCompactPaywall && topJobs.length > 0 ? (
+          {!isProPlan(profile?.plan) && topJobs.length > 0 ? (
             <div className="border-t border-[var(--hs-app-border)] p-5">
-              <FreeMatchUpsell summary={batchSummary} teaserJobs={batchSummary.teaserJobs} />
+              <FreeMatchUpsell plan={profile?.plan} />
             </div>
           ) : null}
         </section>

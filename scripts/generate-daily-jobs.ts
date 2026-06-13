@@ -35,6 +35,7 @@ import type { DailyJob } from '../src/types/dailyJob';
 import { formatLocalDate } from '../src/lib/localDate';
 import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaults';
 import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
+import { getDiscoveryPoolTarget } from '../src/lib/planLimits';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const USER_PAGE_SIZE = 200;
@@ -116,7 +117,7 @@ async function processUser(
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
         const seenFingerprints: string[] = profile.seenJobFingerprints || [];
-        const targetDiscoveryCount = profile.plan === 'pro' ? 100 : 60;
+        const targetDiscoveryCount = getDiscoveryPoolTarget(profile.plan);
 
         const { jobs: combined } = await discoverJobsForMatching({
           careerPaths,

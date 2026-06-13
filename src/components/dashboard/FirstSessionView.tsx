@@ -2,13 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw, Settings } from 'lucide-react';
 import type { Job } from '../../types/dashboard';
-import type { DailyBatchSummary } from './matchPaywall';
 import { FreeMatchUpsell } from './FreeMatchUpsell';
 import { Button } from '../ui/button';
 
 interface Props {
   topJob: Job | null;
-  batchSummary: DailyBatchSummary;
+  plan?: string;
   loadingJobs: boolean;
   generatingJobs: boolean;
   onReviewJob: (job: Job) => void;
@@ -20,7 +19,7 @@ interface Props {
 
 export function FirstSessionView({
   topJob,
-  batchSummary,
+  plan,
   loadingJobs,
   generatingJobs,
   onReviewJob,
@@ -115,7 +114,7 @@ export function FirstSessionView({
             </div>
           </article>
 
-          <FreeMatchUpsell summary={batchSummary} teaserJobs={batchSummary.teaserJobs} />
+          <FreeMatchUpsell plan={plan} />
         </>
       ) : (
         <div className="rounded-2xl border border-dashed border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] p-10 text-center">

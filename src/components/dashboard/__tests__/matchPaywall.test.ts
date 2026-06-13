@@ -24,53 +24,23 @@ const sampleJob: Job = {
 };
 
 describe('buildMatchFeedItems', () => {
-  it('appends nine locked placeholders for a free user with one real job', () => {
+  it('returns all jobs for free users without locked placeholders', () => {
     const result = buildMatchFeedItems([sampleJob], 'free');
-
-    expect(result).toHaveLength(10);
-    expect(result[0].kind).toBe('job');
-    expect(result.filter((item) => item.kind === 'locked')).toHaveLength(9);
+    expect(result).toHaveLength(1);
+    expect(result.every((item) => item.kind === 'job')).toBe(true);
   });
 
-  it('uses hidden job metadata for locked slots when available', () => {
-    const hiddenJobs = [
-      { ...sampleJob, title: 'Staff Engineer', company: 'Globex', matchScore: 88, finalScore: 88 },
-      { ...sampleJob, title: 'Platform Engineer', company: 'Initech', matchScore: 85, finalScore: 85 },
-    ];
-
-    const result = buildMatchFeedItems([sampleJob], 'free', hiddenJobs);
-    const locked = result.filter((item) => item.kind === 'locked');
-
-    expect(locked[0].kind).toBe('locked');
-    if (locked[0].kind !== 'locked') throw new Error('expected locked slot');
-    expect(locked[0].slot.title).toBe('Staff Engineer');
-    expect(locked[0].slot.company).toBe('Globex');
-    expect(locked[0].slot.matchScore).toBe(88);
-    expect(locked[1].kind).toBe('locked');
-    if (locked[1].kind !== 'locked') throw new Error('expected locked slot');
-    expect(locked[1].slot.title).toBe('Platform Engineer');
-  });
-
-  it('does not append placeholders for pro users', () => {
+  it('returns all jobs for pro users', () => {
     const result = buildMatchFeedItems(
       [sampleJob, { ...sampleJob, title: 'Platform Engineer' }],
       'pro'
     );
-
     expect(result).toHaveLength(2);
     expect(result.every((item) => item.kind === 'job')).toBe(true);
   });
 
   it('keeps the empty state honest when there are no jobs', () => {
     expect(buildMatchFeedItems([], 'free')).toEqual([]);
-  });
-
-  it('omits locked cards when compact paywall is enabled', () => {
-    const result = buildMatchFeedItems([sampleJob], 'free', [{ ...sampleJob, title: 'Hidden' }], {
-      compactPaywall: true,
-    });
-    expect(result).toHaveLength(1);
-    expect(result[0].kind).toBe('job');
   });
 });
 
@@ -83,12 +53,11 @@ describe('buildLockedSlotFromJob', () => {
 });
 
 describe('getDailyBatchSummary', () => {
-  it('reports hidden roles for free users', () => {
-    const hidden = [{ ...sampleJob, title: 'Staff Engineer', company: 'Globex' }];
-    const summary = getDailyBatchSummary([sampleJob], 'free', hidden);
+  it('reports no hidden roles — free and pro see the same batch size', () => {
+    const summary = getDailyBatchSummary([sampleJob], 'free');
     expect(summary.visibleCount).toBe(1);
-    expect(summary.totalScouted).toBe(2);
-    expect(summary.hiddenCount).toBe(1);
-    expect(summary.teaserJobs).toHaveLength(1);
+    expect(summary.totalScouted).toBe(1);
+    expect(summary.hiddenCount).toBe(0);
+    expect(summary.teaserJobs).toHaveLength(0);
   });
 });

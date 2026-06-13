@@ -11,8 +11,8 @@
  *  6. Store complete job objects in Firestore (inline, no redirects)
  *  7. Update seenJobFingerprints (capped at MAX_SEEN)
  *
- * Pro users  → 10 jobs/day
- * Free users →  1 job/day
+ * All users → 10 matched jobs/day (same Apify discovery cost).
+ * Pro adds AI application tools (resume tailoring, cold email, interview prep).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from '../../../firebaseAdmin.js';
@@ -25,6 +25,7 @@ import { matchAndRankJobs } from '../../../../services/jobMatchingEngine.js';
 import { createOpenRouterCaller } from '../../../../services/openRouterCaller.js';
 import type { DailyJob } from '../../../../types/dailyJob.js';
 import { stripUndefinedDeep } from '../../../../lib/firestoreSanitizer.js';
+import { getDiscoveryPoolTarget } from '../../../../lib/planLimits.js';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
 
@@ -78,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const location: string = profile.location || '';
           const seenFingerprints: string[] = profile.seenJobFingerprints || [];
 
-          const targetCount = profile.plan === 'pro' ? 100 : 60;
+          const targetCount = getDiscoveryPoolTarget(profile.plan);
           const { jobs: discovered, sources } = await discoverJobsForMatching({
             careerPaths,
             resumeText,

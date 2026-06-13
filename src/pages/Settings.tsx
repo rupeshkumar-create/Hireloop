@@ -14,6 +14,7 @@ import {
   syncLegacyPreferenceFields,
 } from '../services/validator';
 import {
+  PRO_ANNUAL_SAVINGS_PERCENT,
   PRO_ANNUAL_USD,
   PRO_MONTHLY_USD,
   buildCheckoutUrl,
@@ -206,8 +207,8 @@ export function Settings() {
                 <p className="font-medium text-foreground">Current Plan: <span className="uppercase text-primary">{profile?.plan || 'Free'}</span></p>
                 <p className="text-sm text-foreground-muted mt-1">
                   {profile?.plan?.toLowerCase() === 'pro' 
-                    ? 'You have access to all premium features including 10 daily AI job matches.' 
-                    : 'Upgrade to Pro for 10 daily AI job matches, 1-Click Cold Emails, and Interview Prep.'}
+                    ? 'You have Pro — AI tailored resumes, cold emails, cover letters, and interview prep on saved roles.' 
+                    : 'Free includes 10 daily AI-scored job matches. Upgrade to Pro for AI application tools on saved roles.'}
                 </p>
               </div>
               {profile?.plan?.toLowerCase() === 'pro' ? (
@@ -234,7 +235,7 @@ export function Settings() {
                     </a>
                   </div>
                   <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-surface p-4">
-                    <div className="absolute right-0 top-0 rounded-bl-md border-b border-l border-border bg-background px-2 py-0.5 text-[10px] font-medium text-[var(--ember-400)]">SAVE 25%</div>
+                    <div className="absolute right-0 top-0 rounded-bl-md border-b border-l border-border bg-background px-2 py-0.5 text-[10px] font-medium text-[var(--ember-400)]">SAVE {PRO_ANNUAL_SAVINGS_PERCENT}%</div>
                     <h4 className="font-medium text-foreground">Yearly Pro</h4>
                     <p className="mb-4 mt-1 text-2xl font-medium text-foreground">${PRO_ANNUAL_USD}<span className="text-sm font-normal text-foreground-muted">/yr</span></p>
                     <a 

@@ -18,7 +18,7 @@ const REMOTE_JOBS_FAQ = [
   {
     question: 'How does HireSchema help you find remote jobs?',
     answer:
-      'Upload your resume and set your target career paths. HireSchema runs a nightly AI pipeline: it discovers remote listings, applies career-path filters, scores jobs with AI against your skills, and delivers a curated daily shortlist. Free users get 1 match per day; Pro users get up to 10.',
+      'Upload your resume and set your target career paths. HireSchema runs a nightly AI pipeline: it discovers remote listings, applies career-path filters, scores jobs with AI against your skills, and delivers up to 10 curated matches daily — free and Pro users receive the same job batch. Pro adds AI resume tailoring, cold emails, and interview prep on saved roles ($19/mo).',
   },
   {
     question: 'Is HireSchema better than LinkedIn or Indeed for remote jobs?',
@@ -33,7 +33,7 @@ const REMOTE_JOBS_FAQ = [
   {
     question: 'Are there free remote job alerts on HireSchema?',
     answer:
-      'Yes. HireSchema is in public beta with free access while we refine the product. Sign up for daily AI-scored remote matches, resume tools, and interview prep.',
+      'Yes. HireSchema Free includes 10 AI-scored remote job matches every day. Pro ($19/mo or $180/yr) unlocks AI application tools — tailored resumes, cold emails, cover letters, and interview prep on saved roles.',
   },
 ];
 

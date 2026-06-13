@@ -8,6 +8,8 @@ coverage/
 !.env.example
 .vercel
 .env*.local
-.worktrees/
+.playwright-cli/
+.superpowers/
+docs/superpowers/
 # Legacy nested copy — deploy from repo root only
 Hireschema/
