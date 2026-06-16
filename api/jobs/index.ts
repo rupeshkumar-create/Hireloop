@@ -11,22 +11,12 @@ import { formatLocalDate } from '../../src/lib/localDate.js';
 import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 import { evaluateScoutDedup } from '../../src/server/scoutDedup.js';
 import { getDiscoveryPoolTarget } from '../../src/lib/planLimits.js';
+import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../src/lib/careerPaths.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
 function resolveCareerPaths(profile: Record<string, any>): string[] {
-  const fromCareerPaths = Array.isArray(profile.careerPaths)
-    ? profile.careerPaths
-    : [];
-  const fromStructuredRoles = Array.isArray(profile.structuredProfile?.roles)
-    ? profile.structuredProfile.roles
-    : [];
-
-  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
-    .filter((value): value is string => typeof value === 'string')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+  return resolveOrderedCareerPaths(profile);
 }
 
 function isLocalRequest(req: VercelRequest): boolean {
@@ -82,6 +72,7 @@ async function runPipeline(
       generateJobs: async (profile, limit) => {
         console.log('[api/jobs] Starting generateJobs for user:', uid);
         const careerPaths = resolveCareerPaths(profile);
+        const priorityPaths = priorityCareerPaths(profile);
         const resumeText: string = profile.resumeText || '';
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
@@ -90,7 +81,7 @@ async function runPipeline(
         try {
           const targetCount = getDiscoveryPoolTarget(profile.plan);
           const { jobs: feedJobs, sources } = await discoverJobsForMatching({
-            careerPaths,
+            careerPaths: priorityPaths.length > 0 ? priorityPaths : careerPaths,
             resumeText,
             jobType,
             location,
@@ -147,6 +138,7 @@ async function runPipeline(
           discovered,
           {
             careerPaths,
+            priorityCareerPaths: priorityPaths,
             resumeText,
             jobType,
             seenFingerprints,

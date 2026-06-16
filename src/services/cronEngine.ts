@@ -1,4 +1,5 @@
 import { getDailyMatchLimit } from '../lib/planLimits.js';
+import { resolveOrderedCareerPaths } from '../lib/careerPaths.js';
 import { computeMatchReadiness, evaluateDueDailyRun } from './jobDeliveryProfile.js';
 
 export const CRON_INACTIVITY_DAYS = 3;
@@ -123,18 +124,7 @@ export function buildCronRunId(userId: string, runDate: string): string {
 }
 
 function resolveCareerPaths(profile: Record<string, any>): string[] {
-  const fromCareerPaths = Array.isArray(profile.careerPaths)
-    ? profile.careerPaths
-    : [];
-  const fromStructuredRoles = Array.isArray(profile.structuredProfile?.roles)
-    ? profile.structuredProfile.roles
-    : [];
-
-  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
-    .filter((value): value is string => typeof value === 'string')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+  return resolveOrderedCareerPaths(profile);
 }
 
 export async function queueCronRun(

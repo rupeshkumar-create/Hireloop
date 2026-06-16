@@ -32,7 +32,10 @@ export function buildPostFromSpec(
   spec: EvergreenSpec,
   linkPool: LinkPoolEntry[]
 ): EnhancedBlogPost {
-  let content = buildEvergreenMarkdown(spec);
+  const canonicalTitle = spec.canonicalSlug
+    ? linkPool.find((entry) => entry.slug === spec.canonicalSlug)?.title
+    : undefined;
+  let content = buildEvergreenMarkdown(spec, { canonicalTitle });
   if (!meetsMinimumWordCount(content)) {
     throw new Error(`Spec "${spec.slug}" is below ${BLOG_TARGET_WORD_COUNT} words`);
   }
@@ -105,6 +108,7 @@ export function buildPostFromSpec(
     imageAltText: buildImageAltText(spec.title, spec.clusterId),
     clusterId: spec.clusterId,
     internalLinks,
+    canonicalSlug: spec.canonicalSlug,
     schema: runSchemaAgent({ ...basePost, directAnswer: spec.directAnswer, clusterId: spec.clusterId, coverImageUrl }),
     seoValidation,
     llmOptimization: qualityGate.llmScore,

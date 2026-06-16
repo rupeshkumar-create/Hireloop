@@ -20,7 +20,10 @@ import {
   AlertTriangle,
   Lightbulb,
   Compass,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
+import { reorderCareerPaths } from '../lib/careerPaths';
 import { useAuth } from '../contexts/AuthContext';
 import type {
   ContactDetails,
@@ -517,7 +520,7 @@ function CareerPathsSection({
     <SectionShell
       icon={Compass}
       title="Career paths"
-      description="Scout uses these to know what roles to search for."
+      description="Order matters: #1 is searched first, then #2, then #3 when Scout finds your 10 daily jobs."
       editing={editing}
       onEdit={startEdit}
       onSave={save}
@@ -525,13 +528,45 @@ function CareerPathsSection({
       saving={saving}
     >
       {editing ? (
-        <TagEditor values={draft} onChange={setDraft} placeholder="e.g. Senior Frontend Engineer" />
-      ) : (profile?.careerPaths || []).length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {(profile?.careerPaths || []).map((p) => (
-            <span key={p} className="hs-pill">{p}</span>
+        <div className="space-y-2">
+          <TagEditor values={draft} onChange={setDraft} placeholder="e.g. Senior Frontend Engineer" />
+          {draft.length > 1 && (
+            <p className="text-[11px] text-[var(--hs-app-muted)]">Use arrows to set priority (1 = highest).</p>
+          )}
+          {draft.map((path, index) => (
+            <div key={`${path}-${index}`} className="flex items-center gap-2 rounded-md border border-[var(--hs-app-border)] px-3 py-2">
+              <span className="font-mono text-[11px] text-[var(--hs-app-accent)] w-6">#{index + 1}</span>
+              <span className="flex-1 text-sm">{path}</span>
+              <button
+                type="button"
+                className="rounded p-1 hover:bg-[var(--hs-app-bg)]"
+                disabled={index === 0}
+                onClick={() => setDraft(reorderCareerPaths(draft, index, index - 1))}
+                aria-label="Move up"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="rounded p-1 hover:bg-[var(--hs-app-bg)]"
+                disabled={index >= draft.length - 1}
+                onClick={() => setDraft(reorderCareerPaths(draft, index, index + 1))}
+                aria-label="Move down"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
           ))}
         </div>
+      ) : (profile?.careerPaths || []).length > 0 ? (
+        <ol className="space-y-2">
+          {(profile?.careerPaths || []).map((p, i) => (
+            <li key={p} className="flex items-center gap-2 text-sm">
+              <span className="font-mono text-[11px] text-[var(--hs-app-accent)]">#{i + 1}</span>
+              <span className="hs-pill">{p}</span>
+            </li>
+          ))}
+        </ol>
       ) : (
         <p className="text-sm text-[var(--hs-app-muted)]">No career paths saved yet.</p>
       )}

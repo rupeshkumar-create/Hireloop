@@ -1,4 +1,11 @@
 import { BLOG_TARGET_WORD_COUNT, countWords } from '../wordCount.js';
+import {
+  buildActionChecklist,
+  buildContextualTip,
+  buildQuickStats,
+  buildRealWorldExamples,
+} from './enrichArticle.js';
+import { buildCannibalizationNotice, type CannibalizedSpec } from '../programmatic/cannibalization.js';
 
 export interface EvergreenSection {
   heading: string;
@@ -26,6 +33,10 @@ export interface EvergreenSpec {
   comparisonRows: [string, string, string, string][];
   faq: { question: string; answer: string }[];
   extraParagraphs?: string[];
+  /** Extra markdown inserted before FAQ (e.g. weekly data tables). */
+  appendixMarkdown?: string;
+  canonicalSlug?: string;
+  includeInSitemap?: boolean;
 }
 
 function salaryTable(rows: EvergreenSpec['salaryRows']): string {
@@ -49,21 +60,40 @@ function formatSection(section: EvergreenSection): string {
 function padToWordTarget(content: string, spec: EvergreenSpec): string {
   let padded = content;
   let n = 0;
-  const keyword = spec.targetKeywords[0] ?? 'remote jobs';
-  while (countWords(padded) < BLOG_TARGET_WORD_COUNT && n < 40) {
-    padded += `\n\n**Practical tip ${n + 1}:** If you're targeting ${keyword}, lead with proof of async work, mirror keywords from the job description on page one of your resume, and apply within 48 hours of posting. Track reply rates weekly and refine one section at a time instead of sending more low-fit applications.`;
+  while (countWords(padded) < BLOG_TARGET_WORD_COUNT && n < 50) {
+    padded += `\n\n${buildContextualTip(spec, n)}`;
     n++;
   }
   return padded;
 }
 
-export function buildEvergreenMarkdown(spec: EvergreenSpec): string {
+export function buildEvergreenMarkdown(
+  spec: EvergreenSpec,
+  options?: { canonicalTitle?: string }
+): string {
+  const cannibal = spec as CannibalizedSpec;
+  const notice =
+    cannibal.canonicalSlug && cannibal.canonicalSlug !== spec.slug
+      ? buildCannibalizationNotice(cannibal, options?.canonicalTitle ?? 'the primary hiring guide')
+      : '';
+
   const parts: string[] = [
     `# ${spec.title}`,
     '',
+  ];
+
+  if (notice) parts.push(notice, '');
+
+  parts.push(
     spec.directAnswer,
     '',
     ...spec.sections.map(formatSection),
+    '',
+    buildActionChecklist(spec),
+    '',
+    buildRealWorldExamples(spec),
+    '',
+    buildQuickStats(spec),
     '',
     '## Key Definitions',
     '',
@@ -80,7 +110,11 @@ export function buildEvergreenMarkdown(spec: EvergreenSpec): string {
     '## Comparison',
     '',
     comparisonTable(spec),
-  ];
+  );
+
+  if (spec.appendixMarkdown?.trim()) {
+    parts.push('', spec.appendixMarkdown.trim());
+  }
 
   if (spec.extraParagraphs?.length) {
     parts.push('', '## Practical Playbook Notes', '', ...spec.extraParagraphs);

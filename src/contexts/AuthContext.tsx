@@ -113,6 +113,7 @@ export interface UserProfile {
   createdAt: string;
   updatedAt?: string;
   lastActiveAt?: string;
+  inactiveScoutPromptShownAt?: string;
   learningProfile?: LearningProfile;
   learningSignals?: LearningSignals;
 }

@@ -45,7 +45,9 @@ function jsonLdScript(data: Record<string, unknown> | undefined): string {
 }
 
 export function buildBlogPostHtml(post: BlogPost): string {
-  const canonical = `${SITE_URL}/blog/${post.slug}`;
+  const canonical = post.canonicalSlug
+    ? `${SITE_URL}/blog/${post.canonicalSlug}`
+    : `${SITE_URL}/blog/${post.slug}`;
   const title = post.seoTitle || post.title;
   const ogImage = post.coverImageUrl || `${SITE_URL}/api/blog/cover?slug=${encodeURIComponent(post.slug)}`;
   const bodyHtml = marked.parse(post.content, { async: false }) as string;

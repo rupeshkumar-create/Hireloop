@@ -896,23 +896,38 @@ Return ONLY the email address as a raw string. No other text.`;
 export async function generateInterviewQuestions(
   jobTitle: string,
   company: string,
-  antiSlopEnabled: boolean = true
+  antiSlopEnabled: boolean = true,
+  resumeText: string = '',
+  jobDescription: string = ''
 ) {
-  const prompt = `You are an expert technical interviewer and Y Combinator founder. Generate 5 highly relevant, intense, and deeply thought-provoking interview questions with suggested answers for a ${jobTitle} position at ${company}.
+  const prompt = `You are a senior hiring manager and interview coach. Build an advanced interview prep pack for a ${jobTitle} role at ${company}.
 
-Use a Y Combinator type of thinking:
-- Focus on first principles, high-growth impact, and dealing with ambiguity.
-- Ask questions that reveal how they think, not just what they know.
-- Include a suggested answer or "what to look for" for each question.
+${resumeText.trim() ? `Candidate resume (ground answers here — no fabrication):\n${resumeText.slice(0, 3500)}\n` : ''}
+${jobDescription.trim() ? `Job description excerpt:\n${jobDescription.slice(0, 2500)}\n` : ''}
 
-Format each as a Markdown item:
-**Q1: [Question]**
-**Answer/What to look for:** [Brief guide on the ideal answer]
+Produce exactly 8 sections in Markdown:
+
+## Round 1 — Recruiter screen (2 questions)
+For each: **Q:** question · **Strong answer:** 3–5 bullet points · **Trap to avoid:** one line
+
+## Round 2 — Hiring manager (2 questions)
+Same format — focus on scope, ownership, and metrics.
+
+## Round 3 — Technical / craft depth (2 questions)
+Role-specific depth. Include **Follow-up probe** the interviewer might ask.
+
+## Behavioral — STAR story bank
+Two prompts with **Situation / Task / Action / Result** outlines tied to the resume.
+
+## Questions to ask them
+Three sharp questions the candidate should ask (culture, success metrics, team structure).
+
+## 48-hour prep checklist
+5 bullet action items before the interview.
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
-Generate exactly 5 questions.
-Return ONLY clean Markdown.`;
+Return ONLY clean Markdown. No preamble.`;
 
   try {
     const response = await callOpenAI(
@@ -1206,26 +1221,31 @@ export async function generateCoverLetter(
   company: string,
   resumeText: string,
   antiSlopEnabled: boolean = true,
-  writingStyleContext: string = ''
+  writingStyleContext: string = '',
+  jobDescription: string = ''
 ): Promise<string> {
-  const prompt = `You are an expert career coach. Write a cover letter for the ${jobTitle} role at ${company}.
+  const prompt = `You are an executive career strategist. Write an advanced cover letter for the ${jobTitle} role at ${company}.
 
 ${writingStyleContext ? `Writing style notes: ${writingStyleContext}\n` : ''}
+${jobDescription.trim() ? `Job description (mirror their language):\n${jobDescription.slice(0, 3000)}\n` : ''}
+
+Structure (4 paragraphs, 280–380 words total):
+1. **Hook** — One specific reason this role at ${company} (product, mission, or stack) — not "I am excited."
+2. **Proof** — Two quantified achievements from the resume mapped to job requirements.
+3. **Fit** — How your working style matches remote/async expectations for this role.
+4. **Close** — Direct CTA (conversation, portfolio link placeholder if relevant). One sentence.
 
 Rules:
-- 3 paragraphs, 200–300 words total.
-- Paragraph 1: Hook — specific connection to ${company} and the role. No generic opening.
-- Paragraph 2: Value — 2 concrete achievements or skills from the resume that directly match the job.
-- Paragraph 3: Close — direct, confident CTA. One sentence.
-- Mention ${jobTitle} and ${company} explicitly.
-- Do not fabricate experience. Ground everything in the resume text below.
+- Mention ${jobTitle} and ${company} at least twice.
+- No fabrication — only resume-backed claims.
+- No salutation or sign-off (UI adds those).
 
 ${antiSlopEnabled ? ANTI_SLOP_PROMPT : ''}
 
 Resume:
 ${resumeText.slice(0, 4000)}
 
-Return ONLY the cover letter body. No "Dear Hiring Manager" salutation and no sign-off — the UI adds those.`;
+Return ONLY the letter body paragraphs.`;
 
   const response = await callOpenAI(
     [{ role: 'user', content: prompt }],

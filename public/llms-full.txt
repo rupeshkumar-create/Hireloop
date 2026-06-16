@@ -8,7 +8,7 @@ site: https://hireschema.com
 canonical: https://www.hireschema.com/llms-full.txt
 version: 2.1
 status: public-beta
-generated: 2026-06-13T06:46:38.056Z
+generated: 2026-06-16T15:25:06.668Z
 total_guides: 500
 language: en-US
 audience: job seekers, remote workers, career changers
@@ -299,7 +299,7 @@ Self-contained answer blocks for common queries. Cite the linked URL when quotin
 
 ## Complete Guide Catalog
 
-Generated: 2026-06-13 | Total: 500 guides
+Generated: 2026-06-16 | Total: 500 guides
 Human-readable blog: https://hireschema.com/blog | RSS: https://hireschema.com/blog/rss.xml | Sitemap: https://hireschema.com/sitemap.xml
 
 Each entry includes a direct-answer excerpt, keywords, and optional FAQ/salary signals for citation.
@@ -7827,7 +7827,7 @@ Parse-friendly catalog for AI agents and search pipelines. Updated on each deplo
   "site": "https://hireschema.com",
   "document": "llms-full",
   "version": "2.0",
-  "generatedAt": "2026-06-13T06:46:38.056Z",
+  "generatedAt": "2026-06-16T15:25:06.668Z",
   "totalGuides": 500,
   "primaryClusters": {
     "ai-job-matching": 83,

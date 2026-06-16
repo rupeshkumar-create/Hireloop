@@ -23,6 +23,7 @@ import { isAdminEmail } from './lib/adminEmails';
 import { isOnboardingComplete } from './lib/onboarding';
 import { HireschemaLogo } from './components/brand/HireschemaLogo';
 import { GoogleAnalytics } from './components/GoogleAnalytics';
+import { shouldHideManualScoutControls } from './lib/inactiveScout';
 
 const JobTracker = lazy(() => import('./pages/JobTracker').then((m) => ({ default: m.JobTracker })));
 const ResumeProfile = lazy(() => import('./pages/ResumeProfile').then((m) => ({ default: m.ResumeProfile })));
@@ -106,6 +107,8 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { minimal } = useAppChrome();
+  const { profile } = useAuth();
+  const hideManualScout = shouldHideManualScoutControls(profile);
   const meta: Record<string, { eyebrow: string; title: string }> = {
     '/dashboard': { eyebrow: "Today's matches", title: 'Discover fresh roles from Scout.' },
     '/settings': { eyebrow: 'Account', title: 'Settings.' },
@@ -151,7 +154,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 <Search className="h-3.5 w-3.5" />
                 View matches
               </Link>
-              {!onDashboard ? (
+              {!onDashboard && !hideManualScout ? (
                 <Link to="/dashboard?scout=1" className="hs-btn hs-btn-primary">
                   Run Scout
                   <ArrowRight className="h-3.5 w-3.5" />

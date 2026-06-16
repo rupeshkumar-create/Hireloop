@@ -5,14 +5,14 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { ALL_PROGRAMMATIC_SPECS } from '../src/server/contentGrowth/programmatic/catalog.js';
+import { getSitemapProgrammaticSpecs } from '../src/server/contentGrowth/programmatic/publicListing.js';
 import { getProgrammaticPostBySlug } from '../src/server/contentGrowth/programmatic/publicListing.js';
 import { buildBlogPostHtml, buildBlogIndexHtml } from './lib/blogPrerenderHtml.js';
 
 const dist = resolve(process.cwd(), 'dist');
 const now = Date.now();
 
-const published = ALL_PROGRAMMATIC_SPECS.filter(
+const published = getSitemapProgrammaticSpecs().filter(
   (spec) => new Date(spec.publishedAt).getTime() <= now
 );
 

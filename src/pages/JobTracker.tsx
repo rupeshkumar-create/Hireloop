@@ -15,8 +15,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
-import { generateColdEmail, tailorResume, generateInterviewQuestions, improveTextWithAI, updateLearningProfile } from '../services/aiService';
-import { exportInterviewPrepAsPdf } from '../lib/resumeExport';
+import { generateColdEmail, tailorResume, generateInterviewQuestions, generateCoverLetter, improveTextWithAI, updateLearningProfile } from '../services/aiService';
+import { exportInterviewPrepAsPdf, exportCoverLetterAsPdf } from '../lib/resumeExport';
 import { applyLearningEvent } from '../services/learningSignals';
 import { ResumePreviewModal } from '../components/dashboard/ResumePreviewModal';
 import { PageShell } from '../components/ui/page-shell';
@@ -48,6 +48,7 @@ interface TrackedJob {
   updatedAt?: string;
   coldEmail?: string;
   tailoredResume?: string;
+  coverLetter?: string;
   interviewQuestions?: string | string[];
   contactEmail?: string;
 }
@@ -97,7 +98,7 @@ export function JobTracker() {
   const [editorModal, setEditorModal] = useState<{
     isOpen: boolean;
     job: TrackedJob | null;
-    type: 'email' | 'resume' | 'interview' | null;
+    type: 'email' | 'resume' | 'cover' | 'interview' | null;
     content: string;
   }>({ isOpen: false, job: null, type: null, content: '' });
 
@@ -146,7 +147,7 @@ export function JobTracker() {
   };
 
   const ensureGeneratedContent = (
-    type: 'email' | 'resume' | 'interview',
+    type: 'email' | 'resume' | 'cover' | 'interview',
     value: string | string[]
   ) => {
     const isValid =
@@ -156,7 +157,13 @@ export function JobTracker() {
 
     if (!isValid) {
       const label =
-        type === 'email' ? 'cold email' : type === 'resume' ? 'tailored resume' : 'interview Q/A';
+        type === 'email'
+          ? 'cold email'
+          : type === 'resume'
+          ? 'tailored resume'
+          : type === 'cover'
+          ? 'cover letter'
+          : 'interview prep';
       throw new Error(`Failed to generate ${label}.`);
     }
 
@@ -300,7 +307,7 @@ export function JobTracker() {
     }
   };
 
-  const handleGenerateAsset = async (job: TrackedJob, type: 'email' | 'resume' | 'interview') => {
+  const handleGenerateAsset = async (job: TrackedJob, type: 'email' | 'resume' | 'cover' | 'interview') => {
     const loadingKey = `${job.id}-${type}`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
     
@@ -319,10 +326,23 @@ export function JobTracker() {
           await tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle)
         ) as string;
         updateData = { tailoredResume: resume };
+      } else if (type === 'cover') {
+        const letter = ensureGeneratedContent(
+          'cover',
+          await generateCoverLetter(
+            job.title,
+            job.company,
+            profile?.resumeText || '',
+            true,
+            profile?.learningProfile?.writingStyle,
+            job.notes || ''
+          )
+        ) as string;
+        updateData = { coverLetter: letter };
       } else if (type === 'interview') {
         const questions = ensureGeneratedContent(
           'interview',
-          await generateInterviewQuestions(job.title, job.company, true)
+          await generateInterviewQuestions(job.title, job.company, true, profile?.resumeText || '', job.notes || '')
         );
         updateData = { interviewQuestions: questions };
       }
@@ -344,7 +364,13 @@ export function JobTracker() {
         }
       }
       toast.success(
-        type === 'interview' ? 'Interview Q/A generated.' : type === 'resume' ? 'Tailored resume generated.' : 'Cold email generated.'
+        type === 'interview'
+          ? 'Interview prep generated.'
+          : type === 'cover'
+          ? 'Cover letter generated.'
+          : type === 'resume'
+          ? 'Tailored resume generated.'
+          : 'Cold email generated.'
       );
     } catch (error: any) {
       console.error("Error generating asset:", error);
@@ -367,10 +393,11 @@ export function JobTracker() {
       const results = await Promise.allSettled([
         generateColdEmail(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
         tailorResume(job.title, job.notes || '', profile?.resumeText || '', true, profile?.learningProfile?.writingStyle),
-        generateInterviewQuestions(job.title, job.company, true)
+        generateCoverLetter(job.title, job.company, profile?.resumeText || '', true, profile?.learningProfile?.writingStyle, job.notes || ''),
+        generateInterviewQuestions(job.title, job.company, true, profile?.resumeText || '', job.notes || ''),
       ]);
 
-      const [emailRes, resumeRes, interviewRes] = results;
+      const [emailRes, resumeRes, coverRes, interviewRes] = results;
       const updateData: Partial<TrackedJob> = {};
       let failed = 0;
       if (emailRes.status === 'fulfilled') {
@@ -383,6 +410,13 @@ export function JobTracker() {
       if (resumeRes.status === 'fulfilled') {
         try {
           updateData.tailoredResume = ensureGeneratedContent('resume', resumeRes.value) as string;
+        } catch {
+          failed++;
+        }
+      } else failed++;
+      if (coverRes.status === 'fulfilled') {
+        try {
+          updateData.coverLetter = ensureGeneratedContent('cover', coverRes.value) as string;
         } catch {
           failed++;
         }
@@ -438,8 +472,9 @@ export function JobTracker() {
     const jobsToFix = jobs.filter((j) => {
       const needsEmail = !hasValidText(j.coldEmail);
       const needsResume = !hasValidText(j.tailoredResume);
+      const needsCover = !hasValidText(j.coverLetter);
       const needsInterview = !hasValidInterview(j.interviewQuestions);
-      return needsEmail || needsResume || needsInterview;
+      return needsEmail || needsResume || needsCover || needsInterview;
     });
 
     if (jobsToFix.length === 0) {
@@ -486,6 +521,7 @@ export function JobTracker() {
       let updateData = {};
       if (type === 'email') updateData = { coldEmail: newContent };
       if (type === 'resume') updateData = { tailoredResume: newContent };
+      if (type === 'cover') updateData = { coverLetter: newContent };
       if (type === 'interview') updateData = { interviewQuestions: newContent };
 
       await updateDoc(doc(db, 'trackedJobs', job.id), {
@@ -512,10 +548,11 @@ export function JobTracker() {
     }
   };
 
-  const openEditor = (job: TrackedJob, type: 'email' | 'resume' | 'interview') => {
+  const openEditor = (job: TrackedJob, type: 'email' | 'resume' | 'cover' | 'interview') => {
     let content = '';
     if (type === 'email') content = job.coldEmail || '';
     if (type === 'resume') content = job.tailoredResume || '';
+    if (type === 'cover') content = job.coverLetter || '';
     if (type === 'interview') {
       content = Array.isArray(job.interviewQuestions) 
         ? job.interviewQuestions.join('\n\n') 
@@ -781,6 +818,7 @@ export function JobTracker() {
                                 <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
                                   {cell(a.resume, 'Resume')}
                                   {cell(a.email, 'Email')}
+                                  {cell(a.coverLetter, 'Cover')}
                                   {cell(a.interview, 'Prep')}
                                   {cell(a.followUp, 'Follow-up')}
                                 </div>
@@ -892,6 +930,20 @@ export function JobTracker() {
                     </div>
                   </div>
                   <div className="ml-4 flex items-center gap-2">
+                    <Link
+                      to={`/cover-letters?jobId=${job.id}`}
+                      className="hs-btn text-[10px] py-1 px-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Cover letter
+                    </Link>
+                    <Link
+                      to={`/interview-prep?jobId=${job.id}`}
+                      className="hs-btn text-[10px] py-1 px-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Interview
+                    </Link>
                     {job.url && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground-muted hover:text-foreground" onClick={(e) => { e.stopPropagation(); openTrackedJobLink(job); }}>
                         <ExternalLink className="h-4 w-4" />
@@ -928,7 +980,7 @@ export function JobTracker() {
                           </Button>
                         </div>
                       )}
-                      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                      <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                         {/* Cold Email Section */}
                         <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
@@ -1040,6 +1092,60 @@ export function JobTracker() {
                           )}
                         </div>
 
+                        {/* Cover Letter Section */}
+                        <div className="flex flex-col gap-3 relative h-full">
+                          {profile?.plan?.toLowerCase() !== 'pro' && (
+                            <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
+                              <p className="text-sm font-medium text-foreground mb-2">Pro Feature</p>
+                              <Button size="sm" onClick={() => window.location.href = '/settings'}>Upgrade to Unlock</Button>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm text-foreground flex items-center"><FileText className="mr-2 h-4 w-4 text-foreground-muted" /> Cover Letter</h4>
+                            <div className="flex gap-2">
+                              {hasValidText(job.coverLetter) && (
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEditor(job, 'cover')}>Edit</Button>
+                              )}
+                              {!hasValidText(job.coverLetter) && (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'cover')} disabled={actionLoading[`${job.id}-cover`]}>
+                                  {actionLoading[`${job.id}-cover`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {hasValidText(job.coverLetter) ? (
+                            <div className="flex-1 bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-56 min-h-[14rem] overflow-y-auto whitespace-pre-wrap">
+                              {job.coverLetter}
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex items-center justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md text-xs text-foreground-muted italic">No cover letter generated yet.</div>
+                          )}
+                          {hasValidText(job.coverLetter) && (
+                            <div className="mt-auto flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-xs h-8"
+                                onClick={async () => {
+                                  try {
+                                    await exportCoverLetterAsPdf({
+                                      jobTitle: job.title,
+                                      company: job.company,
+                                      candidateName: profile?.displayName || 'Candidate',
+                                      letterBody: job.coverLetter!,
+                                      baseFilename: `Cover_Letter_${job.company.replace(/\s+/g, '_')}`,
+                                    });
+                                  } catch {
+                                    toast.error('PDF export failed.');
+                                  }
+                                }}
+                              >
+                                <Download className="mr-2 h-3 w-3" /> Download PDF
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
                         {/* Interview Prep Section */}
                         <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
@@ -1128,6 +1234,7 @@ export function JobTracker() {
           title={
             editorModal.type === 'email' ? `Cold Email for ${editorModal.job.company}` :
             editorModal.type === 'resume' ? `Tailored Resume for ${editorModal.job.company}` :
+            editorModal.type === 'cover' ? `Cover Letter for ${editorModal.job.company}` :
             `Interview Prep for ${editorModal.job.company}`
           }
           type={editorModal.type}

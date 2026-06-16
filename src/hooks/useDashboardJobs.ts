@@ -33,6 +33,7 @@ import {
   generateColdEmail,
   tailorResume,
   generateInterviewQuestions,
+  generateCoverLetter,
   updateLearningProfile,
 } from '../services/aiService';
 import { jobFingerprint } from '../services/jobResearcher';
@@ -55,6 +56,7 @@ import { resolveDeliveryTimeZone, resolveLocalDateForLastFetch, resolveTodayLoca
 type GeneratedTrackedJobAssets = {
   coldEmail?: string;
   tailoredResume?: string;
+  coverLetter?: string;
   interviewQuestions?: string | string[];
 };
 
@@ -634,12 +636,21 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         Promise.allSettled([
           generateColdEmail(job.title, job.company, profile.resumeText, true, profile.learningProfile?.writingStyle),
           tailorResume(job.title, job.description, profile.resumeText, true, profile.learningProfile?.writingStyle),
-          generateInterviewQuestions(job.title, job.company, true),
+          generateCoverLetter(
+            job.title,
+            job.company,
+            profile.resumeText,
+            true,
+            profile.learningProfile?.writingStyle,
+            job.description || ''
+          ),
+          generateInterviewQuestions(job.title, job.company, true, profile.resumeText, job.description || ''),
         ]).then(async (results) => {
           const generatedAssets: GeneratedTrackedJobAssets = {};
-          const [emailRes, resumeRes, interviewRes] = results;
+          const [emailRes, resumeRes, coverRes, interviewRes] = results;
           if (emailRes.status === 'fulfilled') generatedAssets.coldEmail = emailRes.value;
           if (resumeRes.status === 'fulfilled') generatedAssets.tailoredResume = resumeRes.value;
+          if (coverRes.status === 'fulfilled') generatedAssets.coverLetter = coverRes.value;
           if (interviewRes.status === 'fulfilled') generatedAssets.interviewQuestions = interviewRes.value;
 
           if (Object.keys(generatedAssets).length > 0) {

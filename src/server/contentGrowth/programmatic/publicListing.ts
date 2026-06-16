@@ -4,6 +4,8 @@
 import type { BlogPost } from '../../marketingEngine.js';
 import { buildPostFromSpec, type LinkPoolEntry } from '../seed/buildPostFromSpec.js';
 import { ALL_PROGRAMMATIC_SPECS } from './catalog.js';
+import { buildWeeklyMarketBriefSpec } from '../marketBrief/buildWeeklyMarketBrief.js';
+import { WEEKLY_MARKET_BRIEF_SLUG } from '../marketBrief/weeklyRolesSnapshot.js';
 
 const LINK_POOL: LinkPoolEntry[] = ALL_PROGRAMMATIC_SPECS.map((spec) => ({
   slug: spec.slug,
@@ -20,6 +22,28 @@ function estimateReadTime(spec: { directAnswer: string }): number {
   return Math.max(5, Math.round(words / 40));
 }
 
+function weeklyBriefSummary(): Omit<BlogPost, 'content'> {
+  const spec = buildWeeklyMarketBriefSpec();
+  return {
+    slug: spec.slug,
+    title: spec.title,
+    seoTitle: spec.seoTitle,
+    seoDescription: spec.seoDescription,
+    excerpt: spec.directAnswer.slice(0, 200) + '…',
+    category: spec.category,
+    tags: spec.tags,
+    targetKeywords: spec.targetKeywords,
+    readTimeMinutes: estimateReadTime(spec),
+    publishedAt: spec.publishedAt,
+    status: 'published' as const,
+    strategyVersion: 1,
+    faq: spec.faq,
+    directAnswer: spec.directAnswer,
+    clusterId: spec.clusterId,
+    coverImageUrl: `https://hireschema.com/api/blog/cover?slug=${encodeURIComponent(spec.slug)}`,
+  };
+}
+
 export function getProgrammaticPostSummaries(
   limit = 500,
   options?: { includeScheduled?: boolean }
@@ -27,7 +51,7 @@ export function getProgrammaticPostSummaries(
   const now = Date.now();
   const includeScheduled = options?.includeScheduled !== false;
 
-  return ALL_PROGRAMMATIC_SPECS.filter((spec) => {
+  const posts = ALL_PROGRAMMATIC_SPECS.filter((spec) => {
     if (includeScheduled) return true;
     return new Date(spec.publishedAt).getTime() <= now;
   })
@@ -48,13 +72,29 @@ export function getProgrammaticPostSummaries(
       faq: [],
       directAnswer: spec.directAnswer,
       clusterId: spec.clusterId,
+      canonicalSlug: spec.canonicalSlug,
       coverImageUrl: `https://hireschema.com/api/blog/cover?slug=${encodeURIComponent(spec.slug)}`,
     }));
+
+  const brief = weeklyBriefSummary();
+  const withoutBrief = posts.filter((p) => p.slug !== WEEKLY_MARKET_BRIEF_SLUG);
+  return [brief, ...withoutBrief].slice(0, limit + 1);
 }
 
 export function getProgrammaticPostBySlug(slug: string): BlogPost | null {
   const cached = postCache.get(slug);
   if (cached) return cached;
+
+  if (slug === WEEKLY_MARKET_BRIEF_SLUG) {
+    const spec = buildWeeklyMarketBriefSpec();
+    const pool = [
+      ...LINK_POOL,
+      { slug: spec.slug, title: spec.title, targetKeywords: spec.targetKeywords, clusterId: spec.clusterId },
+    ];
+    const post = buildPostFromSpec(spec, pool);
+    postCache.set(slug, post);
+    return post;
+  }
 
   const spec = ALL_PROGRAMMATIC_SPECS.find((entry) => entry.slug === slug);
   if (!spec) return null;
@@ -69,5 +109,11 @@ export function getProgrammaticPostBySlug(slug: string): BlogPost | null {
 }
 
 export function getProgrammaticSlugSet(): Set<string> {
-  return new Set(ALL_PROGRAMMATIC_SPECS.map((spec) => spec.slug));
+  return new Set([...ALL_PROGRAMMATIC_SPECS.map((spec) => spec.slug), WEEKLY_MARKET_BRIEF_SLUG]);
+}
+
+export function getSitemapProgrammaticSpecs() {
+  const brief = buildWeeklyMarketBriefSpec();
+  const catalog = ALL_PROGRAMMATIC_SPECS.filter((spec) => spec.includeInSitemap !== false);
+  return [brief, ...catalog];
 }

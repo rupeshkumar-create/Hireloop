@@ -10,6 +10,7 @@ interface Props {
   savedCount: number;
   onRunScout: () => void;
   isRunningScout: boolean;
+  allowManualScout?: boolean;
 }
 
 type StepKey =
@@ -34,7 +35,8 @@ function buildSteps(
   savedCount: number,
   onRunScout: () => void,
   isRunningScout: boolean,
-  skipSetupSteps: boolean
+  skipSetupSteps: boolean,
+  allowManualScout: boolean
 ): Step[] {
   const resumeDone = !!profile?.resumeText;
   const pathsDone = (profile?.careerPaths?.length || 0) > 0;
@@ -62,11 +64,19 @@ function buildSteps(
         {
           key: 'firstMatches',
           label: 'See your first matches',
-          description: 'Scout runs on demand and every morning.',
+          description: allowManualScout
+            ? 'Scout runs on demand and every morning.'
+            : 'Scout runs automatically each morning when you are active.',
           done: hasMatches,
-          cta: hasMatches
-            ? undefined
-            : { kind: 'button', label: isRunningScout ? 'Running…' : 'Run Scout now', onClick: onRunScout, disabled: isRunningScout },
+          cta:
+            hasMatches || !allowManualScout
+              ? undefined
+              : {
+                  kind: 'button',
+                  label: isRunningScout ? 'Running…' : 'Run Scout now',
+                  onClick: onRunScout,
+                  disabled: isRunningScout,
+                },
         },
       ];
 
@@ -94,7 +104,13 @@ function buildSteps(
   ];
 }
 
-export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunningScout }: Props) {
+export function GettingStartedCard({
+  hasMatches,
+  savedCount,
+  onRunScout,
+  isRunningScout,
+  allowManualScout = true,
+}: Props) {
   const { profile, updateProfile } = useAuth();
   const [dismissing, setDismissing] = useState(false);
 
@@ -106,8 +122,17 @@ export function GettingStartedCard({ hasMatches, savedCount, onRunScout, isRunni
 
   const skipSetupSteps = isFreshlyOnboarded(profile);
   const steps = useMemo(
-    () => buildSteps(profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps),
-    [profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps]
+    () =>
+      buildSteps(
+        profile,
+        hasMatches,
+        savedCount,
+        onRunScout,
+        isRunningScout,
+        skipSetupSteps,
+        allowManualScout
+      ),
+    [profile, hasMatches, savedCount, onRunScout, isRunningScout, skipSetupSteps, allowManualScout]
   );
 
   // Hidden once the user dismisses OR every step is done.

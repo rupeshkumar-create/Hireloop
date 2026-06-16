@@ -495,6 +495,8 @@ function buildDailyJob(
 
 export interface MatchOptions {
   careerPaths: string[];
+  /** Preference order for filling daily slots (defaults to first 3 careerPaths). */
+  priorityCareerPaths?: string[];
   resumeText: string;
   jobType?: string;
   seenFingerprints?: string[];
@@ -522,6 +524,50 @@ export interface MatchResult {
   dedupedCount: number;
 }
 
+function careerPathPriorityIndex(job: DiscoveredJob, priorityPaths: string[]): number {
+  if (priorityPaths.length === 0) return 0;
+  let bestIdx = priorityPaths.length - 1;
+  let bestScore = -1;
+  for (let i = 0; i < priorityPaths.length; i++) {
+    const score = titlePhraseScore(job.title, [priorityPaths[i]!]);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
+}
+
+function selectJobsByCareerPriority(
+  scored: Array<{ job: DiscoveredJob; dailyJob: DailyJob }>,
+  limit: number,
+  priorityPaths: string[]
+): DailyJob[] {
+  const seenCompanies = new Set<string>();
+  const pickedFingerprints = new Set<string>();
+  const final: DailyJob[] = [];
+
+  const tryPick = (items: typeof scored) => {
+    for (const item of items) {
+      if (final.length >= limit) return;
+      if (pickedFingerprints.has(item.job.fingerprint)) continue;
+      const companyKey = item.job.company.toLowerCase().trim();
+      if (seenCompanies.has(companyKey)) continue;
+      seenCompanies.add(companyKey);
+      pickedFingerprints.add(item.job.fingerprint);
+      final.push(item.dailyJob);
+    }
+  };
+
+  const paths = priorityPaths.length > 0 ? priorityPaths : [];
+  for (let priority = 0; priority < paths.length; priority++) {
+    const bucket = scored.filter((item) => careerPathPriorityIndex(item.job, paths) === priority);
+    tryPick(bucket);
+  }
+  tryPick(scored);
+  return final;
+}
+
 export async function matchAndRankJobs(
   discoveredJobs: DiscoveredJob[],
   opts: MatchOptions,
@@ -529,6 +575,7 @@ export async function matchAndRankJobs(
 ): Promise<MatchResult> {
   const {
     careerPaths,
+    priorityCareerPaths,
     resumeText,
     seenFingerprints = [],
     limit = 10,
@@ -538,6 +585,8 @@ export async function matchAndRankJobs(
     userCountry: explicitCountry,
     structuredProfile,
   } = opts;
+
+  const priorityPaths = (priorityCareerPaths ?? careerPaths.slice(0, 3)).filter(Boolean);
 
   const seenSet = new Set(seenFingerprints);
   const normalizedPreferences = normalizeUserPreferences(matchingPreferences || {});
@@ -639,21 +688,9 @@ export async function matchAndRankJobs(
     .filter(({ matchScore }) => matchScore >= effectiveMinScore)
     .sort((a, b) => b.dailyJob.finalScore - a.dailyJob.finalScore);
 
-  // 4. Company-level Deduplication & Selection
-  // Ensure each company only appears once in the daily match set.
-  const seenCompanies = new Set<string>();
-  const final: DailyJob[] = [];
+  // 4. Company-level deduplication + career-path priority fill (pref 1 → 2 → 3)
+  let final = selectJobsByCareerPriority(scored, limit, priorityPaths);
   let usedQualityBackfill = false;
-
-  for (const item of scored) {
-    if (final.length >= limit) break;
-
-    const companyKey = item.job.company.toLowerCase().trim();
-    if (!seenCompanies.has(companyKey)) {
-      seenCompanies.add(companyKey);
-      final.push(item.dailyJob);
-    }
-  }
 
   // 5. Quality backfill — prefer showing best-available matches over an empty dashboard.
   if (final.length === 0 && initialCandidates.length > 0) {

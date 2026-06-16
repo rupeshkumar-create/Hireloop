@@ -133,18 +133,27 @@ describe('statusTransitionPatch', () => {
 // ─── assetCompleteness ──────────────────────────────────────────────────────
 
 describe('assetCompleteness', () => {
-  it('reports 0/4 for a brand-new save', () => {
+  it('reports 0/5 for a brand-new save', () => {
     const c = assetCompleteness(base());
     expect(c.completed).toBe(0);
-    expect(c.total).toBe(4);
+    expect(c.total).toBe(5);
   });
 
   it('reports each asset truthy when present + non-empty', () => {
     const c = assetCompleteness(base({
       tailoredResume: '# Resume', coldEmail: 'Email body', followUpEmail: 'fu',
+      coverLetter: 'Dear team...',
       interviewQuestions: ['Q1', 'Q2'],
     }));
-    expect(c).toEqual({ resume: true, email: true, interview: true, followUp: true, completed: 4, total: 4 });
+    expect(c).toEqual({
+      resume: true,
+      email: true,
+      coverLetter: true,
+      interview: true,
+      followUp: true,
+      completed: 5,
+      total: 5,
+    });
   });
 
   it('treats whitespace-only strings as absent', () => {

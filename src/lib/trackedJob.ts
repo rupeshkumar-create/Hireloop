@@ -40,6 +40,7 @@ export interface TrackedJob {
   // Generated assets — persisted to the doc, surfaced as completeness signals.
   coldEmail?: string;
   tailoredResume?: string;
+  coverLetter?: string;
   interviewQuestions?: string | string[];
   followUpEmail?: string;
   // Contact details — formerly just contactEmail; expanded to a structured object.
@@ -143,9 +144,10 @@ export function statusTransitionPatch(
 export interface AssetCompleteness {
   resume: boolean;
   email: boolean;
+  coverLetter: boolean;
   interview: boolean;
   followUp: boolean;
-  /** 0–4 — number of assets generated. Useful for sort + progress UI. */
+  /** 0–5 — number of assets generated. */
   completed: number;
   total: number;
 }
@@ -153,13 +155,14 @@ export interface AssetCompleteness {
 export function assetCompleteness(job: TrackedJob): AssetCompleteness {
   const resume = !!(job.tailoredResume && job.tailoredResume.trim());
   const email = !!(job.coldEmail && job.coldEmail.trim());
+  const coverLetter = !!(job.coverLetter && job.coverLetter.trim());
   const followUp = !!(job.followUpEmail && job.followUpEmail.trim());
   const interview = !!(
     (typeof job.interviewQuestions === 'string' && job.interviewQuestions.trim()) ||
     (Array.isArray(job.interviewQuestions) && job.interviewQuestions.length > 0)
   );
-  const completed = [resume, email, interview, followUp].filter(Boolean).length;
-  return { resume, email, interview, followUp, completed, total: 4 };
+  const completed = [resume, email, coverLetter, interview, followUp].filter(Boolean).length;
+  return { resume, email, coverLetter, interview, followUp, completed, total: 5 };
 }
 
 // ─── Follow-up surfacing ──────────────────────────────────────────────────────
@@ -267,7 +270,7 @@ export function trackedJobsToCsv(jobs: TrackedJob[]): string {
   const header = [
     'Title', 'Company', 'Location', 'Status', 'Salary', 'URL',
     'Created', 'Applied', 'Status changed', 'Interview at', 'Offer deadline',
-    'Resume tailored', 'Email drafted', 'Interview prep', 'Follow-up drafted',
+    'Resume tailored', 'Email drafted', 'Cover letter', 'Interview prep', 'Follow-up drafted',
     'Recruiter', 'Hiring manager', 'Notes', 'Journal',
   ];
   const rows = jobs.map((j) => {
@@ -278,6 +281,7 @@ export function trackedJobsToCsv(jobs: TrackedJob[]): string {
       j.interviewAt || '', j.offerDeadline || '',
       a.resume ? 'yes' : 'no',
       a.email ? 'yes' : 'no',
+      a.coverLetter ? 'yes' : 'no',
       a.interview ? 'yes' : 'no',
       a.followUp ? 'yes' : 'no',
       j.contact?.recruiterName || '',

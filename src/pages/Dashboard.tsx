@@ -21,6 +21,10 @@ import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
 import { isDodoPaymentReturn } from '../lib/pricing';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 import { resolveTodayLocalDateKey } from '../lib/localDate';
+import {
+  shouldHideManualScoutControls,
+  shouldShowInactiveScoutCta,
+} from '../lib/inactiveScout';
 
 // ISO country code → display name for the eligibility banner. Falls back to
 // the code itself when an unmapped country comes through (rare; defensive).
@@ -132,6 +136,16 @@ export function Dashboard() {
   const [firstSessionExpanded, setFirstSessionExpanded] = useState(false);
   const [justCompletedFirstSave, setJustCompletedFirstSave] = useState(false);
   const welcomeScoutStartedRef = useRef(false);
+  const inactiveScoutMarkedRef = useRef(false);
+
+  const hideManualScout = shouldHideManualScoutControls(profile);
+  const showInactiveScoutCta = shouldShowInactiveScoutCta(profile);
+
+  useEffect(() => {
+    if (!showInactiveScoutCta || inactiveScoutMarkedRef.current) return;
+    inactiveScoutMarkedRef.current = true;
+    void updateProfile({ inactiveScoutPromptShownAt: new Date().toISOString() });
+  }, [showInactiveScoutCta, updateProfile]);
 
   const pipelineCount = (stats as any)?.total || (stats?.saved || 0) + (stats?.applied || 0) + (stats?.interviewing || 0);
   const inFirstSession = isInFirstSession(profile, pipelineCount);
@@ -193,11 +207,12 @@ export function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('scout') !== '1') return;
+    if (hideManualScout) return;
     window.history.replaceState({}, document.title, window.location.pathname);
     if (!generatingJobs && !loadingJobs) {
       void requestJobs();
     }
-  }, [generatingJobs, loadingJobs, requestJobs]);
+  }, [generatingJobs, loadingJobs, requestJobs, hideManualScout]);
 
   const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
 
@@ -414,6 +429,25 @@ export function Dashboard() {
         </div>
       ) : null}
 
+      {showInactiveScoutCta && !showGuidedFirstSession ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
+          <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">Welcome back — refresh your matches</div>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
+            Daily Scout paused while you were away (3+ days inactive). Run Scout once to get a fresh batch — automated
+            delivery resumes when you stay active.
+          </p>
+          <button
+            type="button"
+            className="hs-btn hs-btn-primary mt-3"
+            onClick={() => void requestJobs({ force: true })}
+            disabled={generatingJobs}
+          >
+            {generatingJobs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Run Scout now
+          </button>
+        </div>
+      ) : null}
+
       {showGuidedFirstSession ? (
         <FirstSessionView
           topJob={topJobs[0] || null}
@@ -472,8 +506,9 @@ export function Dashboard() {
         // because that local state is only populated when the user saves
         // from the dashboard.
         savedCount={(stats as any)?.total ?? savedJobFingerprints.length}
-        onRunScout={() => requestJobs()}
+        onRunScout={() => void requestJobs({ firstRun: true })}
         isRunningScout={generatingJobs}
+        allowManualScout={!hideManualScout}
       />
       <div className="hs-stats">
         <div className="hs-stat">
@@ -505,10 +540,14 @@ export function Dashboard() {
               <div className="hs-label mb-1">Today's Scout run</div>
               <div className="hs-section-title">Top matches</div>
             </div>
-            <button type="button" className="hs-btn hs-btn-primary" onClick={() => requestJobs()} disabled={generatingJobs}>
-              {generatingJobs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Generate daily jobs
-            </button>
+            {!hideManualScout ? (
+              <button type="button" className="hs-btn hs-btn-primary" onClick={() => requestJobs()} disabled={generatingJobs}>
+                {generatingJobs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Generate daily jobs
+              </button>
+            ) : (
+              <span className="text-[11px] text-[var(--hs-app-muted)]">Scout runs automatically each morning</span>
+            )}
           </div>
 
           <div className="border-b border-[var(--hs-app-border)] px-5 py-3">

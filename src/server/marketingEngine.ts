@@ -86,6 +86,8 @@ export interface BlogPost {
   entityTags?: string[];
   refreshedAt?: string;
   createdAt?: string;
+  /** SEO canonical when this post defers to a primary guide (cannibalization). */
+  canonicalSlug?: string;
   llmOptimization?: {
     score: number;
     grade: string;

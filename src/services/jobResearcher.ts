@@ -212,6 +212,8 @@ export async function researchJobs(
   _callAI?: CallAIFn
 ): Promise<ResearchResult> {
   const target = Math.max(10, opts.targetCount ?? 60);
+  const priorityPaths = (opts.careerPaths || []).filter(Boolean).slice(0, 3);
+  const searchPaths = priorityPaths.length > 0 ? priorityPaths : ['remote software engineer'];
 
   let token = '';
   try {
@@ -222,12 +224,8 @@ export async function researchJobs(
   }
 
   let allJobs: DiscoveredJob[] = [];
-  // Remote-only is enforced for every attempt. Apify's aiWorkArrangementFilter
-  // ('Remote OK' + 'Remote Solely') keeps the discovery pool clean of onsite /
-  // hybrid roles, and remoteOnly:true gives Apify a second hard filter so we
-  // don't have to rescue with downstream filtering.
   const baseInput = {
-    limit: Math.max(10, Math.min(100, target)),
+    limit: Math.max(10, Math.min(100, Math.ceil(target / searchPaths.length) + 10)),
     includeAi: true,
     descriptionType: 'text' as const,
     includeLinkedIn: false,
@@ -239,53 +237,58 @@ export async function researchJobs(
     remoteOnly: true,
     aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'] as ('Remote OK' | 'Remote Solely')[],
   };
-  const attempts: Array<{ label: string; input: ApifyCareerSiteInput }> = [
-    {
-      label: 'strict',
-      input: {
-        ...baseInput,
-        timeRange: '7d' as const,
-        titleSearch: apifyTitleSearch(opts.careerPaths || []),
-      },
-    },
-    {
-      label: 'broad',
-      input: {
-        ...baseInput,
-        timeRange: '6m' as const,
-      },
-    },
-  ];
   const errors: string[] = [];
   let successfulAttempts = 0;
-
-  // Run attempts in order and merge results. Stop early only when we have
-  // comfortably more than `target` candidates — a small strict pull alone
-  // would otherwise be entirely filtered out by the user's seen set later
-  // in the matching engine, leaving them with 0 jobs.
   const seenFingerprints = new Set<string>();
-  for (const attempt of attempts) {
+
+  const addJobs = (jobs: DiscoveredJob[], label: string) => {
+    let added = 0;
+    for (const job of jobs) {
+      if (seenFingerprints.has(job.fingerprint)) continue;
+      seenFingerprints.add(job.fingerprint);
+      allJobs.push(job);
+      added += 1;
+    }
+    console.log(`[jobResearcher] ${label} added ${added} new jobs (total ${allJobs.length}).`);
+  };
+
+  // Priority 1 → 2 → 3: strict title search per path before broad fallback.
+  for (let i = 0; i < searchPaths.length; i++) {
+    const path = searchPaths[i]!;
+    if (allJobs.length >= target * 2) break;
+
     try {
-      console.log(
-        `[jobResearcher] Running Career Site Actor (${attempt.label}) for ${opts.careerPaths.length} paths...`
+      console.log(`[jobResearcher] Priority ${i + 1} strict search: "${path}"`);
+      const items = await runCareerSiteActor(
+        {
+          ...baseInput,
+          timeRange: '7d' as const,
+          titleSearch: apifyTitleSearch([path]),
+        },
+        token
       );
-      const items = await runCareerSiteActor(attempt.input, token);
       successfulAttempts += 1;
-      console.log(`[jobResearcher] Career Site Actor (${attempt.label}) returned ${items.length} items.`);
-      const normalized = normalizeApifyJobs(items);
-      let added = 0;
-      for (const job of normalized) {
-        if (seenFingerprints.has(job.fingerprint)) continue;
-        seenFingerprints.add(job.fingerprint);
-        allJobs.push(job);
-        added += 1;
-      }
-      console.log(
-        `[jobResearcher] Career Site Actor (${attempt.label}) added ${added} new jobs (total ${allJobs.length}).`
-      );
-      if (allJobs.length >= target * 2) break;
+      addJobs(normalizeApifyJobs(items), `Priority ${i + 1} strict`);
     } catch (err) {
-      console.warn(`[jobResearcher] Apify Career Site ${attempt.label} search failed:`, err);
+      console.warn(`[jobResearcher] Priority ${i + 1} strict search failed:`, err);
+      errors.push(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  if (allJobs.length < target) {
+    try {
+      console.log('[jobResearcher] Broad fallback (no title filter)');
+      const items = await runCareerSiteActor(
+        {
+          ...baseInput,
+          timeRange: '6m' as const,
+        },
+        token
+      );
+      successfulAttempts += 1;
+      addJobs(normalizeApifyJobs(items), 'Broad fallback');
+    } catch (err) {
+      console.warn('[jobResearcher] Broad fallback failed:', err);
       errors.push(err instanceof Error ? err.message : String(err));
     }
   }

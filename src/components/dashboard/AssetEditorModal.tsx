@@ -8,7 +8,7 @@ interface AssetEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  type: 'email' | 'resume' | 'interview';
+  type: 'email' | 'resume' | 'cover' | 'interview';
   initialContent: string;
   onSave: (newContent: string) => Promise<void>;
   onAiImprove: (instruction: string) => Promise<void>;

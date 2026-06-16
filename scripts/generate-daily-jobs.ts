@@ -36,21 +36,13 @@ import { formatLocalDate } from '../src/lib/localDate';
 import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaults';
 import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 import { getDiscoveryPoolTarget } from '../src/lib/planLimits';
+import { resolveOrderedCareerPaths, priorityCareerPaths } from '../src/lib/careerPaths';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const USER_PAGE_SIZE = 200;
 
 function resolveCareerPaths(profile: Record<string, unknown>): string[] {
-  const fromCareerPaths = Array.isArray(profile.careerPaths) ? profile.careerPaths : [];
-  const fromStructuredRoles = Array.isArray((profile.structuredProfile as any)?.roles)
-    ? (profile.structuredProfile as any).roles
-    : [];
-
-  return [...new Set([...fromCareerPaths, ...fromStructuredRoles])]
-    .filter((value): value is string => typeof value === 'string')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+  return resolveOrderedCareerPaths(profile as Parameters<typeof resolveOrderedCareerPaths>[0]);
 }
 
 // ── OpenRouter AI caller ─────────────────────────────────────────────────────
@@ -113,6 +105,7 @@ async function processUser(
 
       generateJobs: async (profile, limit) => {
         const careerPaths = resolveCareerPaths(profile);
+        const priorityPaths = priorityCareerPaths(profile);
         const resumeText: string = profile.resumeText || '';
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
@@ -120,7 +113,7 @@ async function processUser(
         const targetDiscoveryCount = getDiscoveryPoolTarget(profile.plan);
 
         const { jobs: combined } = await discoverJobsForMatching({
-          careerPaths,
+          careerPaths: priorityPaths.length > 0 ? priorityPaths : careerPaths,
           resumeText,
           jobType,
           location,
@@ -145,6 +138,7 @@ async function processUser(
           combined,
           {
             careerPaths,
+            priorityCareerPaths: priorityPaths,
             resumeText,
             jobType,
             seenFingerprints,

@@ -5,7 +5,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ALL_PROGRAMMATIC_SPECS } from '../src/server/contentGrowth/programmatic/catalog.js';
+import { getSitemapProgrammaticSpecs } from '../src/server/contentGrowth/programmatic/publicListing.js';
 
 const BASE = 'https://hireschema.com';
 const today = new Date().toISOString().split('T')[0]!;
@@ -21,7 +21,7 @@ const STATIC_PAGES = [
   { loc: '/llms-full.txt', priority: '0.4', changefreq: 'weekly' },
 ];
 
-const posts = ALL_PROGRAMMATIC_SPECS.filter(
+const posts = getSitemapProgrammaticSpecs().filter(
   (spec) => new Date(spec.publishedAt).getTime() <= Date.now()
 );
 
@@ -38,8 +38,8 @@ const urls = [
     (p) => `  <url>
     <loc>${BASE}/blog/${p.slug}</loc>
     <lastmod>${(p.publishedAt || today).split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <changefreq>${p.slug === 'weekly-top-remote-roles' ? 'daily' : 'weekly'}</changefreq>
+    <priority>${p.slug === 'weekly-top-remote-roles' ? '0.9' : '0.8'}</priority>
   </url>`
   ),
 ];

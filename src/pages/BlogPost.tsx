@@ -34,6 +34,7 @@ interface BlogPostData {
   coverImageUrl?: string;
   coverImageDataUri?: string;
   entityTags?: string[];
+  canonicalSlug?: string;
 }
 
 function formatDate(iso: string): string {
@@ -117,7 +118,9 @@ export function BlogPost() {
     );
   }
 
-  const canonicalUrl = `https://hireschema.com/blog/${post.slug}`;
+  const canonicalUrl = post.canonicalSlug
+    ? `https://hireschema.com/blog/${post.canonicalSlug}`
+    : `https://hireschema.com/blog/${post.slug}`;
   const lede = post.directAnswer || post.seoDescription;
   const coverSrc = post.coverImageDataUri || post.coverImageUrl || blogCoverUrl(post.slug);
   const topicLabel = clusterLabel(post.clusterId) ?? post.category;

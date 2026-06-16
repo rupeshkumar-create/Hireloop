@@ -19,13 +19,14 @@ import { getAdminDb } from '../../../firebaseAdmin.js';
 import { requireInternalCronSecret } from '../../../cronAuth.js';
 import { processUserCronRun } from '../../../../services/cronEngine.js';
 import { computeNextJobDeliveryAt } from '../../../../services/jobDeliveryProfile.js';
-import { discoverJobsForMatching } from '../../src/services/discoverJobs.js';
-import { jobFingerprint } from '../../src/services/jobResearcher.js';
+import { discoverJobsForMatching } from '../../../../services/discoverJobs.js';
+import { jobFingerprint } from '../../../../services/jobResearcher.js';
 import { matchAndRankJobs } from '../../../../services/jobMatchingEngine.js';
 import { createOpenRouterCaller } from '../../../../services/openRouterCaller.js';
 import type { DailyJob } from '../../../../types/dailyJob.js';
 import { stripUndefinedDeep } from '../../../../lib/firestoreSanitizer.js';
 import { getDiscoveryPoolTarget } from '../../../../lib/planLimits.js';
+import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../../../lib/careerPaths.js';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
 
@@ -64,16 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // ── Job generation ──────────────────────────────────────────────────
         generateJobs: async (profile, limit) => {
-          const careerPaths: string[] = [
-            ...new Set([
-              ...(profile.careerPaths || []),
-              ...(profile.structuredProfile?.roles || []),
-            ]),
-          ]
-            .filter((value): value is string => typeof value === 'string')
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .slice(0, 10);
+          const careerPaths = resolveOrderedCareerPaths(profile);
+          const priorityPaths = priorityCareerPaths(profile);
           const resumeText: string = profile.resumeText || '';
           const jobType: string = profile.jobType || 'remote';
           const location: string = profile.location || '';
@@ -81,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const targetCount = getDiscoveryPoolTarget(profile.plan);
           const { jobs: discovered, sources } = await discoverJobsForMatching({
-            careerPaths,
+            careerPaths: priorityPaths.length > 0 ? priorityPaths : careerPaths,
             resumeText,
             jobType,
             location,
@@ -112,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             discovered,
             {
               careerPaths,
+              priorityCareerPaths: priorityPaths,
               resumeText,
               jobType,
               seenFingerprints,

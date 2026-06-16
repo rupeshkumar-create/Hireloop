@@ -10,6 +10,7 @@ import { TACTICS_SPECS } from './tacticsCatalog.js';
 import { SKILLS_SPECS } from './skillsCatalog.js';
 import { applyStaggeredPublishDates } from './stagger.js';
 import { applyBlogFilterClusters } from './clusterRebalance.js';
+import { applyCannibalization } from './cannibalization.js';
 import type { EvergreenSpec } from '../evergreen/buildArticle.js';
 
 export const PROGRAMMATIC_CLUSTERS = {
@@ -34,7 +35,9 @@ const RAW_SPECS: EvergreenSpec[] = [
 
 export const TARGET_PROGRAMMATIC_COUNT = 500;
 
-export const ALL_PROGRAMMATIC_SPECS = applyStaggeredPublishDates(applyBlogFilterClusters(RAW_SPECS));
+export const ALL_PROGRAMMATIC_SPECS = applyCannibalization(
+  applyStaggeredPublishDates(applyBlogFilterClusters(RAW_SPECS))
+);
 
 export const PROGRAMMATIC_POST_COUNT = ALL_PROGRAMMATIC_SPECS.length;
 
