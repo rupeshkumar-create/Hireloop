@@ -3,7 +3,7 @@
  *
  * Strict Apify-only job discovery for Daily Jobs.
  *
- * Apify career-site actor (APIFY_ACTOR_ID, default WZ6I13XHxnlgZ0I0j) with enriched AI data.
+ * Uses 'fantastic-jobs/career-site-job-listing-api' with enriched AI data.
  */
 
 import { normalizeApifyItem, requireApifyToken, runCareerSiteActor } from './jobSources/apifyCareerSite.js';
