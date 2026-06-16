@@ -9,6 +9,11 @@
 import { normalizeApifyItem, requireApifyToken, runCareerSiteActor } from './jobSources/apifyCareerSite.js';
 import { normalizeLinkedInItem, runLinkedInActor } from './jobSources/apifyLinkedIn.js';
 import type { ApifyCareerSiteInput } from './jobSources/apifyCareerSite.js';
+import {
+  apifyLocationSearchForMarkets,
+  resolveTargetMarkets,
+  type TargetMarket,
+} from '../lib/targetMarkets.js';
 
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
 export type JobSource = string;
@@ -40,6 +45,8 @@ export interface ResearchOptions {
   jobType?: string;
   location?: string;
   targetCount?: number;
+  /** US/EU discovery bias — defaults to us, eu, uk when omitted. */
+  targetMarkets?: TargetMarket[];
 }
 
 export interface ResearchResult {
@@ -214,6 +221,8 @@ export async function researchJobs(
   const target = Math.max(10, opts.targetCount ?? 60);
   const priorityPaths = (opts.careerPaths || []).filter(Boolean).slice(0, 3);
   const searchPaths = priorityPaths.length > 0 ? priorityPaths : ['remote software engineer'];
+  const targetMarkets = resolveTargetMarkets({ targetMarkets: opts.targetMarkets });
+  const locationSearch = apifyLocationSearchForMarkets(targetMarkets);
 
   let token = '';
   try {
@@ -231,10 +240,11 @@ export async function researchJobs(
     includeLinkedIn: false,
     aiHasSalary: false,
     aiVisaSponsorshipFilter: false,
-    populateAiRemoteLocation: false,
-    populateAiRemoteLocationDerived: false,
+    populateAiRemoteLocation: true,
+    populateAiRemoteLocationDerived: true,
     removeAgency: false,
     remoteOnly: true,
+    locationSearch,
     aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'] as ('Remote OK' | 'Remote Solely')[],
   };
   const errors: string[] = [];

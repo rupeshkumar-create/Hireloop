@@ -8,6 +8,7 @@ import { ResumeAnalysis } from '../services/aiService';
 import { setAiAuthTokenGetter } from '../services/aiAuth';
 import { toast } from 'sonner';
 import type { LearningSignals } from '../services/learningSignals';
+import { DEFAULT_TARGET_MARKETS, type TargetMarket, TARGET_MARKET_OPTIONS } from '../lib/targetMarkets';
 
 export interface LearningProfile {
   jobPreferences?: string;
@@ -116,6 +117,8 @@ export interface UserProfile {
   inactiveScoutPromptShownAt?: string;
   learningProfile?: LearningProfile;
   learningSignals?: LearningSignals;
+  /** Hiring markets Scout prioritizes (default: us, eu, uk). */
+  targetMarkets?: TargetMarket[];
 }
 
 interface AuthContextType {
@@ -215,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 photoURL: currentUser.photoURL || '',
                 plan: 'free',
                 jobType: 'remote',
+                targetMarkets: [...DEFAULT_TARGET_MARKETS],
                 receiveDailyAlerts: true,
                 antiSlopEnabled: true,
                 deliveryTimezone: browserTimeZone,

@@ -2,6 +2,7 @@ import type { DiscoveredJob, CallAIFn } from './jobResearcher.js';
 import type { DailyJob } from '../types/dailyJob.js';
 import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator.js';
 import { inferUserCountry, type UserCountry } from './remoteEligibility.js';
+import { marketBoostForJob, resolveTargetMarkets, type TargetMarket } from '../lib/targetMarkets.js';
 
 // Genuine noise — articles, auxiliary verbs, generic role-page chrome. We
 // deliberately KEEP role-defining nouns like "engineer", "manager", "senior",
@@ -513,6 +514,8 @@ export interface MatchOptions {
   // industries to BOTH the deterministic scorer and the AI scoring prompt.
   // When omitted, scoring falls back to coarse resume-text parsing.
   structuredProfile?: DeterministicScoreInputs['structuredProfile'];
+  /** Boost US/EU/UK listings when set (defaults to us, eu, uk). */
+  targetMarkets?: TargetMarket[];
 }
 
 export interface MatchResult {
@@ -584,9 +587,11 @@ export async function matchAndRankJobs(
     deliveryTimezone,
     userCountry: explicitCountry,
     structuredProfile,
+    targetMarkets: explicitMarkets,
   } = opts;
 
   const priorityPaths = (priorityCareerPaths ?? careerPaths.slice(0, 3)).filter(Boolean);
+  const targetMarkets = resolveTargetMarkets({ targetMarkets: explicitMarkets });
 
   const seenSet = new Set(seenFingerprints);
   const normalizedPreferences = normalizeUserPreferences(matchingPreferences || {});
@@ -686,7 +691,11 @@ export async function matchAndRankJobs(
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .filter(({ matchScore }) => matchScore >= effectiveMinScore)
-    .sort((a, b) => b.dailyJob.finalScore - a.dailyJob.finalScore);
+    .sort((a, b) => {
+      const scoreA = a.dailyJob.finalScore + marketBoostForJob(a.job, targetMarkets);
+      const scoreB = b.dailyJob.finalScore + marketBoostForJob(b.job, targetMarkets);
+      return scoreB - scoreA;
+    });
 
   // 4. Company-level deduplication + career-path priority fill (pref 1 → 2 → 3)
   let final = selectJobsByCareerPriority(scored, limit, priorityPaths);

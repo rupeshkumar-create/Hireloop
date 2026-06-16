@@ -8,15 +8,18 @@ export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 export const DEFAULT_OG_IMAGE_ALT = 'HireSchema — AI remote job matching and daily job alerts';
 
 export const HOME_KEYWORDS = [
-  'remote jobs',
+  'remote jobs USA',
+  'remote jobs Europe',
+  'remote jobs United States',
+  'remote jobs UK',
   'find remote jobs',
   'remote job search',
   'AI job matching',
   'remote work',
-  'work from home jobs',
+  'work from home jobs USA',
   'remote job alerts',
   'personalized job matches',
-  'remote software engineer jobs',
+  'remote software engineer jobs US',
   'remote job board alternative',
 ];
 
@@ -47,9 +50,14 @@ export const HOME_FAQ: { question: string; answer: string }[] = [
       'Traditional job boards show the same listings to everyone. HireSchema matches jobs to your specific resume, skills, seniority, and career path using AI scoring — so you spend time on roles you can actually land, not keyword spam.',
   },
   {
-    question: 'Does HireSchema work for remote jobs in India?',
+    question: 'Does HireSchema work for remote jobs in the US and Europe?',
     answer:
-      'Yes. HireSchema supports remote job seekers globally, including India. The blog includes dedicated guides for remote hiring in India and role-specific remote job search playbooks at hireschema.com/blog.',
+      'Yes. HireSchema is optimized for US and European remote hiring: daily matches prioritize US, UK, and EU-remote listings, with salary bands and guides for North America and Europe at hireschema.com/blog.',
+  },
+  {
+    question: 'Which regions does HireSchema focus on?',
+    answer:
+      'HireSchema targets remote knowledge workers hiring in the United States, United Kingdom, Canada, and Europe (EU/EMEA). Scout discovery and ranking boost US/EU-remote roles; you can adjust target markets in Settings.',
   },
 ];
 

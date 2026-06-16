@@ -21,6 +21,12 @@ import type { DailyJob } from '../types/dailyJob';
 import { getDailyMatchLimit } from '../lib/planLimits';
 import { inferUserCountry } from '../services/remoteEligibility';
 import { scoreVerdict } from '../lib/jobScore';
+import {
+  DEFAULT_TARGET_MARKETS,
+  normalizeTargetMarkets,
+  type TargetMarket,
+  TARGET_MARKET_OPTIONS,
+} from '../lib/targetMarkets';
 
 const COUNTRY_DISPLAY: Record<string, string> = {
   US: 'the United States', CA: 'Canada', MX: 'Mexico', GB: 'the UK',
@@ -254,6 +260,21 @@ function PathsStep({
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [seededSuggestions, setSeededSuggestions] = useState(false);
+  const [targetMarkets, setTargetMarkets] = useState<TargetMarket[]>(
+    () => normalizeTargetMarkets(profile?.targetMarkets)
+  );
+
+  const toggleMarket = (id: TargetMarket) => {
+    setTargetMarkets((prev) => {
+      if (prev.includes(id)) {
+        const next = prev.filter((m) => m !== id);
+        return next.length > 0 ? next : [...DEFAULT_TARGET_MARKETS];
+      }
+      if (id === 'worldwide') return ['worldwide'];
+      const withoutWorldwide = prev.filter((m) => m !== 'worldwide');
+      return [...withoutWorldwide, id];
+    });
+  };
 
   const suggestions = (profile?.careerPathSuggestions || []) as Array<{
     id: string;
@@ -285,7 +306,7 @@ function PathsStep({
     if (paths.length > 0) {
       setSaving(true);
       try {
-        await updateProfile({ careerPaths: paths });
+        await updateProfile({ careerPaths: paths, targetMarkets });
       } catch (e: any) {
         toast.error(e?.message || 'Could not save career paths.');
         return;
@@ -303,7 +324,7 @@ function PathsStep({
     }
     setSaving(true);
     try {
-      await updateProfile({ careerPaths: paths });
+      await updateProfile({ careerPaths: paths, targetMarkets });
       // Kick Scout *now* (async, fire-and-forget) so the pipeline is already
       // running while the user reads the step-3 progress UI. By the time
       // they look up from the page, results are usually landing.
@@ -341,13 +362,43 @@ function PathsStep({
             {inferredCountry}
           </span>
           <div className="text-[13px] leading-relaxed text-foreground">
-            <span className="font-medium">Scout will focus on remote roles eligible for {countryLabel}.</span>{' '}
+            <span className="font-medium">
+              Scout prioritizes US &amp; European remote roles
+              {inferredCountry === 'IN' ? ' (including India-eligible listings)' : ''}.
+            </span>{' '}
             <span className="text-foreground-muted">
-              We detected this from your resume + timezone. You can change it later in Settings.
+              Eligibility for {countryLabel} still applies. Adjust target markets below or in Settings.
             </span>
           </div>
         </div>
       )}
+
+      <div className="mt-6">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted mb-3">
+          Target hiring markets
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {TARGET_MARKET_OPTIONS.map((opt) => {
+            const selected = targetMarkets.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => toggleMarket(opt.id)}
+                className={[
+                  'text-left rounded-xl border px-4 py-3 transition-all',
+                  selected
+                    ? 'border-[var(--hs-app-accent)] bg-[var(--hs-app-accent)]/10'
+                    : 'border-border bg-background hover:border-[var(--hs-app-accent)]/40',
+                ].join(' ')}
+              >
+                <div className="font-medium text-sm text-foreground">{opt.label}</div>
+                <div className="text-xs text-foreground-muted mt-0.5">{opt.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Selected pills */}
       <div className="mt-8">

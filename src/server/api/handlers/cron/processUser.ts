@@ -27,6 +27,7 @@ import type { DailyJob } from '../../../../types/dailyJob.js';
 import { stripUndefinedDeep } from '../../../../lib/firestoreSanitizer.js';
 import { getDiscoveryPoolTarget } from '../../../../lib/planLimits.js';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../../../lib/careerPaths.js';
+import { resolveTargetMarkets } from '../../../../lib/targetMarkets.js';
 
 const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
 
@@ -67,6 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         generateJobs: async (profile, limit) => {
           const careerPaths = resolveOrderedCareerPaths(profile);
           const priorityPaths = priorityCareerPaths(profile);
+          const targetMarkets = resolveTargetMarkets(profile);
           const resumeText: string = profile.resumeText || '';
           const jobType: string = profile.jobType || 'remote';
           const location: string = profile.location || '';
@@ -81,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             targetCount,
             seenFingerprints,
             getAdminDb: () => db,
+            targetMarkets,
           });
 
           console.log(
@@ -114,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               matchingPreferences: profile.matchingPreferences || profile.preferences,
               deliveryTimezone: profile.deliveryTimezone,
               structuredProfile: profile.structuredProfile,
+              targetMarkets,
             },
             createOpenRouterCaller(),
           );

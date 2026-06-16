@@ -10,20 +10,6 @@ export interface GeoLocation {
 
 export const GEO_LOCATIONS: GeoLocation[] = [
   {
-    id: 'india',
-    name: 'India',
-    region: 'South Asia',
-    timezoneNote: 'IST (UTC+5:30) — overlap with US East morning and EU afternoon is common for remote contracts.',
-    salaryCurrency: 'INR / USD',
-    popularChannels: ['LinkedIn', 'Wellfound', 'Remote OK', 'company career pages', 'referrals'],
-    hiringNotes: [
-      'Many US and EU companies hire remote ICs in India as contractors or through EOR partners.',
-      'Clarify whether a “remote” post allows India-based applicants — many listings still geo-restrict.',
-      'Strong English communication and async documentation habits are differentiators.',
-      'Portfolio and GitHub links matter heavily for engineering roles.',
-    ],
-  },
-  {
     id: 'united-states',
     name: 'United States',
     region: 'North America',
@@ -49,6 +35,18 @@ export const GEO_LOCATIONS: GeoLocation[] = [
     ],
   },
   {
+    id: 'germany',
+    name: 'Germany',
+    region: 'Europe',
+    timezoneNote: 'CET — EU remote roles often require EU/EEA work authorization.',
+    salaryCurrency: 'EUR',
+    popularChannels: ['LinkedIn', 'Otta', 'EU remote boards', 'Berlin startup ecosystem'],
+    hiringNotes: [
+      'English-speaking remote roles exist but EU work rights are frequently required.',
+      'Collective agreements affect compensation in some industries.',
+    ],
+  },
+  {
     id: 'canada',
     name: 'Canada',
     region: 'North America',
@@ -70,18 +68,6 @@ export const GEO_LOCATIONS: GeoLocation[] = [
     hiringNotes: [
       'Strong English proficiency is a market advantage.',
       'BPO veterans often transition to global remote SaaS roles.',
-    ],
-  },
-  {
-    id: 'germany',
-    name: 'Germany',
-    region: 'Europe',
-    timezoneNote: 'CET — EU remote roles often require EU/EEA work authorization.',
-    salaryCurrency: 'EUR',
-    popularChannels: ['LinkedIn', 'Otta', 'EU remote boards', 'Berlin startup ecosystem'],
-    hiringNotes: [
-      'English-speaking remote roles exist but EU work rights are frequently required.',
-      'Collective agreements affect compensation in some industries.',
     ],
   },
   {
@@ -130,6 +116,20 @@ export const GEO_LOCATIONS: GeoLocation[] = [
     hiringNotes: [
       'Verify tax and contract structure for cross-border remote work.',
       'Strong engineering and design talent pools compete globally on portfolios.',
+    ],
+  },
+  {
+    id: 'india',
+    name: 'India',
+    region: 'South Asia',
+    timezoneNote: 'IST (UTC+5:30) — overlap with US East morning and EU afternoon is common for remote contracts.',
+    salaryCurrency: 'INR / USD',
+    popularChannels: ['LinkedIn', 'Wellfound', 'Remote OK', 'company career pages', 'referrals'],
+    hiringNotes: [
+      'Many US and EU companies hire remote ICs in India as contractors or through EOR partners.',
+      'Clarify whether a “remote” post allows India-based applicants — many listings still geo-restrict.',
+      'Strong English communication and async documentation habits are differentiators.',
+      'Portfolio and GitHub links matter heavily for engineering roles.',
     ],
   },
 ];

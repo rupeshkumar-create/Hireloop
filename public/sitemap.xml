@@ -133,12 +133,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-jobs-india</loc>
-    <lastmod>2026-02-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://hireschema.com/blog/2026-06-10-remote-jobs-united-states</loc>
     <lastmod>2026-02-05</lastmod>
     <changefreq>weekly</changefreq>
@@ -217,493 +211,421 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-full-stack-developer-jobs-india</loc>
-    <lastmod>2026-02-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-data-scientist-jobs-india</loc>
-    <lastmod>2026-02-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-machine-learning-engineer-jobs-india</loc>
-    <lastmod>2026-02-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-mobile-developer-jobs-india</loc>
-    <lastmod>2026-02-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-cloud-architect-jobs-india</loc>
-    <lastmod>2026-02-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-content-writer-jobs-india</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-sales-development-representative-jobs-india</loc>
-    <lastmod>2026-02-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-account-executive-jobs-india</loc>
-    <lastmod>2026-02-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-customer-success-manager-jobs-india</loc>
-    <lastmod>2026-02-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-business-analyst-jobs-india</loc>
-    <lastmod>2026-02-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-virtual-assistant-jobs-india</loc>
-    <lastmod>2026-02-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-06-10-remote-recruiter-jobs-india</loc>
-    <lastmod>2026-02-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-india</loc>
-    <lastmod>2026-02-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-india</loc>
-    <lastmod>2026-02-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-india</loc>
-    <lastmod>2026-02-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-india</loc>
-    <lastmod>2026-02-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-india</loc>
-    <lastmod>2026-02-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-india</loc>
-    <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-india</loc>
-    <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-india</loc>
-    <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-india</loc>
-    <lastmod>2026-02-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-india</loc>
-    <lastmod>2026-02-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-india</loc>
-    <lastmod>2026-02-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-india</loc>
-    <lastmod>2026-02-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-india</loc>
-    <lastmod>2026-02-25</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-india</loc>
-    <lastmod>2026-02-25</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-india</loc>
-    <lastmod>2026-02-25</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-india</loc>
-    <lastmod>2026-02-25</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-india</loc>
-    <lastmod>2026-02-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-india</loc>
-    <lastmod>2026-02-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-india</loc>
-    <lastmod>2026-02-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-india</loc>
-    <lastmod>2026-02-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-india</loc>
-    <lastmod>2026-02-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-india</loc>
-    <lastmod>2026-02-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-india</loc>
-    <lastmod>2026-02-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-united-states</loc>
-    <lastmod>2026-02-28</lastmod>
+    <lastmod>2026-02-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-united-states</loc>
-    <lastmod>2026-03-01</lastmod>
+    <lastmod>2026-02-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-united-states</loc>
-    <lastmod>2026-03-01</lastmod>
+    <lastmod>2026-02-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-united-states</loc>
-    <lastmod>2026-03-01</lastmod>
+    <lastmod>2026-02-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-united-states</loc>
-    <lastmod>2026-03-01</lastmod>
+    <lastmod>2026-02-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-united-states</loc>
-    <lastmod>2026-03-02</lastmod>
+    <lastmod>2026-02-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-united-states</loc>
-    <lastmod>2026-03-02</lastmod>
+    <lastmod>2026-02-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-united-states</loc>
-    <lastmod>2026-03-02</lastmod>
+    <lastmod>2026-02-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-united-states</loc>
-    <lastmod>2026-03-03</lastmod>
+    <lastmod>2026-02-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-united-states</loc>
-    <lastmod>2026-03-03</lastmod>
+    <lastmod>2026-02-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-united-states</loc>
-    <lastmod>2026-03-03</lastmod>
+    <lastmod>2026-02-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-united-states</loc>
-    <lastmod>2026-03-03</lastmod>
+    <lastmod>2026-02-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-united-states</loc>
-    <lastmod>2026-03-04</lastmod>
+    <lastmod>2026-02-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-united-states</loc>
-    <lastmod>2026-03-04</lastmod>
+    <lastmod>2026-02-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-united-states</loc>
-    <lastmod>2026-03-04</lastmod>
+    <lastmod>2026-02-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-united-states</loc>
-    <lastmod>2026-03-04</lastmod>
+    <lastmod>2026-02-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-united-states</loc>
-    <lastmod>2026-03-05</lastmod>
+    <lastmod>2026-02-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-united-states</loc>
-    <lastmod>2026-03-05</lastmod>
+    <lastmod>2026-02-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-united-states</loc>
-    <lastmod>2026-03-05</lastmod>
+    <lastmod>2026-02-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-united-states</loc>
-    <lastmod>2026-03-06</lastmod>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-united-states</loc>
-    <lastmod>2026-03-06</lastmod>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-united-states</loc>
+    <lastmod>2026-02-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-united-states</loc>
-    <lastmod>2026-03-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-united-states</loc>
-    <lastmod>2026-03-07</lastmod>
+    <lastmod>2026-02-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-07</lastmod>
+    <lastmod>2026-02-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-08</lastmod>
+    <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-08</lastmod>
+    <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-08</lastmod>
+    <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-08</lastmod>
+    <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-united-kingdom</loc>
-    <lastmod>2026-03-09</lastmod>
+    <lastmod>2026-03-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-09</lastmod>
+    <lastmod>2026-03-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-09</lastmod>
+    <lastmod>2026-03-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-united-kingdom</loc>
-    <lastmod>2026-03-10</lastmod>
+    <lastmod>2026-03-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-united-kingdom</loc>
-    <lastmod>2026-03-10</lastmod>
+    <lastmod>2026-03-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-united-kingdom</loc>
-    <lastmod>2026-03-10</lastmod>
+    <lastmod>2026-03-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-10</lastmod>
+    <lastmod>2026-03-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-11</lastmod>
+    <lastmod>2026-03-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-11</lastmod>
+    <lastmod>2026-03-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-united-kingdom</loc>
-    <lastmod>2026-03-11</lastmod>
+    <lastmod>2026-03-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-united-kingdom</loc>
-    <lastmod>2026-03-11</lastmod>
+    <lastmod>2026-03-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-united-kingdom</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-03-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-united-kingdom</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-03-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-united-kingdom</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-03-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-united-kingdom</loc>
-    <lastmod>2026-03-13</lastmod>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-united-kingdom</loc>
-    <lastmod>2026-03-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-united-kingdom</loc>
-    <lastmod>2026-03-13</lastmod>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-united-kingdom</loc>
-    <lastmod>2026-03-14</lastmod>
+    <lastmod>2026-03-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-united-kingdom</loc>
+    <lastmod>2026-03-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-germany</loc>
+    <lastmod>2026-03-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-germany</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-germany</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-germany</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-germany</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-germany</loc>
+    <lastmod>2026-03-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-germany</loc>
+    <lastmod>2026-03-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-germany</loc>
+    <lastmod>2026-03-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-germany</loc>
+    <lastmod>2026-03-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-germany</loc>
+    <lastmod>2026-03-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-germany</loc>
+    <lastmod>2026-03-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-germany</loc>
+    <lastmod>2026-03-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-germany</loc>
+    <lastmod>2026-03-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-germany</loc>
+    <lastmod>2026-03-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-germany</loc>
+    <lastmod>2026-03-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-germany</loc>
+    <lastmod>2026-03-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-germany</loc>
+    <lastmod>2026-03-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-germany</loc>
+    <lastmod>2026-03-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-germany</loc>
+    <lastmod>2026-03-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-germany</loc>
+    <lastmod>2026-03-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-germany</loc>
+    <lastmod>2026-03-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-germany</loc>
+    <lastmod>2026-03-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-germany</loc>
+    <lastmod>2026-03-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-germany</loc>
     <lastmod>2026-03-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -848,421 +770,277 @@
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-australia</loc>
-    <lastmod>2026-04-04</lastmod>
+    <lastmod>2026-03-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-australia</loc>
-    <lastmod>2026-04-05</lastmod>
+    <lastmod>2026-03-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-australia</loc>
-    <lastmod>2026-04-05</lastmod>
+    <lastmod>2026-03-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-australia</loc>
-    <lastmod>2026-04-05</lastmod>
+    <lastmod>2026-03-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-australia</loc>
-    <lastmod>2026-04-05</lastmod>
+    <lastmod>2026-03-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-australia</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-03-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-australia</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-03-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-australia</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-03-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-australia</loc>
-    <lastmod>2026-04-07</lastmod>
+    <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-australia</loc>
-    <lastmod>2026-04-07</lastmod>
+    <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-australia</loc>
-    <lastmod>2026-04-07</lastmod>
+    <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-australia</loc>
-    <lastmod>2026-04-07</lastmod>
+    <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-australia</loc>
-    <lastmod>2026-04-08</lastmod>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-australia</loc>
-    <lastmod>2026-04-08</lastmod>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-australia</loc>
-    <lastmod>2026-04-08</lastmod>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-australia</loc>
-    <lastmod>2026-04-08</lastmod>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-australia</loc>
-    <lastmod>2026-04-09</lastmod>
+    <lastmod>2026-04-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-australia</loc>
-    <lastmod>2026-04-09</lastmod>
+    <lastmod>2026-04-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-australia</loc>
-    <lastmod>2026-04-09</lastmod>
+    <lastmod>2026-04-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-australia</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-australia</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-australia</loc>
+    <lastmod>2026-04-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-australia</loc>
-    <lastmod>2026-04-11</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-australia</loc>
-    <lastmod>2026-04-11</lastmod>
+    <lastmod>2026-04-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-brazil</loc>
-    <lastmod>2026-04-11</lastmod>
+    <lastmod>2026-04-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-brazil</loc>
-    <lastmod>2026-04-12</lastmod>
+    <lastmod>2026-04-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-brazil</loc>
-    <lastmod>2026-04-12</lastmod>
+    <lastmod>2026-04-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-brazil</loc>
-    <lastmod>2026-04-12</lastmod>
+    <lastmod>2026-04-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-brazil</loc>
-    <lastmod>2026-04-12</lastmod>
+    <lastmod>2026-04-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-brazil</loc>
-    <lastmod>2026-04-13</lastmod>
+    <lastmod>2026-04-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-brazil</loc>
-    <lastmod>2026-04-13</lastmod>
+    <lastmod>2026-04-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-brazil</loc>
-    <lastmod>2026-04-13</lastmod>
+    <lastmod>2026-04-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-brazil</loc>
-    <lastmod>2026-04-14</lastmod>
+    <lastmod>2026-04-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-brazil</loc>
-    <lastmod>2026-04-14</lastmod>
+    <lastmod>2026-04-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-brazil</loc>
-    <lastmod>2026-04-14</lastmod>
+    <lastmod>2026-04-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-brazil</loc>
-    <lastmod>2026-04-14</lastmod>
+    <lastmod>2026-04-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-brazil</loc>
-    <lastmod>2026-04-15</lastmod>
+    <lastmod>2026-04-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-brazil</loc>
-    <lastmod>2026-04-15</lastmod>
+    <lastmod>2026-04-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-brazil</loc>
-    <lastmod>2026-04-15</lastmod>
+    <lastmod>2026-04-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-brazil</loc>
-    <lastmod>2026-04-15</lastmod>
+    <lastmod>2026-04-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-brazil</loc>
-    <lastmod>2026-04-16</lastmod>
+    <lastmod>2026-04-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-brazil</loc>
-    <lastmod>2026-04-16</lastmod>
+    <lastmod>2026-04-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-brazil</loc>
-    <lastmod>2026-04-16</lastmod>
+    <lastmod>2026-04-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-brazil</loc>
-    <lastmod>2026-04-17</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-brazil</loc>
-    <lastmod>2026-04-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-brazil</loc>
-    <lastmod>2026-04-17</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-recruiter-jobs-brazil</loc>
-    <lastmod>2026-04-18</lastmod>
+    <lastmod>2026-04-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-brazil</loc>
-    <lastmod>2026-04-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-software-engineer-jobs-pakistan</loc>
-    <lastmod>2026-04-25</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-frontend-developer-jobs-pakistan</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-backend-developer-jobs-pakistan</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-full-stack-developer-jobs-pakistan</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-devops-engineer-jobs-pakistan</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-data-scientist-jobs-pakistan</loc>
-    <lastmod>2026-04-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-machine-learning-engineer-jobs-pakistan</loc>
-    <lastmod>2026-04-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-mobile-developer-jobs-pakistan</loc>
-    <lastmod>2026-04-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-cloud-architect-jobs-pakistan</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-cybersecurity-analyst-jobs-pakistan</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-product-manager-jobs-pakistan</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-product-designer-jobs-pakistan</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-ux-designer-jobs-pakistan</loc>
-    <lastmod>2026-04-29</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-graphic-designer-jobs-pakistan</loc>
-    <lastmod>2026-04-29</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-marketing-manager-jobs-pakistan</loc>
-    <lastmod>2026-04-29</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-content-writer-jobs-pakistan</loc>
-    <lastmod>2026-04-29</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-sales-development-representative-jobs-pakistan</loc>
-    <lastmod>2026-04-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-account-executive-jobs-pakistan</loc>
-    <lastmod>2026-04-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-customer-success-manager-jobs-pakistan</loc>
-    <lastmod>2026-04-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-business-analyst-jobs-pakistan</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-virtual-assistant-jobs-pakistan</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-hr-manager-jobs-pakistan</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hireschema.com/blog/2026-07-01-remote-accountant-jobs-pakistan</loc>
-    <lastmod>2026-05-02</lastmod>
+    <lastmod>2026-04-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

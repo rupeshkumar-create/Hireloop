@@ -37,6 +37,7 @@ import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaul
 import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 import { getDiscoveryPoolTarget } from '../src/lib/planLimits';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../src/lib/careerPaths';
+import { resolveTargetMarkets } from '../src/lib/targetMarkets';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const USER_PAGE_SIZE = 200;
@@ -106,6 +107,7 @@ async function processUser(
       generateJobs: async (profile, limit) => {
         const careerPaths = resolveCareerPaths(profile);
         const priorityPaths = priorityCareerPaths(profile);
+        const targetMarkets = resolveTargetMarkets(profile);
         const resumeText: string = profile.resumeText || '';
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
@@ -120,6 +122,7 @@ async function processUser(
           targetCount: targetDiscoveryCount,
           seenFingerprints,
           getAdminDb: () => db,
+          targetMarkets,
         });
 
         console.log(`  total discovered ${combined.length} jobs`);
@@ -147,6 +150,7 @@ async function processUser(
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
+            targetMarkets,
           },
           callOpenRouter,
         );

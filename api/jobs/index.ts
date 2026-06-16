@@ -12,6 +12,7 @@ import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 import { evaluateScoutDedup } from '../../src/server/scoutDedup.js';
 import { getDiscoveryPoolTarget } from '../../src/lib/planLimits.js';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../src/lib/careerPaths.js';
+import { resolveTargetMarkets } from '../../src/lib/targetMarkets.js';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 
@@ -73,6 +74,7 @@ async function runPipeline(
         console.log('[api/jobs] Starting generateJobs for user:', uid);
         const careerPaths = resolveCareerPaths(profile);
         const priorityPaths = priorityCareerPaths(profile);
+        const targetMarkets = resolveTargetMarkets(profile);
         const resumeText: string = profile.resumeText || '';
         const jobType: string = profile.jobType || 'remote';
         const location: string = profile.location || '';
@@ -88,6 +90,7 @@ async function runPipeline(
             targetCount,
             seenFingerprints,
             getAdminDb: () => db,
+            targetMarkets,
           });
           discovered = feedJobs;
           console.log('[api/jobs] discoverJobsForMatching returned:', feedJobs.length, sources);
@@ -147,6 +150,7 @@ async function runPipeline(
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
+            targetMarkets,
           },
           createOpenRouterCaller()
         );

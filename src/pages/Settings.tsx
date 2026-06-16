@@ -26,6 +26,12 @@ import {
   computeNextJobDeliveryAt,
   normalizeDeliverySettings,
 } from '../services/jobDeliveryProfile';
+import {
+  DEFAULT_TARGET_MARKETS,
+  normalizeTargetMarkets,
+  type TargetMarket,
+  TARGET_MARKET_OPTIONS,
+} from '../lib/targetMarkets';
 
 const PREDEFINED_PATHS = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
@@ -52,6 +58,7 @@ export function Settings() {
     remoteOnly: true,
     salaryFloor: '',
     locations: '',
+    targetMarkets: [...DEFAULT_TARGET_MARKETS] as TargetMarket[],
   });
 
   useEffect(() => {
@@ -75,6 +82,7 @@ export function Settings() {
         remoteOnly: prefs.remoteOnly,
         salaryFloor: prefs.salaryFloor ? String(prefs.salaryFloor) : '',
         locations: prefs.locations.join(', '),
+        targetMarkets: normalizeTargetMarkets(profile.targetMarkets),
       });
     }
   }, [profile]);
@@ -98,6 +106,19 @@ export function Settings() {
 
   const handleRemovePath = (pathToRemove: string) => {
     setFormData(prev => ({ ...prev, careerPaths: prev.careerPaths.filter(p => p !== pathToRemove) }));
+  };
+
+  const toggleTargetMarket = (id: TargetMarket) => {
+    setFormData((prev) => {
+      const current = prev.targetMarkets;
+      if (current.includes(id)) {
+        const next = current.filter((m) => m !== id);
+        return { ...prev, targetMarkets: next.length > 0 ? next : [...DEFAULT_TARGET_MARKETS] };
+      }
+      if (id === 'worldwide') return { ...prev, targetMarkets: ['worldwide'] };
+      const withoutWorldwide = current.filter((m) => m !== 'worldwide');
+      return { ...prev, targetMarkets: [...withoutWorldwide, id] };
+    });
   };
 
   const handleResumeInputChange = async (
@@ -152,6 +173,7 @@ export function Settings() {
           jobType: legacy.jobType,
           location: legacy.location,
           minSalary: legacy.minSalary,
+          targetMarkets: formData.targetMarkets,
           deliveryTimezone: delivery.deliveryTimezone,
           preferredDeliveryHour: delivery.preferredDeliveryHour,
           nextJobDeliveryAt,
@@ -170,6 +192,7 @@ export function Settings() {
         jobType: legacy.jobType,
         location: legacy.location,
         minSalary: legacy.minSalary,
+        targetMarkets: formData.targetMarkets,
         deliveryTimezone: delivery.deliveryTimezone,
         preferredDeliveryHour: delivery.preferredDeliveryHour,
         nextJobDeliveryAt,
@@ -280,6 +303,34 @@ export function Settings() {
                   placeholder="Remote, US, Canada"
                 />
                 <p className="text-xs text-foreground-muted">Comma-separated. Used for region eligibility hints.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground-muted">Target hiring markets</label>
+              <p className="text-xs text-foreground-muted">
+                Scout discovery and ranking prioritize these regions (default: US, Europe, UK).
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {TARGET_MARKET_OPTIONS.map((opt) => {
+                  const selected = formData.targetMarkets.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => toggleTargetMarket(opt.id)}
+                      className={[
+                        'text-left rounded-xl border px-4 py-3 transition-all',
+                        selected
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border bg-background hover:border-primary/40',
+                      ].join(' ')}
+                    >
+                      <div className="font-medium text-sm text-foreground">{opt.label}</div>
+                      <div className="text-xs text-foreground-muted mt-0.5">{opt.description}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

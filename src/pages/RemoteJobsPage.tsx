@@ -38,9 +38,11 @@ const REMOTE_JOBS_FAQ = [
 ];
 
 const GEO_GUIDES = [
-  { slug: '2026-06-10-remote-jobs-india', label: 'Remote jobs in India' },
   { slug: '2026-06-10-remote-jobs-united-states', label: 'Remote jobs in the United States' },
   { slug: '2026-06-10-remote-jobs-united-kingdom', label: 'Remote jobs in the United Kingdom' },
+  { slug: '2026-06-10-remote-jobs-germany', label: 'Remote jobs in Germany' },
+  { slug: '2026-06-10-remote-jobs-canada', label: 'Remote jobs in Canada' },
+  { slug: '2026-06-10-remote-jobs-ireland', label: 'Remote jobs in Ireland (EU)' },
 ];
 
 const ROLE_GUIDES = [
@@ -52,16 +54,18 @@ export function RemoteJobsPage() {
   return (
     <div className="blog-lp-root">
       <SeoHead
-        title="Remote Jobs (2026) — Find AI-Matched Remote Work | HireSchema"
-        description="Find remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path with AI, and delivers personalized remote job alerts."
+        title="Remote Jobs USA & Europe (2026) — AI-Matched Remote Work | HireSchema"
+        description="Find US and European remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path, and delivers personalized remote job alerts."
         canonicalUrl={`${SITE_URL}/remote-jobs`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
         keywords={[
-          'remote jobs',
+          'remote jobs USA',
+          'remote jobs Europe',
+          'remote jobs UK',
           'find remote jobs',
           'remote job search',
-          'work from home jobs',
+          'work from home jobs US',
           'AI job matching',
           'remote job alerts',
         ]}
@@ -87,14 +91,14 @@ export function RemoteJobsPage() {
       </header>
 
       <main className="blog-lp-container">
-        <p className="blog-lp-eyebrow">Remote Jobs · 2026</p>
+        <p className="blog-lp-eyebrow">Remote Jobs · USA &amp; Europe · 2026</p>
         <h1 className="blog-lp-display blog-lp-title-xl" style={{ marginBottom: 16 }}>
-          Find remote jobs matched to your resume
+          Find US &amp; European remote jobs matched to your resume
         </h1>
         <p className="blog-lp-lede" style={{ color: 'var(--lp-fg)' }}>
-          <strong>HireSchema</strong> is an AI remote job matching platform that scouts live listings daily,
-          scores each role against your resume and career path, and delivers personalized remote job alerts —
-          so you apply to fewer, better-fit roles instead of scrolling generic job boards.
+          <strong>HireSchema</strong> is an AI remote job matching platform focused on United States and European hiring.
+          Scout pulls live listings daily, scores each role against your resume and career path, and delivers personalized
+          remote job alerts — so you apply to fewer, better-fit roles instead of scrolling generic job boards.
         </p>
         <Link to="/login" className="blog-lp-btn-p" style={{ marginTop: 24, display: 'inline-flex' }}>
           Get daily remote job matches

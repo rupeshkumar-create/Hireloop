@@ -11,6 +11,7 @@ import { SKILLS_SPECS } from './skillsCatalog.js';
 import { applyStaggeredPublishDates } from './stagger.js';
 import { applyBlogFilterClusters } from './clusterRebalance.js';
 import { applyCannibalization } from './cannibalization.js';
+import { applyGeoDeprioritization, isIndiaFocusedSpec } from './geoDeprioritization.js';
 import type { EvergreenSpec } from '../evergreen/buildArticle.js';
 
 export const PROGRAMMATIC_CLUSTERS = {
@@ -35,8 +36,8 @@ const RAW_SPECS: EvergreenSpec[] = [
 
 export const TARGET_PROGRAMMATIC_COUNT = 500;
 
-export const ALL_PROGRAMMATIC_SPECS = applyCannibalization(
-  applyStaggeredPublishDates(applyBlogFilterClusters(RAW_SPECS))
+export const ALL_PROGRAMMATIC_SPECS = applyGeoDeprioritization(
+  applyCannibalization(applyStaggeredPublishDates(applyBlogFilterClusters(RAW_SPECS)))
 );
 
 export const PROGRAMMATIC_POST_COUNT = ALL_PROGRAMMATIC_SPECS.length;
@@ -50,7 +51,7 @@ export function assertProgrammaticCatalogSize(expected = TARGET_PROGRAMMATIC_COU
 }
 
 export function listProgrammaticSlugsForLlms(): { cluster: string; slug: string; title: string }[] {
-  return ALL_PROGRAMMATIC_SPECS.map((s) => ({
+  return ALL_PROGRAMMATIC_SPECS.filter((s) => !isIndiaFocusedSpec(s)).map((s) => ({
     cluster: s.clusterId ?? s.category,
     slug: s.slug,
     title: s.title,
