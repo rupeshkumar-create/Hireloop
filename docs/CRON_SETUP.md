@@ -14,7 +14,8 @@ Go to **GitHub → your repo → Settings → Secrets and variables → Actions*
 |--------|------------------|
 | `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase console → service account JSON (one line) |
 | `OPENROUTER_API_KEY` | OpenRouter dashboard |
-| `APIFY_API_TOKEN` | Apify console (required for Scout job discovery) |
+| `APIFY_API_TOKEN` | Apify console → Settings → Integrations (required for Scout job discovery) |
+| `APIFY_ACTOR_ID` | Optional — Apify actor ID (defaults to `WZ6I13XHxnlgZ0I0j` in code) |
 | `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) — optional, pulls supplemental env |
 | `VERCEL_ORG_ID` | Vercel → Project → Settings → General |
 | `VERCEL_PROJECT_ID` | Same page → Project ID |

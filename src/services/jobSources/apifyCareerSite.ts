@@ -42,8 +42,17 @@ export type ApifyCareerSiteInput = {
 
 export type ApifyCareerSiteItem = Record<string, unknown>;
 
-const ACTOR_ID = 'fantastic-jobs~career-site-job-listing-api';
-const RUN_SYNC_ITEMS_URL = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items`;
+/** Default actor — override with APIFY_ACTOR_ID in Vercel / local .env */
+const DEFAULT_ACTOR_ID = 'WZ6I13XHxnlgZ0I0j';
+
+export function getApifyCareerSiteActorId(): string {
+  const fromEnv = (typeof process !== 'undefined' && process.env?.APIFY_ACTOR_ID) || '';
+  return (fromEnv.trim() || DEFAULT_ACTOR_ID).trim();
+}
+
+function careerSiteRunSyncUrl(actorId: string): string {
+  return `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items`;
+}
 
 export function requireApifyToken(token: string | undefined): string {
   let value = (token || '').trim();
@@ -60,7 +69,7 @@ export function requireApifyToken(token: string | undefined): string {
 }
 
 export async function runCareerSiteActor(input: ApifyCareerSiteInput, token: string, timeoutMs = 50_000): Promise<ApifyCareerSiteItem[]> {
-  const url = new URL(RUN_SYNC_ITEMS_URL);
+  const url = new URL(careerSiteRunSyncUrl(getApifyCareerSiteActorId()));
   url.searchParams.set('token', token);
 
   const ctrl = new AbortController();
