@@ -124,6 +124,7 @@ async function processUser(
           seenFingerprints,
           getAdminDb: () => db,
           targetMarkets,
+          structuredProfile: profile.structuredProfile,
         });
 
         console.log(`  total discovered ${combined.length} jobs`);

@@ -85,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             seenFingerprints,
             getAdminDb: () => db,
             targetMarkets,
+            structuredProfile: profile.structuredProfile,
           });
 
           console.log(

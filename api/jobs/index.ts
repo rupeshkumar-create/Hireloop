@@ -92,6 +92,7 @@ async function runPipeline(
             seenFingerprints,
             getAdminDb: () => db,
             targetMarkets,
+            structuredProfile: profile.structuredProfile,
           });
           discovered = feedJobs;
           console.log('[api/jobs] discoverJobsForMatching returned:', feedJobs.length, sources);

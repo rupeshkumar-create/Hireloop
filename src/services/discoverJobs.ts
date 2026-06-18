@@ -19,6 +19,11 @@ export interface DiscoverJobsInput {
   /** When provided, ATS allowlist jobs are merged before Apify backfill. */
   getAdminDb?: () => unknown;
   targetMarkets?: TargetMarket[];
+  structuredProfile?: {
+    skills?: string[];
+    techStack?: string[];
+    roles?: string[];
+  };
 }
 
 export interface DiscoverJobsResult {
@@ -74,6 +79,7 @@ export async function discoverJobsForMatching(
       location: input.location,
       targetCount: Math.max(20, missing),
       targetMarkets: input.targetMarkets,
+      structuredProfile: input.structuredProfile,
     });
     for (const job of feedJobs) {
       addJob(job);

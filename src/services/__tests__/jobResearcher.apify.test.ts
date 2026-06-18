@@ -12,6 +12,18 @@ vi.mock('../jobSources/apifyCareerSite', async () => {
   };
 });
 
+const sampleJob = {
+  id: 'job_1',
+  title: 'Frontend Engineer',
+  organization: 'Acme',
+  locations_derived: ['Remote, United States'],
+  description_text: 'Build React and TypeScript interfaces for customer-facing products.',
+  url: 'https://example.com/jobs/frontend',
+  date_posted: '2026-05-07T00:00:00.000Z',
+  ai_work_arrangement: 'Remote OK',
+  ai_key_skills: ['React', 'TypeScript'],
+};
+
 describe('jobResearcher Apify discovery', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -19,24 +31,15 @@ describe('jobResearcher Apify discovery', () => {
     process.env.APIFY_API_TOKEN = 'test-token';
   });
 
-  it('falls back to a broader Apify search when strict career-path filters return no items', async () => {
+  it('falls back to titled Apify search when strict career-path filters return no items', async () => {
     const { researchJobs } = await import('../jobResearcher');
 
     runCareerSiteActor
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: 'job_1',
-          title: 'Frontend Engineer',
-          organization: 'Acme',
-          locations_derived: ['Remote, United States'],
-          description_text: 'Build React and TypeScript interfaces for customer-facing products.',
-          url: 'https://example.com/jobs/frontend',
-          date_posted: '2026-05-07T00:00:00.000Z',
-          ai_work_arrangement: 'Remote OK',
-          ai_key_skills: ['React', 'TypeScript'],
-        },
-      ]);
+      .mockResolvedValueOnce([sampleJob])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     const result = await researchJobs({
       careerPaths: ['Founding Product Engineer'],
@@ -45,21 +48,26 @@ describe('jobResearcher Apify discovery', () => {
       targetCount: 5,
     });
 
-    expect(runCareerSiteActor).toHaveBeenCalledTimes(2);
+    expect(runCareerSiteActor).toHaveBeenCalledTimes(5);
     expect(runCareerSiteActor.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         timeRange: '7d',
-        titleSearch: ['Founding Product Engineer'],
+        titleSearch: expect.arrayContaining(['Founding Product Engineer']),
         aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'],
       })
     );
     expect(runCareerSiteActor.mock.calls[1][0]).toEqual(
       expect.objectContaining({
-        timeRange: '6m',
+        timeRange: '14d',
+        titleSearch: expect.arrayContaining(['Founding Product Engineer']),
       })
     );
-    expect(runCareerSiteActor.mock.calls[1][0]).not.toHaveProperty('titleSearch');
-    expect(runCareerSiteActor.mock.calls[1][0]).not.toHaveProperty('aiWorkArrangementFilter');
+    expect(runCareerSiteActor.mock.calls[4][0]).toEqual(
+      expect.objectContaining({
+        timeRange: '14d',
+        descriptionSearch: expect.arrayContaining(['React']),
+      })
+    );
     expect(result.jobs).toHaveLength(1);
     expect(result.jobs[0]).toMatchObject({
       title: 'Frontend Engineer',
@@ -93,7 +101,10 @@ describe('jobResearcher Apify discovery', () => {
           ai_work_arrangement: 'Remote Solely',
           ai_key_skills: ['React', 'TypeScript'],
         },
-      ]);
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     const result = await researchJobs({
       careerPaths: ['React Engineer'],
@@ -102,7 +113,7 @@ describe('jobResearcher Apify discovery', () => {
       targetCount: 5,
     });
 
-    expect(runCareerSiteActor).toHaveBeenCalledTimes(2);
+    expect(runCareerSiteActor).toHaveBeenCalledTimes(5);
     expect(result.jobs).toHaveLength(1);
     expect(result.jobs[0]).toMatchObject({
       title: 'React Engineer',

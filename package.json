@@ -10,6 +10,7 @@
     "generate:prerender": "tsx scripts/prerender-blog-posts.ts",
     "generate:llms": "tsx scripts/generate-llms-txt.ts",
     "generate:sitemap": "tsx scripts/generate-sitemap.ts",
+    "generate:skills": "tsx scripts/generate-skills-database.ts",
     "refresh:market-brief": "tsx scripts/refresh-weekly-market-brief.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",

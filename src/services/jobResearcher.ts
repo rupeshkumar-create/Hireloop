@@ -18,6 +18,11 @@ import {
   apifyTitleExclusionsForCareer,
   apifyTitleSynonyms,
 } from '../lib/matchQuality.js';
+import {
+  buildApifySkillDiscoveryQueries,
+  extractRequirementsFromDescription,
+  type ProfileSkillInput,
+} from '../lib/skillsDatabase/index.js';
 
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
 export type JobSource = string;
@@ -51,6 +56,7 @@ export interface ResearchOptions {
   targetCount?: number;
   /** US/EU discovery bias — defaults to us, eu, uk when omitted. */
   targetMarkets?: TargetMarket[];
+  structuredProfile?: ProfileSkillInput['structuredProfile'];
 }
 
 export interface ResearchResult {
@@ -64,19 +70,6 @@ export type CallAIFn = (
   messages: { role: string; content: string }[],
   model: string
 ) => Promise<string>;
-
-const SKILL_LIST = [
-  'python', 'javascript', 'typescript', 'react', 'next.js', 'vue', 'angular',
-  'node.js', 'golang', 'java', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'c++',
-  'aws', 'gcp', 'azure', 'docker', 'kubernetes', 'terraform', 'linux',
-  'sql', 'postgresql', 'mysql', 'mongodb', 'redis', 'graphql', 'rest api',
-  'machine learning', 'deep learning', 'data science', 'llm', 'ai', 'nlp',
-  'tensorflow', 'pytorch', 'scikit-learn', 'spark', 'kafka', 'airflow',
-  'devops', 'ci/cd', 'git', 'agile', 'scrum',
-  'product management', 'product strategy', 'roadmap', 'figma', 'ux',
-  'cybersecurity', 'penetration testing', 'blockchain', 'solidity',
-  'scala', 'elixir', 'clojure', 'haskell', 'cloud', 'microservices',
-];
 
 export function jobFingerprint(title: string, company: string): string {
   return `${title.toLowerCase().trim()}::${company.toLowerCase().trim()}`;
@@ -144,15 +137,7 @@ function cleanTitle(title: string): string {
 }
 
 function extractRequirements(description: string): string[] {
-  const lower = description.toLowerCase();
-  const skills = SKILL_LIST.filter((skill) => lower.includes(skill));
-  if (skills.length > 0) return skills.slice(0, 8);
-
-  return description
-    .split(/[.;]\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length >= 20 && part.length <= 140)
-    .slice(0, 6);
+  return extractRequirementsFromDescription(description, 8);
 }
 
 function deduplicateJobs(jobs: DiscoveredJob[]): { jobs: DiscoveredJob[]; deduplicated: number } {
@@ -174,9 +159,9 @@ function mapAtsAllowlistToApifyAts(profileAts: Array<'greenhouse' | 'lever'>): s
   return Array.from(new Set(mapped));
 }
 
-function apifyTitleSearch(careerPaths: string[]): string[] {
+function apifyTitleSearch(careerPaths: string[], supplemental: string[] = []): string[] {
   const searches = new Set<string>();
-  for (const value of [...careerPaths, ...apifyTitleSynonyms(careerPaths)]) {
+  for (const value of [...careerPaths, ...apifyTitleSynonyms(careerPaths), ...supplemental]) {
     const trimmed = value.trim();
     if (!trimmed) continue;
     searches.add(trimmed);
@@ -186,8 +171,8 @@ function apifyTitleSearch(careerPaths: string[]): string[] {
   return [...searches].slice(0, 12);
 }
 
-function normalizeApifyJobs(items: any[]): DiscoveredJob[] {
-  return items
+function normalizeApifyJobs(items: any[] | undefined | null): DiscoveredJob[] {
+  return (items ?? [])
     .map(normalizeApifyItem)
     .filter((job): job is NonNullable<typeof job> => job !== null)
     .map((job) => {
@@ -225,6 +210,11 @@ export async function researchJobs(
   const searchPaths = priorityPaths.length > 0 ? priorityPaths : ['remote software engineer'];
   const targetMarkets = resolveTargetMarkets({ targetMarkets: opts.targetMarkets });
   const locationSearch = apifyLocationSearchForMarkets(targetMarkets);
+  const skillQueries = buildApifySkillDiscoveryQueries({
+    careerPaths: searchPaths,
+    resumeText: opts.resumeText,
+    structuredProfile: opts.structuredProfile,
+  });
 
   let token = '';
   try {
@@ -277,7 +267,7 @@ export async function researchJobs(
         {
           ...baseInput,
           timeRange: '7d' as const,
-          titleSearch: apifyTitleSearch([path]),
+          titleSearch: apifyTitleSearch([path], skillQueries.supplementalTitleSearch),
         },
         token
       );
@@ -290,7 +280,7 @@ export async function researchJobs(
   }
 
   if (allJobs.length < target) {
-    const combinedTitles = apifyTitleSearch(searchPaths);
+    const combinedTitles = apifyTitleSearch(searchPaths, skillQueries.supplementalTitleSearch);
     for (const timeRange of ['14d', '30d'] as const) {
       if (allJobs.length >= target) break;
       try {
@@ -307,6 +297,31 @@ export async function researchJobs(
         addJobs(normalizeApifyJobs(items), `Titled fallback ${timeRange}`);
       } catch (err) {
         console.warn(`[jobResearcher] Titled fallback ${timeRange} failed:`, err);
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+  }
+
+  if (allJobs.length < target && skillQueries.descriptionSearch.length > 0) {
+    for (const timeRange of ['7d', '14d'] as const) {
+      if (allJobs.length >= target) break;
+      try {
+        console.log(
+          `[jobResearcher] Skill-targeted search (${timeRange}, ${skillQueries.descriptionSearch.length} description terms)`
+        );
+        const items = await runCareerSiteActor(
+          {
+            ...baseInput,
+            timeRange,
+            titleSearch: apifyTitleSearch(searchPaths, skillQueries.supplementalTitleSearch),
+            descriptionSearch: skillQueries.descriptionSearch,
+          },
+          token
+        );
+        successfulAttempts += 1;
+        addJobs(normalizeApifyJobs(items), `Skill-targeted ${timeRange}`);
+      } catch (err) {
+        console.warn(`[jobResearcher] Skill-targeted ${timeRange} failed:`, err);
         errors.push(err instanceof Error ? err.message : String(err));
       }
     }
