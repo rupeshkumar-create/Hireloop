@@ -24,6 +24,8 @@ import { isOnboardingComplete } from './lib/onboarding';
 import { HireschemaLogo } from './components/brand/HireschemaLogo';
 import { GoogleAnalytics } from './components/GoogleAnalytics';
 import { shouldHideManualScoutControls } from './lib/inactiveScout';
+import { WhatsAppFloatingButton } from './components/support/WhatsAppFloatingButton';
+import { WhatsAppSupportLink } from './components/support/WhatsAppSupportLink';
 
 const JobTracker = lazy(() => import('./pages/JobTracker').then((m) => ({ default: m.JobTracker })));
 const ResumeProfile = lazy(() => import('./pages/ResumeProfile').then((m) => ({ default: m.ResumeProfile })));
@@ -96,7 +98,10 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
           <HireschemaLogo height={26} />
         </Link>
         <p className="mt-1 text-xs text-[var(--hs-app-muted)]">
-          About 2 minutes to your first matched roles
+          About 2 minutes to your first matched roles ·{' '}
+          <WhatsAppSupportLink className="text-[#128C7E] hover:underline" showIcon={false}>
+            WhatsApp help
+          </WhatsAppSupportLink>
         </p>
       </header>
       <main>{children}</main>
@@ -134,6 +139,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="text-[11px] text-[var(--hs-app-muted)]">Step 1 — review your first matches</p>
           </header>
           <main className="hs-main hs-main-minimal">{children}</main>
+          <WhatsAppFloatingButton className="!bottom-[max(1.25rem,env(safe-area-inset-bottom))]" />
         </div>
       </DashboardJobsProvider>
     );
@@ -167,6 +173,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         <MobileNav />
+        <WhatsAppFloatingButton className="!bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:!bottom-[max(1.25rem,env(safe-area-inset-bottom))]" />
       </div>
     </DashboardJobsProvider>
   );

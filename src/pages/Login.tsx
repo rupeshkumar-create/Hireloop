@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { HireschemaLogo } from '../components/brand/HireschemaLogo';
+import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
 
 const FLOW_STEPS = [
@@ -128,8 +129,9 @@ export function Login() {
         </div>
       </main>
 
-      <footer className="hs-land-container py-10">
+      <footer className="hs-land-container flex flex-wrap items-center justify-between gap-3 py-10">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--hs-land-muted)]">© 2026 Hireschema</span>
+        <WhatsAppSupportLink className="text-xs font-medium text-[#128C7E] hover:underline" />
       </footer>
     </div>
   );

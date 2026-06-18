@@ -9,6 +9,8 @@ import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogCluster
 import { fetchLandingBlogPosts, type LandingBlogPost } from '../lib/landingBlogPosts';
 import { DAILY_MATCH_LIMIT } from '../lib/planLimits';
 import { PRO_ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
+import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
+import { WhatsAppFloatingButton } from '../components/support/WhatsAppFloatingButton';
 
 /* ─── Landing-page-scoped styles injected once ─── */
 const LP_STYLE = `
@@ -1273,7 +1275,7 @@ export function LandingPage() {
                 <ul className="lp-footer-col-list">
                   <li><a href="#about">About</a></li>
                   <li><a href="#blog">Updates</a></li>
-                  <li><a href="mailto:hello@hireschema.com">Contact</a></li>
+                  <li><WhatsAppSupportLink className="text-[var(--lp-muted)] hover:text-[var(--lp-fg)]" /></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>
                   <li><Link to="/remote-jobs">Remote Jobs</Link></li>
                 </ul>
@@ -1305,12 +1307,13 @@ export function LandingPage() {
                 <li><Link to="/privacy">Privacy</Link></li>
                 <li><Link to="/terms">Terms</Link></li>
                 <li><Link to="/privacy#cookies">Cookies</Link></li>
-                <li><a href="mailto:hello@hireschema.com">Contact</a></li>
+                <li><WhatsAppSupportLink className="text-[var(--lp-muted)] hover:text-[var(--lp-fg)]" /></li>
               </ul>
             </div>
           </div>
         </div>
       </footer>
+      <WhatsAppFloatingButton />
     </div>
   );
 }

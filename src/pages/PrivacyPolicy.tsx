@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
+import { WHATSAPP_SUPPORT_PHONE_DISPLAY } from '../lib/whatsappSupport';
 
 export function PrivacyPolicy() {
   return (
@@ -44,7 +46,11 @@ export function PrivacyPolicy() {
         <p>Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to request access, correction, erasure, restriction, transfer, to object to processing, to portability of data and (where the lawful ground of processing is consent) to withdraw consent.</p>
 
         <h2>7. Contact Us</h2>
-        <p>If you have any questions about this privacy policy or our privacy practices, please contact us at support@hireschema.com.</p>
+        <p>
+          If you have any questions about this privacy policy or our privacy practices, contact us on{' '}
+          <WhatsAppSupportLink className="text-[#128C7E] hover:underline" showIcon={false} /> ({WHATSAPP_SUPPORT_PHONE_DISPLAY})
+          {' '}or email support@hireschema.com.
+        </p>
       </div>
     </div>
   );

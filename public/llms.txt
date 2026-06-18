@@ -8,7 +8,7 @@ site: https://hireschema.com
 canonical: https://www.hireschema.com/llms.txt
 version: 2.1
 status: public-beta
-generated: 2026-06-16T15:40:28.382Z
+generated: 2026-06-18T15:22:39.132Z
 total_guides: 500
 language: en-US
 audience: job seekers, remote workers, career changers
@@ -94,6 +94,7 @@ Guides include **direct answers**, **FAQs**, **salary benchmarks**, **comparison
 ## Contact
 
 - Website: https://hireschema.com
-- Support: support@hireschema.com
+- WhatsApp support: https://wa.me/917903959739 (message: Hi Hireschema team)
+- Email: support@hireschema.com
 
 For the complete catalog with direct answers, intent routing, and JSON index → https://hireschema.com/llms-full.txt

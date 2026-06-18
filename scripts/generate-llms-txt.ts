@@ -427,7 +427,8 @@ Guides include **direct answers**, **FAQs**, **salary benchmarks**, **comparison
 ## Contact
 
 - Website: ${BASE}
-- Support: support@hireschema.com
+- WhatsApp support: https://wa.me/917903959739 (message: Hi Hireschema team)
+- Email: support@hireschema.com
 `;
 }
 

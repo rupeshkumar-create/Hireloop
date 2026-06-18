@@ -179,7 +179,7 @@ export function Dashboard() {
     const timeout = window.setTimeout(() => {
       toast.message('Pro activation is taking a moment', {
         description:
-          'If AI tools are still locked after a minute, refresh this page or email support@hireschema.com with the same address you used at checkout.',
+          'If AI tools are still locked after a minute, refresh this page or message us on WhatsApp support with the same email you used at checkout.',
       });
     }, 45_000);
 

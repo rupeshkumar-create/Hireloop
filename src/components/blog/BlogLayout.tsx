@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { HireschemaLogo } from '../brand/HireschemaLogo';
+import { WhatsAppSupportLink } from '../support/WhatsAppSupportLink';
+import { WhatsAppFloatingButton } from '../support/WhatsAppFloatingButton';
 import '../../styles/blogLanding.css';
 
 interface BlogLayoutProps {
@@ -25,6 +27,7 @@ export function BlogLayout({ children }: BlogLayoutProps) {
             <Link to="/" className="blog-lp-nav-link hidden sm:inline">
               Home
             </Link>
+            <WhatsAppSupportLink className="blog-lp-nav-link hidden text-[#128C7E] hover:text-[#075E54] md:inline-flex" />
             {user ? (
               <Link to="/dashboard" className="blog-lp-btn-p">
                 Dashboard
@@ -50,8 +53,11 @@ export function BlogLayout({ children }: BlogLayoutProps) {
           <Link to="/terms" className="blog-lp-nav-link">
             Terms
           </Link>
+          {' · '}
+          <WhatsAppSupportLink className="blog-lp-nav-link text-[#128C7E] hover:text-[#075E54]" />
         </p>
       </footer>
+      <WhatsAppFloatingButton />
     </div>
   );
 }

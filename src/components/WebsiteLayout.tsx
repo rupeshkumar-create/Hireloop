@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { HireschemaLogo } from './brand/HireschemaLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ui/theme-toggle';
-import { Button } from './ui/button';
+import { WhatsAppSupportLink } from './support/WhatsAppSupportLink';
+import { WhatsAppFloatingButton } from './support/WhatsAppFloatingButton';
 
 export function WebsiteLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
             <Link to="/blog" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
               Hiring Guides
             </Link>
+            <WhatsAppSupportLink className="hidden text-sm font-medium text-[#128C7E] hover:text-[#075E54] sm:inline-flex" />
             <ThemeToggle isCollapsed={true} />
             {user ? (
               <Link to="/dashboard">
@@ -70,7 +72,9 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
             <ul className="space-y-2 text-sm text-foreground-muted">
               <li><Link to="/privacy" className="transition-colors hover:text-foreground">Privacy Policy</Link></li>
               <li><Link to="/terms" className="transition-colors hover:text-foreground">Terms of Service</Link></li>
-              <li><a href="mailto:support@hireschema.com" className="transition-colors hover:text-foreground">Contact</a></li>
+              <li>
+                <WhatsAppSupportLink className="text-[#128C7E] hover:text-[#075E54]" />
+              </li>
             </ul>
           </div>
         </div>
@@ -78,6 +82,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
           <p>© {new Date().getFullYear()} Hireschema. All rights reserved.</p>
         </div>
       </footer>
+      <WhatsAppFloatingButton />
     </div>
   );
 }

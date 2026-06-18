@@ -32,6 +32,8 @@ import {
   type TargetMarket,
   TARGET_MARKET_OPTIONS,
 } from '../lib/targetMarkets';
+import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
+import { WHATSAPP_SUPPORT_PHONE_DISPLAY } from '../lib/whatsappSupport';
 
 const PREDEFINED_PATHS = [
   "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
@@ -474,6 +476,24 @@ export function Settings() {
               </div>
             </div>
 
+          </CardContent>
+        </Card>
+
+        <Card id="support">
+          <CardHeader>
+            <CardTitle>Help &amp; support</CardTitle>
+            <CardDescription>Questions about matches, billing, or your account? Chat with us on WhatsApp.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WhatsAppSupportLink
+              className="inline-flex rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-3 text-sm font-medium text-[#128C7E] hover:bg-[#25D366]/15"
+              showPhone
+            >
+              Message on WhatsApp
+            </WhatsAppSupportLink>
+            <p className="mt-3 text-xs text-foreground-muted">
+              Opens WhatsApp with a pre-filled greeting to our team ({WHATSAPP_SUPPORT_PHONE_DISPLAY}).
+            </p>
           </CardContent>
         </Card>
 

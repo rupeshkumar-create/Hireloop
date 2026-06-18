@@ -12,6 +12,7 @@ import { HireschemaLogo } from './brand/HireschemaLogo';
 import { cn } from '../lib/utils';
 import { isAppAdmin } from '../lib/isAppAdmin';
 import { getAppNavGroups } from '../lib/appNav';
+import { WhatsAppSupportLink } from './support/WhatsAppSupportLink';
 
 function initials(name?: string, email?: string) {
   const source = name || email || 'User';
@@ -129,6 +130,12 @@ export function Sidebar() {
             <div className="truncate font-mono text-[10px] text-[var(--hs-app-muted)]">{plan} Plan</div>
           </div>
         </div>
+        <WhatsAppSupportLink
+          className="mb-2 w-full justify-center rounded border border-[#25D366]/30 bg-[#25D366]/10 px-3 py-2 text-[11px] font-medium text-[#128C7E] hover:bg-[#25D366]/15"
+          showPhone={false}
+        >
+          WhatsApp support
+        </WhatsAppSupportLink>
         <button type="button" className="hs-btn w-full justify-start" onClick={logout}>
           <LogOut className="h-3.5 w-3.5" />
           Sign out

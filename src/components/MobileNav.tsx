@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { isAppAdmin } from '../lib/isAppAdmin';
 import { getAppNavGroups, MOBILE_SCOUT_ITEM } from '../lib/appNav';
+import { WhatsAppSupportLink } from './support/WhatsAppSupportLink';
 import { cn } from '../lib/utils';
 
 function isActive(path: string, pathname: string, search: string) {
@@ -94,6 +95,10 @@ export function MobileNav() {
               </Link>
             );
           })}
+          <WhatsAppSupportLink
+            className="hs-mobile-more-link text-[#128C7E]"
+            onClick={() => setMoreOpen(false)}
+          />
         </div>
       ) : null}
 

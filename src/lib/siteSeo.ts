@@ -75,6 +75,7 @@ export function buildOrganizationSchema() {
       '@type': 'ContactPoint',
       contactType: 'customer support',
       email: 'support@hireschema.com',
+      telephone: '+91-79039-59739',
       availableLanguage: 'English',
     },
   };
