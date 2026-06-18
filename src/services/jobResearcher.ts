@@ -14,6 +14,10 @@ import {
   resolveTargetMarkets,
   type TargetMarket,
 } from '../lib/targetMarkets.js';
+import {
+  apifyTitleExclusionsForCareer,
+  apifyTitleSynonyms,
+} from '../lib/matchQuality.js';
 
 export type JobWorkType = 'remote' | 'hybrid' | 'onsite' | 'unknown';
 export type JobSource = string;
@@ -172,16 +176,14 @@ function mapAtsAllowlistToApifyAts(profileAts: Array<'greenhouse' | 'lever'>): s
 
 function apifyTitleSearch(careerPaths: string[]): string[] {
   const searches = new Set<string>();
-  for (const value of careerPaths) {
+  for (const value of [...careerPaths, ...apifyTitleSynonyms(careerPaths)]) {
     const trimmed = value.trim();
     if (!trimmed) continue;
     searches.add(trimmed);
-    // Also search the core role before industry suffixes, e.g.
-    // "Category Manager - Fashion E-commerce" → "Category Manager"
     const core = trimmed.split(/\s[-–|]\s/)[0]?.trim();
     if (core && core.length >= 3) searches.add(core);
   }
-  return [...searches].slice(0, 10);
+  return [...searches].slice(0, 12);
 }
 
 function normalizeApifyJobs(items: any[]): DiscoveredJob[] {
@@ -233,6 +235,7 @@ export async function researchJobs(
   }
 
   let allJobs: DiscoveredJob[] = [];
+  const titleExclusionSearch = apifyTitleExclusionsForCareer(searchPaths);
   const baseInput = {
     limit: Math.max(10, Math.min(100, Math.ceil(target / searchPaths.length) + 10)),
     includeAi: true,
@@ -246,6 +249,7 @@ export async function researchJobs(
     remoteOnly: true,
     locationSearch,
     aiWorkArrangementFilter: ['Remote OK', 'Remote Solely'] as ('Remote OK' | 'Remote Solely')[],
+    ...(titleExclusionSearch.length > 0 ? { titleExclusionSearch } : {}),
   };
   const errors: string[] = [];
   let successfulAttempts = 0;
@@ -286,20 +290,25 @@ export async function researchJobs(
   }
 
   if (allJobs.length < target) {
-    try {
-      console.log('[jobResearcher] Broad fallback (no title filter)');
-      const items = await runCareerSiteActor(
-        {
-          ...baseInput,
-          timeRange: '6m' as const,
-        },
-        token
-      );
-      successfulAttempts += 1;
-      addJobs(normalizeApifyJobs(items), 'Broad fallback');
-    } catch (err) {
-      console.warn('[jobResearcher] Broad fallback failed:', err);
-      errors.push(err instanceof Error ? err.message : String(err));
+    const combinedTitles = apifyTitleSearch(searchPaths);
+    for (const timeRange of ['14d', '30d'] as const) {
+      if (allJobs.length >= target) break;
+      try {
+        console.log(`[jobResearcher] Titled fallback (${timeRange}, ${combinedTitles.length} title terms)`);
+        const items = await runCareerSiteActor(
+          {
+            ...baseInput,
+            timeRange,
+            titleSearch: combinedTitles,
+          },
+          token
+        );
+        successfulAttempts += 1;
+        addJobs(normalizeApifyJobs(items), `Titled fallback ${timeRange}`);
+      } catch (err) {
+        console.warn(`[jobResearcher] Titled fallback ${timeRange} failed:`, err);
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
     }
   }
 

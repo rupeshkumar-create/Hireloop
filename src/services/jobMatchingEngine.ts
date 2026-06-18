@@ -3,6 +3,16 @@ import type { DailyJob } from '../types/dailyJob.js';
 import { jobMatchesUserPreferences, normalizeUserPreferences } from './validator.js';
 import { inferUserCountry, type UserCountry } from './remoteEligibility.js';
 import { marketBoostForJob, resolveTargetMarkets, type TargetMarket } from '../lib/targetMarkets.js';
+import {
+  BACKFILL_MIN_DETERMINISTIC,
+  EMERGENCY_MIN_DETERMINISTIC,
+  isHybridOrOnsiteJob,
+  MAX_JOB_AGE_DAYS,
+  MIN_DETERMINISTIC_POOL_SCORE,
+  passesSupportCompatibilityGate,
+  PIPELINE_MIN_MATCH_SCORE,
+} from '../lib/matchQuality.js';
+import { validateJob } from './validator.js';
 
 // Genuine noise — articles, auxiliary verbs, generic role-page chrome. We
 // deliberately KEEP role-defining nouns like "engineer", "manager", "senior",
@@ -41,18 +51,46 @@ const ROLE_FUNCTION_KEYWORDS: Record<string, string[]> = {
   finance: ['finance', 'financial', 'accounting', 'accountant', 'controller', 'treasury'],
   hr: ['recruiter', 'recruiting', 'talent', 'people', 'hr'],
   legal: ['legal', 'counsel', 'attorney', 'paralegal', 'compliance'],
-  support: ['support', 'customer', 'success', 'cx', 'service'],
+  support: ['support', 'helpdesk', 'help-desk', 'cx'],
 };
 
-const DEFAULT_MIN_MATCH_SCORE = 78;
-const MIN_DETERMINISTIC_FOR_POOL = 38;
+const DEFAULT_MIN_MATCH_SCORE = PIPELINE_MIN_MATCH_SCORE;
+const MIN_DETERMINISTIC_FOR_POOL = MIN_DETERMINISTIC_POOL_SCORE;
 const MIN_DETERMINISTIC_WITHOUT_AI = 52;
 
 const REMOTE_LOC_RE = /remote|anywhere|work\s*from\s*home|wfh/i;
 
 function jobCountsAsRemote(job: DiscoveredJob): boolean {
+  if (isHybridOrOnsiteJob(job)) return false;
   if (job.workType === 'remote') return true;
   return REMOTE_LOC_RE.test(job.location || '');
+}
+
+function passesHardJobValidation(
+  job: DiscoveredJob,
+  preferences: ReturnType<typeof normalizeUserPreferences>,
+  userCountry: UserCountry,
+  deliveryTimezone?: string
+): boolean {
+  const validation = validateJob(
+    {
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      description: job.description,
+      url: job.applyUrl || '',
+      postedAt: job.postedAt,
+      isRemote: jobCountsAsRemote(job),
+      salary: job.salary,
+    },
+    {
+      preferences,
+      deliveryTimezone,
+      country: userCountry,
+    },
+    MAX_JOB_AGE_DAYS
+  );
+  return validation.passed;
 }
 
 type AiVerdict = 'perfect' | 'strong' | 'reasonable' | 'stretch' | 'wrong';
@@ -617,12 +655,27 @@ export async function matchAndRankJobs(
   let preferenceFilteredCount = 0;
   let careerPathFilteredCount = 0;
   let seniorityFilteredCount = 0;
+  let hardValidationFilteredCount = 0;
+  let supportCompatFilteredCount = 0;
+  const profileRoles = structuredProfile?.roles || [];
   const initialCandidates = candidateJobs
     .map((job) => ({
       job,
       detScore: deterministicMatchScore({ job, careerPaths, resumeText, structuredProfile }),
     }))
     .filter(({ job, detScore }) => {
+      if (!passesHardJobValidation(job, normalizedPreferences, userCountry, deliveryTimezone)) {
+        hardValidationFilteredCount++;
+        return false;
+      }
+      if (isHybridOrOnsiteJob(job)) {
+        hardValidationFilteredCount++;
+        return false;
+      }
+      if (!passesSupportCompatibilityGate(job, careerPaths, profileRoles)) {
+        supportCompatFilteredCount++;
+        return false;
+      }
       if (!passesCareerPathGate({ job, careerPaths, structuredProfile })) {
         careerPathFilteredCount++;
         return false;
@@ -677,7 +730,7 @@ export async function matchAndRankJobs(
   const scored = initialCandidates
     .map(({ job, detScore }) => {
       const aiData = aiResults[job.fingerprint];
-      if (aiData?.verdict === 'wrong') {
+      if (aiData?.verdict === 'wrong' || aiData?.verdict === 'stretch') {
         return null;
       }
       // Weighted average: AI score (85%) + Deterministic score (15%) if AI available
@@ -703,7 +756,7 @@ export async function matchAndRankJobs(
 
   // 5. Quality backfill — prefer showing best-available matches over an empty dashboard.
   if (final.length === 0 && initialCandidates.length > 0) {
-    const relaxedMin = callAI ? 40 : 30;
+    const relaxedMin = callAI ? BACKFILL_MIN_DETERMINISTIC : BACKFILL_MIN_DETERMINISTIC - 8;
     const backfillCompanies = new Set<string>();
     for (const { job, detScore } of initialCandidates) {
       if (final.length >= limit) break;
@@ -727,7 +780,9 @@ export async function matchAndRankJobs(
         detScore: deterministicMatchScore({ job, careerPaths, resumeText, structuredProfile }),
       }))
       .filter(({ job, detScore }) => {
-        if (detScore < 12) return false;
+        if (detScore < EMERGENCY_MIN_DETERMINISTIC) return false;
+        if (!passesSupportCompatibilityGate(job, careerPaths, profileRoles)) return false;
+        if (isHybridOrOnsiteJob(job)) return false;
         if (normalizedPreferences.remoteOnly && !jobCountsAsRemote(job)) return false;
         const pref = jobMatchesUserPreferences(
           {
@@ -749,7 +804,7 @@ export async function matchAndRankJobs(
       if (emergencyCompanies.has(companyKey)) continue;
       emergencyCompanies.add(companyKey);
       final.push(
-        buildDailyJob(job, Math.max(detScore, 35), careerPaths, resumeText, aiResults[job.fingerprint])
+        buildDailyJob(job, Math.max(detScore, EMERGENCY_MIN_DETERMINISTIC), careerPaths, resumeText, aiResults[job.fingerprint])
       );
     }
     if (final.length > 0) {
@@ -761,7 +816,9 @@ export async function matchAndRankJobs(
   if (careerPathFilteredCount > 0 || seniorityFilteredCount > 0) {
     console.log(
       `[jobMatchingEngine] Career-path gate removed ${careerPathFilteredCount} jobs; ` +
-      `seniority gate removed ${seniorityFilteredCount} jobs.`
+      `seniority gate removed ${seniorityFilteredCount} jobs; ` +
+      `hard validation removed ${hardValidationFilteredCount}; ` +
+      `support-compat removed ${supportCompatFilteredCount}.`
     );
   }
   if (usedQualityBackfill) {

@@ -11,6 +11,7 @@ import { formatLocalDate } from '../../src/lib/localDate.js';
 import { stripUndefinedDeep } from '../../src/lib/firestoreSanitizer.js';
 import { evaluateScoutDedup } from '../../src/server/scoutDedup.js';
 import { getDiscoveryPoolTarget } from '../../src/lib/planLimits.js';
+import { PIPELINE_MIN_MATCH_SCORE } from '../../src/lib/matchQuality.js';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../src/lib/careerPaths.js';
 import { resolveTargetMarkets } from '../../src/lib/targetMarkets.js';
 
@@ -146,7 +147,7 @@ async function runPipeline(
             jobType,
             seenFingerprints,
             limit,
-            minMatchScore: 55,
+            minMatchScore: PIPELINE_MIN_MATCH_SCORE,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,

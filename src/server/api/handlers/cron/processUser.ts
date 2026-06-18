@@ -26,6 +26,7 @@ import { createOpenRouterCaller } from '../../../../services/openRouterCaller.js
 import type { DailyJob } from '../../../../types/dailyJob.js';
 import { stripUndefinedDeep } from '../../../../lib/firestoreSanitizer.js';
 import { getDiscoveryPoolTarget } from '../../../../lib/planLimits.js';
+import { PIPELINE_MIN_MATCH_SCORE } from '../../../../lib/matchQuality.js';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../../../lib/careerPaths.js';
 import { resolveTargetMarkets } from '../../../../lib/targetMarkets.js';
 
@@ -113,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               jobType,
               seenFingerprints,
               limit,
-              minMatchScore: 55,
+              minMatchScore: PIPELINE_MIN_MATCH_SCORE,
               matchingPreferences: profile.matchingPreferences || profile.preferences,
               deliveryTimezone: profile.deliveryTimezone,
               structuredProfile: profile.structuredProfile,

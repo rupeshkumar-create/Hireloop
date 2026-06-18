@@ -38,6 +38,7 @@ import { stripUndefinedDeep } from '../src/lib/firestoreSanitizer';
 import { getDiscoveryPoolTarget } from '../src/lib/planLimits';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../src/lib/careerPaths';
 import { resolveTargetMarkets } from '../src/lib/targetMarkets';
+import { PIPELINE_MIN_MATCH_SCORE } from '../src/lib/matchQuality';
 
 const MAX_SEEN_FINGERPRINTS = 500;
 const USER_PAGE_SIZE = 200;
@@ -146,7 +147,7 @@ async function processUser(
             jobType,
             seenFingerprints,
             limit,
-            minMatchScore: 55,
+            minMatchScore: PIPELINE_MIN_MATCH_SCORE,
             matchingPreferences: profile.matchingPreferences || profile.preferences,
             deliveryTimezone: profile.deliveryTimezone,
             structuredProfile: profile.structuredProfile,
