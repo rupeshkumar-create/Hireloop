@@ -111,17 +111,12 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      window.addEventListener('load', function () {
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-M99635SH9J';
-        document.head.appendChild(s);
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        window.gtag = gtag;
-        gtag('js', new Date());
-        gtag('config', 'G-M99635SH9J');
-      });
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', 'G-M99635SH9J', { send_page_view: false });
     </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-M99635SH9J"></script>
   </body>
 </html>

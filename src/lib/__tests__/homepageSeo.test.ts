@@ -15,7 +15,7 @@ describe('homepage SEO', () => {
     expect(html.toLowerCase()).toContain('ai remote job matching');
     expect(html.toLowerCase()).toContain('remote job');
     expect(html).toContain('href="/blog"');
-    expect(html).toContain("addEventListener('load'");
-    expect(html.indexOf("addEventListener('load'")).toBeLessThan(html.indexOf('googletagmanager.com'));
+    expect(html).toContain('send_page_view: false');
+    expect(html).toContain('googletagmanager.com/gtag/js?id=G-M99635SH9J');
   });
 });
