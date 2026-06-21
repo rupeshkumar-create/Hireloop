@@ -29,10 +29,11 @@ import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 export function Sidebar() {
   const { profile, user, logout, isImpersonating, stopImpersonating } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { filteredAndSortedJobs, stats } = useDashboardJobsContext();
+  const { topJobs, pendingMatchCount, stats } = useDashboardJobsContext();
   const location = useLocation();
 
-  const dashboardCount = filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
+  const dashboardCount =
+    pendingMatchCount > 0 ? String(pendingMatchCount) : topJobs.length > 0 ? '0' : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
 
   const [isAdmin, setIsAdmin] = useState(false);

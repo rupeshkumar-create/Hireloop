@@ -21,7 +21,7 @@ export function MobileNav() {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [admin, setAdmin] = useState(false);
-  const { filteredAndSortedJobs, stats } = useDashboardJobsContext();
+  const { topJobs, pendingMatchCount, stats } = useDashboardJobsContext();
 
   useEffect(() => {
     if (!user) {
@@ -35,7 +35,7 @@ export function MobileNav() {
   }, [user]);
 
   const dashboardCount =
-    filteredAndSortedJobs.length > 0 ? String(filteredAndSortedJobs.length) : undefined;
+    pendingMatchCount > 0 ? String(pendingMatchCount) : topJobs.length > 0 ? '0' : undefined;
   const savedCount = (stats as any)?.total > 0 ? String((stats as any).total) : undefined;
   const groups = getAppNavGroups(dashboardCount, savedCount, admin);
 

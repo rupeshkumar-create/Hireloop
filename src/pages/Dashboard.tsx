@@ -17,9 +17,10 @@ import { FreeMatchUpsell } from '../components/dashboard/FreeMatchUpsell';
 import { buildMatchFeedItems, getDailyBatchSummary } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
-import { getDailyMatchLimit, isProPlan } from '../lib/planLimits';
+import { isProPlan } from '../lib/planLimits';
 import { isDodoPaymentReturn } from '../lib/pricing';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
+import { cn } from '../lib/utils';
 import { resolveTodayLocalDateKey } from '../lib/localDate';
 import {
   shouldHideManualScoutControls,
@@ -92,6 +93,8 @@ export function Dashboard() {
 
   const {
     filteredAndSortedJobs,
+    topJobs,
+    pendingJobs,
     paywallJobs,
     loadingJobs,
     generatingJobs,
@@ -214,28 +217,29 @@ export function Dashboard() {
     }
   }, [generatingJobs, loadingJobs, requestJobs, hideManualScout]);
 
-  const topJobs = filteredAndSortedJobs.slice(0, getDailyMatchLimit(profile?.plan));
-
   const allSavedFingerprints = useMemo(() => {
     const merged = new Set([...pipelineFingerprints, ...savedJobFingerprints]);
     return Array.from(merged);
   }, [pipelineFingerprints, savedJobFingerprints]);
 
-  /** Today's queue — exclude roles already in Pipeline or skipped to history. */
-  const pendingJobs = useMemo(() => {
-    return topJobs.filter((job) => {
-      const fp = jobFingerprint(job.title, job.company);
-      return !allSavedFingerprints.includes(fp) && !dismissedFingerprints.includes(fp);
-    });
-  }, [topJobs, allSavedFingerprints, dismissedFingerprints]);
+  /** Session-local merge for save button state (pendingJobs comes from context). */
+  const isJobSaved = (job: Job) => {
+    const fp = jobFingerprint(job.title, job.company);
+    return allSavedFingerprints.includes(fp);
+  };
+
+  const isJobDismissed = (job: Job) => {
+    const fp = jobFingerprint(job.title, job.company);
+    return dismissedFingerprints.includes(fp);
+  };
 
   const batchSummary = useMemo(
     () => getDailyBatchSummary(pendingJobs.length > 0 ? pendingJobs : topJobs, profile?.plan, paywallJobs),
     [pendingJobs, topJobs, profile?.plan, paywallJobs]
   );
   const matchFeedItems = useMemo(
-    () => buildMatchFeedItems(pendingJobs.length > 0 ? pendingJobs : topJobs, profile?.plan),
-    [pendingJobs, topJobs, profile?.plan]
+    () => buildMatchFeedItems(topJobs, profile?.plan),
+    [topJobs, profile?.plan]
   );
 
   const reviewIndex = selectedJob
@@ -517,7 +521,7 @@ export function Dashboard() {
           <div className="hs-stat-delta">{topJobs.length - pendingJobs.length} saved or skipped</div>
         </div>
         <div className="hs-stat">
-          <div className="hs-stat-num">{dailyJobsMeta?.returnedCount || filteredAndSortedJobs.length || 0}</div>
+          <div className="hs-stat-num">{topJobs.length}</div>
           <div className="hs-label mt-2">Roles matched so far</div>
           <div className="hs-stat-delta">Latest daily batch</div>
         </div>
@@ -651,10 +655,15 @@ export function Dashboard() {
             matchFeedItems.map((item) => {
               const job = item.job;
               const score = job.matchScore || job.finalScore || 0;
+              const saved = isJobSaved(job);
+              const skipped = isJobDismissed(job);
               return (
                 <article
                   key={item.id}
-                  className="hs-card-row"
+                  className={cn(
+                    'hs-card-row',
+                    (saved || skipped) && 'opacity-75'
+                  )}
                   onClick={() => openReviewJob(job)}
                 >
                   <div className="min-w-0">
@@ -663,6 +672,12 @@ export function Dashboard() {
                       <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
                         {job.company} · {job.location || 'Remote'}
                       </span>
+                      {saved ? (
+                        <span className="hs-pill hs-pill-success text-[9px]">In pipeline</span>
+                      ) : null}
+                      {skipped ? (
+                        <span className="hs-pill text-[9px]">Skipped</span>
+                      ) : null}
                     </div>
                     <h2 className="mb-2 text-[14px] font-semibold text-[var(--hs-app-fg)]">{job.title}</h2>
                     <div className="hs-tags mb-3">

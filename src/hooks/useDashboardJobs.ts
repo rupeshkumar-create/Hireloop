@@ -757,7 +757,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const filteredAndSortedJobs = useMemo(() => {
     return jobs
       .filter((job) => {
-        const fp = jobFingerprint(job.title || '', job.company || '');
         const passesWorkType =
           filterWorkType === 'all' ||
           job.workType === 'remote' ||
@@ -780,7 +779,6 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
 
         return (
-          !dismissedFingerprints.includes(fp) &&
           passesWorkType &&
           passesRegion &&
           (job.company || '').toLowerCase().includes(filterCompany.toLowerCase()) &&
@@ -796,7 +794,24 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
         return 0;
       });
-  }, [jobs, dismissedFingerprints, filterWorkType, filterCompany, filterLocation, filterSalary, sortBy, userCountry]);
+  }, [jobs, filterWorkType, filterCompany, filterLocation, filterSalary, sortBy, userCountry]);
+
+  const dailyMatchLimit = getDailyMatchLimit(profile?.plan);
+
+  const topJobs = useMemo(
+    () => filteredAndSortedJobs.slice(0, dailyMatchLimit),
+    [filteredAndSortedJobs, dailyMatchLimit]
+  );
+
+  /** Matches still to save or skip — drives nav badge and "to review" stat. */
+  const pendingJobs = useMemo(() => {
+    return topJobs.filter((job) => {
+      const fp = jobFingerprint(job.title || '', job.company || '');
+      return !pipelineFingerprints.includes(fp) && !dismissedFingerprints.includes(fp);
+    });
+  }, [topJobs, pipelineFingerprints, dismissedFingerprints]);
+
+  const pendingMatchCount = pendingJobs.length;
 
   // Count of jobs hidden specifically by the region-eligibility filter —
   // surfaced on the dashboard banner so users understand "I expected more".
@@ -818,6 +833,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     jobs,
     paywallJobs,
     filteredAndSortedJobs,
+    topJobs,
+    pendingJobs,
+    pendingMatchCount,
     userCountry,
     regionFilteredCount,
     loadingJobs,
