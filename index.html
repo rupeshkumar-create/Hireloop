@@ -38,13 +38,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <style>
-      .hs-seo-fallback{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;background:#faf9f7;line-height:1.65;margin:0;padding:0 20px 48px;max-width:720px}
+      .hs-seo-fallback{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;background:#faf9f7;line-height:1.65;margin:0 auto;padding:48px 24px 64px;max-width:720px}
       .hs-seo-fallback h1{font-size:clamp(1.75rem,5vw,2.5rem);font-weight:400;line-height:1.15;margin:24px 0 16px}
       .hs-seo-fallback h2{font-size:1.25rem;font-weight:600;margin:28px 0 10px}
       .hs-seo-fallback p,.hs-seo-fallback li{font-size:1rem;color:#444;margin:0 0 14px}
       .hs-seo-fallback a{color:#b45309;text-decoration:underline}
       .hs-seo-fallback nav{margin:16px 0 24px;font-size:.9rem}
       .hs-seo-fallback strong{color:#1a1a1a}
+      html.hs-hydrated #hs-seo-static{display:none}
+      #root:empty{min-height:100vh;background:#faf9f7}
     </style>
     <script>
       try {
@@ -55,8 +57,7 @@
     </script>
   </head>
   <body>
-    <div id="root">
-      <main class="hs-seo-fallback" id="hs-seo-static">
+    <main class="hs-seo-fallback" id="hs-seo-static">
         <nav aria-label="Primary">
           <a href="/">Home</a> ·
           <a href="/remote-jobs">Remote jobs</a> ·
@@ -107,8 +108,8 @@
           Questions? Email <a href="mailto:support@hireschema.com">support@hireschema.com</a> or
           <a href="https://wa.me/917903959739?text=Hi%20Hireschema%20team">message us on WhatsApp</a>.
         </p>
-      </main>
-    </div>
+    </main>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
