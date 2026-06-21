@@ -93,6 +93,8 @@ async function runPipeline(
             getAdminDb: () => db,
             targetMarkets,
             structuredProfile: profile.structuredProfile,
+            deliveryTimezone: profile.deliveryTimezone,
+            preferences: profile.matchingPreferences || profile.preferences,
           });
           discovered = feedJobs;
           console.log('[api/jobs] discoverJobsForMatching returned:', feedJobs.length, sources);

@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { evaluateScoutDedup } from '../scoutDedup';
 
 describe('evaluateScoutDedup', () => {
-  it('blocks when today batch already meets the free plan cap', () => {
+  it('blocks when today batch already meets the daily match cap', () => {
+    const jobs = Array.from({ length: 10 }, (_, i) => ({ title: `Engineer ${i}` }));
     const result = evaluateScoutDedup(
       {
         plan: 'free',
         deliveryTimezone: 'UTC',
-        dailyJobs: [{ title: 'Engineer' }],
+        dailyJobs: jobs,
         dailyJobsMeta: { deliveryLocalDate: '2026-06-06' },
         lastJobFetchTime: '2026-06-06T10:00:00.000Z',
       },
@@ -15,8 +16,8 @@ describe('evaluateScoutDedup', () => {
     );
 
     expect(result.blocked).toBe(true);
-    expect(result.existingCount).toBe(1);
-    expect(result.planCap).toBe(1);
+    expect(result.existingCount).toBe(10);
+    expect(result.planCap).toBe(10);
   });
 
   it('allows pro users with fewer jobs than the cap to regenerate', () => {

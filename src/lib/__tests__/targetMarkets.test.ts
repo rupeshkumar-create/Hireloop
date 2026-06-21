@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   apifyLocationSearchForMarkets,
+  apifyLocationSearchForUser,
   marketBoostForJob,
   normalizeTargetMarkets,
   DEFAULT_TARGET_MARKETS,
@@ -40,5 +41,18 @@ describe('targetMarkets', () => {
     const markets = ['us', 'eu', 'uk'] as const;
     expect(marketBoostForJob(job('Remote — United States'), [...markets])).toBeGreaterThan(0);
     expect(marketBoostForJob(job('Bangalore, India — Remote'), [...markets])).toBeLessThan(0);
+  });
+});
+
+describe('apifyLocationSearchForUser', () => {
+  it('adds India and worldwide tokens for Indian users', () => {
+    const terms = apifyLocationSearchForUser(['us', 'eu', 'uk'], 'IN');
+    expect(terms.some((t) => /india|worldwide|apac/i.test(t))).toBe(true);
+  });
+
+  it('keeps US-only tokens for US users', () => {
+    const terms = apifyLocationSearchForUser(['us', 'eu', 'uk'], 'US');
+    expect(terms.some((t) => /united states|usa/i.test(t))).toBe(true);
+    expect(terms.some((t) => /india/i.test(t))).toBe(false);
   });
 });

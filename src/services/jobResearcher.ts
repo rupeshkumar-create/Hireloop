@@ -10,10 +10,11 @@ import { normalizeApifyItem, requireApifyToken, runCareerSiteActor } from './job
 import { normalizeLinkedInItem, runLinkedInActor } from './jobSources/apifyLinkedIn.js';
 import type { ApifyCareerSiteInput } from './jobSources/apifyCareerSite.js';
 import {
-  apifyLocationSearchForMarkets,
+  apifyLocationSearchForUser,
   resolveTargetMarkets,
   type TargetMarket,
 } from '../lib/targetMarkets.js';
+import type { UserCountry } from '../services/remoteEligibility.js';
 import {
   apifyTitleExclusionsForCareer,
   apifyTitleSynonyms,
@@ -57,6 +58,8 @@ export interface ResearchOptions {
   /** US/EU discovery bias — defaults to us, eu, uk when omitted. */
   targetMarkets?: TargetMarket[];
   structuredProfile?: ProfileSkillInput['structuredProfile'];
+  /** User country for worldwide/APAC discovery extension (e.g. India). */
+  userCountry?: UserCountry;
 }
 
 export interface ResearchResult {
@@ -209,7 +212,7 @@ export async function researchJobs(
   const priorityPaths = (opts.careerPaths || []).filter(Boolean).slice(0, 3);
   const searchPaths = priorityPaths.length > 0 ? priorityPaths : ['remote software engineer'];
   const targetMarkets = resolveTargetMarkets({ targetMarkets: opts.targetMarkets });
-  const locationSearch = apifyLocationSearchForMarkets(targetMarkets);
+  const locationSearch = apifyLocationSearchForUser(targetMarkets, opts.userCountry);
   const skillQueries = buildApifySkillDiscoveryQueries({
     careerPaths: searchPaths,
     resumeText: opts.resumeText,

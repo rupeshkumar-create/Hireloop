@@ -7,6 +7,7 @@ import { loadAtsAllowlist } from './jobSources/atsAllowlist.js';
 import { fetchAtsJobs } from './jobSources/atsOrchestrator.js';
 import { verifyHttpUrl } from './urlVerifier.js';
 import type { TargetMarket } from '../lib/targetMarkets.js';
+import { inferUserCountryFromProfile } from '../lib/targetMarkets.js';
 
 export interface DiscoverJobsInput {
   careerPaths: string[];
@@ -24,6 +25,9 @@ export interface DiscoverJobsInput {
     techStack?: string[];
     roles?: string[];
   };
+  deliveryTimezone?: string;
+  location?: string;
+  preferences?: { locations?: string[] };
 }
 
 export interface DiscoverJobsResult {
@@ -72,6 +76,7 @@ export async function discoverJobsForMatching(
 
   if (combined.length < targetDiscoveryCount) {
     const missing = targetDiscoveryCount - combined.length;
+    const userCountry = inferUserCountryFromProfile(input);
     const { jobs: feedJobs, sources: apifySources } = await researchJobs({
       careerPaths: input.careerPaths,
       resumeText: input.resumeText,
@@ -80,6 +85,7 @@ export async function discoverJobsForMatching(
       targetCount: Math.max(20, missing),
       targetMarkets: input.targetMarkets,
       structuredProfile: input.structuredProfile,
+      userCountry,
     });
     for (const job of feedJobs) {
       addJob(job);

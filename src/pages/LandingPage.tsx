@@ -4,6 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { SeoHead } from '../components/seo/SeoHead';
+import {
+  HOME_META_DESCRIPTION,
+  HOME_PAGE_TITLE,
+} from '../lib/homepageSeo';
 import { SITE_URL, SITE_STATUS, DEFAULT_OG_IMAGE, HOME_FAQ, HOME_KEYWORDS, buildBreadcrumbSchema, buildFaqPageSchema, buildOrganizationSchema, buildSoftwareApplicationSchema, buildWebSiteSchema } from '../lib/siteSeo';
 import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
 import { fetchLandingBlogPosts, type LandingBlogPost } from '../lib/landingBlogPosts';
@@ -861,8 +865,8 @@ export function LandingPage() {
   return (
     <div ref={rootRef} className="lp-root">
       <SeoHead
-        title="HireSchema — AI Remote Job Matching"
-        description="Find remote jobs matched to your resume. Free: 10 daily AI-scored matches. Pro ($19/mo): AI resume tailoring, cold emails, cover letters, and interview prep."
+        title={HOME_PAGE_TITLE}
+        description={HOME_META_DESCRIPTION}
         canonicalUrl={`${SITE_URL}/`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
@@ -929,9 +933,8 @@ export function LandingPage() {
             <div className="lp-hero-left">
               <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">AI Recruiting Agent · Remote Only</p>
               <h1 className="lp-display lp-dh lp-hero-hl lp-fi lp-fi-2">
-                The quiet agent<br />
-                that finds your<br />
-                <em>next</em> remote role.
+                AI remote job matching<br />
+                for your <em>next</em> remote role.
               </h1>
               <p className="lp-body-lg lp-hero-sub lp-fi lp-fi-3">
                 Upload your resume. Hireschema scouts the global job market daily, scores every match against your profile, and delivers only the roles worth your attention. {SITE_STATUS}.

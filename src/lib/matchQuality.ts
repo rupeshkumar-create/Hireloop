@@ -6,6 +6,9 @@ import type { DiscoveredJob } from '../services/jobResearcher.js';
 /** Production pipeline minimum — prefer fewer strong jobs over filling 10 slots. */
 export const PIPELINE_MIN_MATCH_SCORE = 68;
 
+/** Support-focused users — slightly lower floor when strict pipeline returns zero. */
+export const SUPPORT_BACKFILL_MIN_MATCH_SCORE = 58;
+
 /** Max posting age before hard rejection (matches validator.ts). */
 export const MAX_JOB_AGE_DAYS = 7;
 
@@ -24,7 +27,7 @@ const HYBRID_RE =
 const SUPPORT_CAREER_RE =
   /\b(customer\s+support|technical\s+support|help\s*desk|support\s+specialist|support\s+agent|support\s+representative|client\s+support|cx\s+specialist|customer\s+care)\b/i;
 
-const SUPPORT_TITLE_RE =
+export const SUPPORT_TITLE_RE =
   /\b(customer\s+support|technical\s+support|help\s*desk|support\s+specialist|support\s+agent|support\s+representative|client\s+support|customer\s+care|client\s+care|cx\s+specialist|support\s+engineer|it\s+support)\b/i;
 
 const ENGINEERING_TITLE_RE =

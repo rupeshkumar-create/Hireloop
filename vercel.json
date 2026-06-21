@@ -3,6 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.hireschema.com" }],
+      "destination": "https://hireschema.com/:path*",
+      "permanent": true
+    }
+  ],
   "functions": {
     "api/cron/[job].ts": { "maxDuration": 60 },
     "api/blog/index.ts": { "maxDuration": 60 },
@@ -29,10 +37,6 @@
     {
       "source": "/api/analytics/pageview",
       "destination": "/api/public/analytics/pageview"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/api/public/sitemap"
     },
     {
       "source": "/blog/rss.xml",

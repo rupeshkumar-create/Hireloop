@@ -125,6 +125,8 @@ async function processUser(
           getAdminDb: () => db,
           targetMarkets,
           structuredProfile: profile.structuredProfile,
+          deliveryTimezone: profile.deliveryTimezone,
+          preferences: profile.matchingPreferences || profile.preferences,
         });
 
         console.log(`  total discovered ${combined.length} jobs`);

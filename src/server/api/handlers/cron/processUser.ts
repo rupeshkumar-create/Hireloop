@@ -86,6 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             getAdminDb: () => db,
             targetMarkets,
             structuredProfile: profile.structuredProfile,
+            deliveryTimezone: profile.deliveryTimezone,
+            preferences: profile.matchingPreferences || profile.preferences,
           });
 
           console.log(

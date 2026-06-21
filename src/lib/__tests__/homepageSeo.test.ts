@@ -1,0 +1,21 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { HOME_META_DESCRIPTION, HOME_PAGE_TITLE } from '../homepageSeo';
+
+describe('homepage SEO', () => {
+  it('exports target keyword in title and description', () => {
+    expect(HOME_PAGE_TITLE.toLowerCase()).toContain('ai remote job matching');
+    expect(HOME_META_DESCRIPTION.toLowerCase()).toContain('ai remote job matching');
+  });
+
+  it('index.html includes crawlable static body copy', () => {
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+    expect(html).toContain('<h1>');
+    expect(html.toLowerCase()).toContain('ai remote job matching');
+    expect(html.toLowerCase()).toContain('remote job');
+    expect(html).toContain('href="/blog"');
+    expect(html).toContain("addEventListener('load'");
+    expect(html.indexOf("addEventListener('load'")).toBeLessThan(html.indexOf('googletagmanager.com'));
+  });
+});

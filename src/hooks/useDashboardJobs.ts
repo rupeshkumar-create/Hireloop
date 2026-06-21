@@ -221,6 +221,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       //    Read errors (e.g. rules not yet deployed) are caught separately so they
       //    never block the fallback paths below.
       let foundInDaily = false;
+      let dailyHasJobs = false;
       try {
         const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
         const dailySnap = await getDoc(dailyRef);
@@ -230,6 +231,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           setJobs(visible);
           setPaywallJobs(paywall);
           const fetched = visible;
+          dailyHasJobs = fetched.length > 0;
           setDailyJobsMeta({
             requestedLimit: record.requestedLimit ?? limit,
             returnedCount: record.returnedCount ?? fetched.length,
@@ -247,7 +249,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         // Permission-denied or network error on the subcollection — fall through
         console.warn('[useDashboardJobs] daily_matches read failed, trying profile cache:', subErr);
       }
-      if (foundInDaily) return;
+      if (foundInDaily && dailyHasJobs) return;
 
       // 2. Fall back to today's cached batch on the user doc — only if it's from today
       if (profile.dailyJobs && profile.dailyJobs.length > 0) {

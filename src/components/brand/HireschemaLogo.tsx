@@ -21,7 +21,7 @@ export function HireschemaLogo({ className, height = 28, to }: HireschemaLogoPro
   const img = (
     <img
       src={src}
-      alt="Hireschema"
+      alt="HireSchema — AI remote job matching"
       height={height}
       width={Math.round(height * LOGO_ASPECT)}
       className={cn('hs-brand-logo', className)}
@@ -50,7 +50,7 @@ export function HireschemaIcon({ className, size = 32 }: HireschemaIconProps) {
   return (
     <img
       src={HIRESCHEMA_ICON_SRC}
-      alt="Hireschema"
+      alt="HireSchema — AI remote job matching"
       width={size}
       height={size}
       className={cn('hs-brand-icon', className)}

@@ -11,6 +11,9 @@ import {
   MIN_DETERMINISTIC_POOL_SCORE,
   passesSupportCompatibilityGate,
   PIPELINE_MIN_MATCH_SCORE,
+  isSupportFocusedCareer,
+  SUPPORT_BACKFILL_MIN_MATCH_SCORE,
+  SUPPORT_TITLE_RE,
 } from '../lib/matchQuality.js';
 import { validateJob } from './validator.js';
 
@@ -769,6 +772,26 @@ export async function matchAndRankJobs(
       );
     }
     if (final.length > 0) usedQualityBackfill = true;
+  }
+
+  // 5b. Support-career rescue — lower match threshold for clearly support-titled jobs.
+  if (
+    final.length === 0 &&
+    isSupportFocusedCareer(careerPaths, profileRoles) &&
+    scored.length > 0
+  ) {
+    const supportScored = scored.filter(
+      ({ job, matchScore }) =>
+        matchScore >= SUPPORT_BACKFILL_MIN_MATCH_SCORE &&
+        SUPPORT_TITLE_RE.test(job.title)
+    );
+    if (supportScored.length > 0) {
+      final = selectJobsByCareerPriority(supportScored, limit, priorityPaths);
+      if (final.length > 0) {
+        usedQualityBackfill = true;
+        console.log(`[jobMatchingEngine] Support backfill delivered ${final.length} jobs.`);
+      }
+    }
   }
 
   // 6. Emergency fallback — never return zero when discovery found viable listings.

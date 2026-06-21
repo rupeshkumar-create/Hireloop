@@ -2,7 +2,7 @@
  * Target hiring markets — drives Apify discovery bias and match ranking.
  */
 import type { RemoteRegion } from '../services/remoteEligibility.js';
-import { detectRemoteRegion } from '../services/remoteEligibility.js';
+import { detectRemoteRegion, inferUserCountry, type UserCountry } from '../services/remoteEligibility.js';
 import type { DiscoveredJob } from '../services/jobResearcher.js';
 
 export type TargetMarket = 'us' | 'eu' | 'uk' | 'ca' | 'worldwide';
@@ -36,7 +36,7 @@ export function resolveTargetMarkets(profile: TargetMarketProfile | null | undef
 /** Apify `locationSearch` tokens for strict discovery passes. */
 export function apifyLocationSearchForMarkets(markets: TargetMarket[]): string[] {
   if (markets.includes('worldwide')) {
-    return ['United States', 'United Kingdom', 'Germany', 'Canada', 'Remote'];
+    return ['United States', 'United Kingdom', 'Germany', 'Canada', 'Remote', 'Worldwide', 'India'];
   }
   const terms: string[] = [];
   if (markets.includes('us')) terms.push('United States', 'US', 'USA', 'Remote US');
@@ -46,6 +46,41 @@ export function apifyLocationSearchForMarkets(markets: TargetMarket[]): string[]
     terms.push('Europe', 'EU', 'EMEA', 'Germany', 'Netherlands', 'France', 'Ireland', 'Remote Europe');
   }
   return [...new Set(terms)].slice(0, 12);
+}
+
+/** Extend Apify location tokens for users outside US/EU so discovery is not empty. */
+export function apifyLocationSearchForUser(
+  markets: TargetMarket[],
+  userCountry?: UserCountry
+): string[] {
+  const base = apifyLocationSearchForMarkets(markets);
+  if (userCountry === 'IN' && !markets.includes('worldwide')) {
+    const indiaTerms = ['India', 'Remote India', 'Worldwide', 'Remote Worldwide', 'APAC'];
+    return [...new Set([...indiaTerms, ...base])].slice(0, 12);
+  }
+  if (userCountry === 'UNKNOWN') return base;
+  const inUsEu =
+    userCountry === 'US' ||
+    userCountry === 'CA' ||
+    userCountry === 'GB' ||
+    ['DE', 'FR', 'NL', 'IE', 'ES', 'IT', 'PT', 'PL', 'SE', 'NO', 'DK', 'FI'].includes(userCountry);
+  if (!inUsEu && !markets.includes('worldwide')) {
+    return [...new Set([...base, 'Worldwide', 'Remote Worldwide'])].slice(0, 12);
+  }
+  return base;
+}
+
+export interface DiscoveryProfile extends TargetMarketProfile {
+  deliveryTimezone?: string;
+  location?: string;
+  preferences?: { locations?: string[] };
+}
+
+export function inferUserCountryFromProfile(profile: DiscoveryProfile | null | undefined): UserCountry {
+  return inferUserCountry({
+    deliveryTimezone: profile?.deliveryTimezone,
+    locations: profile?.preferences?.locations || (profile?.location ? [profile.location] : []),
+  });
 }
 
 function regionMatchesMarkets(region: RemoteRegion, markets: TargetMarket[]): boolean {
