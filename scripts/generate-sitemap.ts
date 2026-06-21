@@ -6,29 +6,18 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getSitemapProgrammaticSpecs } from '../src/server/contentGrowth/programmatic/publicListing.js';
+import { SITEMAP_BASE_URL, SITEMAP_STATIC_PAGES } from '../src/lib/sitemapPages.js';
 
-const BASE = 'https://hireschema.com';
 const today = new Date().toISOString().split('T')[0]!;
-
-const STATIC_PAGES = [
-  { loc: '/', priority: '1.0', changefreq: 'weekly' },
-  { loc: '/remote-jobs', priority: '0.95', changefreq: 'weekly' },
-  { loc: '/blog', priority: '0.9', changefreq: 'weekly' },
-  { loc: '/login', priority: '0.5', changefreq: 'monthly' },
-  { loc: '/privacy', priority: '0.3', changefreq: 'yearly' },
-  { loc: '/terms', priority: '0.3', changefreq: 'yearly' },
-  { loc: '/llms.txt', priority: '0.4', changefreq: 'weekly' },
-  { loc: '/llms-full.txt', priority: '0.4', changefreq: 'weekly' },
-];
 
 const posts = getSitemapProgrammaticSpecs().filter(
   (spec) => new Date(spec.publishedAt).getTime() <= Date.now()
 );
 
 const urls = [
-  ...STATIC_PAGES.map(
+  ...SITEMAP_STATIC_PAGES.map(
     (p) => `  <url>
-    <loc>${BASE}${p.loc}</loc>
+    <loc>${SITEMAP_BASE_URL}${p.loc}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
@@ -36,7 +25,7 @@ const urls = [
   ),
   ...posts.map(
     (p) => `  <url>
-    <loc>${BASE}/blog/${p.slug}</loc>
+    <loc>${SITEMAP_BASE_URL}/blog/${p.slug}</loc>
     <lastmod>${(p.publishedAt || today).split('T')[0]}</lastmod>
     <changefreq>${p.slug === 'weekly-top-remote-roles' ? 'daily' : 'weekly'}</changefreq>
     <priority>${p.slug === 'weekly-top-remote-roles' ? '0.9' : '0.8'}</priority>
@@ -52,4 +41,4 @@ ${urls.join('\n')}
 
 const out = resolve(process.cwd(), 'public/sitemap.xml');
 writeFileSync(out, xml, 'utf8');
-console.log(`[generate-sitemap] Wrote public/sitemap.xml (${STATIC_PAGES.length} static + ${posts.length} blog URLs)`);
+console.log(`[generate-sitemap] Wrote public/sitemap.xml (${SITEMAP_STATIC_PAGES.length} static + ${posts.length} blog URLs)`);

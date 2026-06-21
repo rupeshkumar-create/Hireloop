@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { HireschemaLogo } from '../components/brand/HireschemaLogo';
 import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
+import { SeoHead } from '../components/seo/SeoHead';
+import { SITE_URL } from '../lib/siteSeo';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
 
 const FLOW_STEPS = [
@@ -24,6 +26,13 @@ export function Login() {
 
   return (
     <div className="hs-landing min-h-screen flex flex-col">
+      <SeoHead
+        title="Sign in — HireSchema"
+        description="Sign in to HireSchema with Google to access your daily AI-scored remote job matches."
+        canonicalUrl={`${SITE_URL}/login`}
+        ogType="website"
+        noIndex
+      />
       <nav className="hs-land-nav">
         <div className="hs-land-container hs-land-nav-inner">
           <Link to="/" className="inline-flex no-underline">

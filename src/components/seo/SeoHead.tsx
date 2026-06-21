@@ -5,6 +5,8 @@ interface SeoHeadProps {
   description: string;
   canonicalUrl: string;
   ogType?: string;
+  /** When true, adds robots noindex,nofollow (login, app-only pages). */
+  noIndex?: boolean;
   schema?: {
     article?: Record<string, unknown>;
     faqPage?: Record<string, unknown>;
@@ -63,6 +65,7 @@ export function SeoHead({
   description,
   canonicalUrl,
   ogType = 'article',
+  noIndex = false,
   schema,
   keywords,
   ogImage,
@@ -70,6 +73,7 @@ export function SeoHead({
   useEffect(() => {
     document.title = title;
     upsertMeta('name', 'description', description);
+    upsertMeta('name', 'robots', noIndex ? 'noindex, nofollow' : 'index, follow');
     if (keywords?.length) upsertMeta('name', 'keywords', keywords.join(', '));
     upsertLink('canonical', canonicalUrl);
 
@@ -111,7 +115,7 @@ export function SeoHead({
       removeJsonLd('schema-breadcrumb');
       for (const id of EXTRA_SCHEMA_KEYS) removeJsonLd(id);
     };
-  }, [title, description, canonicalUrl, ogType, schema, keywords, ogImage]);
+  }, [title, description, canonicalUrl, ogType, noIndex, schema, keywords, ogImage]);
 
   return null;
 }

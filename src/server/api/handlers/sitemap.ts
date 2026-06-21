@@ -3,20 +3,9 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listBlogPosts } from '../../marketingEngine.js';
+import { SITEMAP_BASE_URL, SITEMAP_STATIC_PAGES } from '../../../lib/sitemapPages.js';
 
-const BASE = 'https://hireschema.com';
 const SITEMAP_POST_LIMIT = 500;
-
-const STATIC_PAGES = [
-  { loc: '/', priority: '1.0', changefreq: 'weekly' },
-  { loc: '/remote-jobs', priority: '0.95', changefreq: 'weekly' },
-  { loc: '/blog', priority: '0.9', changefreq: 'weekly' },
-  { loc: '/login', priority: '0.5', changefreq: 'monthly' },
-  { loc: '/privacy', priority: '0.3', changefreq: 'yearly' },
-  { loc: '/terms', priority: '0.3', changefreq: 'yearly' },
-  { loc: '/llms.txt', priority: '0.4', changefreq: 'weekly' },
-  { loc: '/llms-full.txt', priority: '0.4', changefreq: 'weekly' },
-];
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
@@ -24,9 +13,9 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const today = new Date().toISOString().split('T')[0];
 
     const urls = [
-      ...STATIC_PAGES.map(
+      ...SITEMAP_STATIC_PAGES.map(
         (p) => `  <url>
-    <loc>${BASE}${p.loc}</loc>
+    <loc>${SITEMAP_BASE_URL}${p.loc}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
@@ -34,7 +23,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       ),
       ...posts.map(
         (p) => `  <url>
-    <loc>${BASE}/blog/${p.slug}</loc>
+    <loc>${SITEMAP_BASE_URL}/blog/${p.slug}</loc>
     <lastmod>${(p.publishedAt || today).split('T')[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

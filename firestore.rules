@@ -15,8 +15,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.superAdmin == true ||
         request.auth.token.email.lower() == 'rupesh7126@gmail.com' ||
-        request.auth.token.email.lower() == 'kv3244@gmail.com' ||
-        request.auth.token.email.lower() == 'rratanranjeet790395@gmail.com'
+        request.auth.token.email.lower() == 'kv3244@gmail.com'
       );
     }
 

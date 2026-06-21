@@ -9,11 +9,8 @@ describe('isAdminEmail', () => {
     }
   });
 
-  it('includes rratanranjeet790395@gmail.com', () => {
-    expect(isAdminEmail('Rratanranjeet790395@gmail.com')).toBe(true);
-  });
-
   it('rejects non-admin emails', () => {
     expect(isAdminEmail('random@example.com')).toBe(false);
+    expect(isAdminEmail('rratanranjeet790395@gmail.com')).toBe(false);
   });
 });

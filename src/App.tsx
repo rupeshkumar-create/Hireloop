@@ -23,6 +23,8 @@ import { isAdminEmail } from './lib/adminEmails';
 import { isOnboardingComplete } from './lib/onboarding';
 import { HireschemaLogo } from './components/brand/HireschemaLogo';
 import { GoogleAnalytics } from './components/GoogleAnalytics';
+import { SeoHead } from './components/seo/SeoHead';
+import { SITE_URL } from './lib/siteSeo';
 import { shouldHideManualScoutControls } from './lib/inactiveScout';
 import { WhatsAppFloatingButton } from './components/support/WhatsAppFloatingButton';
 import { WhatsAppSupportLink } from './components/support/WhatsAppSupportLink';
@@ -131,6 +133,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   if (minimal) {
     return (
       <DashboardJobsProvider>
+        <SeoHead
+          title={`${current.title} | HireSchema`}
+          description="Private HireSchema workspace."
+          canonicalUrl={`${SITE_URL}${location.pathname}`}
+          noIndex
+        />
         <div className="hs-app-frame hs-app-frame-minimal">
           <header className="hs-minimal-header">
             <Link to="/" className="inline-flex no-underline">
@@ -147,6 +155,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <DashboardJobsProvider>
+      <SeoHead
+        title={`${current.title} | HireSchema`}
+        description="Private HireSchema workspace."
+        canonicalUrl={`${SITE_URL}${location.pathname}`}
+        noIndex
+      />
       <div className="hs-app-frame">
         <Sidebar />
         <div className="hs-main">
