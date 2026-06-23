@@ -19,6 +19,7 @@ function routeKey(req: VercelRequest): string {
 
 const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
   sitemap: () => import('../../src/server/api/handlers/sitemap.js'),
+  'bing-site-auth': () => import('../../src/server/api/handlers/bingSiteAuth.js'),
   'analytics/pageview': () => import('../../src/server/api/handlers/analyticsPageview.js'),
 };
 
