@@ -26,7 +26,6 @@ export interface DiscoverJobsInput {
     roles?: string[];
   };
   deliveryTimezone?: string;
-  location?: string;
   preferences?: { locations?: string[] };
 }
 

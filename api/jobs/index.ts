@@ -313,35 +313,44 @@ async function handleAsyncDispatch(uid: string, req: VercelRequest, res: VercelR
   const firstRun = req.body?.firstRun === true || !profile.lastSuccessfulJobRunLocalDate;
 
   if (!isLocal) {
-    console.log('[api/jobs] Running inline Scout pipeline on Vercel', { firstRun, force });
-    const pipelineResult = await runPipeline(uid, runDate, req);
-    const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
+    console.log('[api/jobs] Dispatching Scout in background', { firstRun, force, runDate });
+    const pipelinePromise = runPipeline(uid, runDate, req).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[api/jobs] Background Scout pipeline failed:', message);
+    });
 
-    if (pipelineResult.status !== 'completed') {
-      const failureReason =
-        (pipelineResult.debug as any)?.failureReason ||
-        (pipelineResult.debug as any)?.emptyReason;
-      return res.status(500).json({
-        error: failureReason || 'Daily job generation did not complete.',
-        status: pipelineResult.status,
-        debug: pipelineResult.debug,
-      });
+    try {
+      const vercelFunctions = await import('@vercel/functions');
+      if (typeof vercelFunctions.waitUntil === 'function') {
+        vercelFunctions.waitUntil(pipelinePromise);
+      } else {
+        void pipelinePromise;
+      }
+    } catch {
+      void pipelinePromise;
     }
 
-    return res.status(200).json({
-      status: 'completed',
+    return res.status(202).json({
+      status: 'processing',
       runDate,
-      jobs,
-      jobCount: jobs.length,
       firstRun,
-      message: jobs.length > 0
-        ? `${jobs.length} jobs curated for you.`
-        : 'No matching jobs were found. Try broadening your career paths in Settings.',
+      message:
+        'Searching live job boards for your top matches. Your dashboard will update automatically in about 2 minutes.',
     });
   }
 
   const pipelineResult = await runPipeline(uid, runDate, req);
   const jobs = pipelineResult.jobs.length > 0 ? pipelineResult.jobs : await readStoredJobs(uid, runDate);
+  if (pipelineResult.status === 'skipped') {
+    const failureReason =
+      (pipelineResult.debug as Record<string, unknown>)?.failureReason ||
+      'Profile is not ready for Scout.';
+    return res.status(400).json({
+      error: String(failureReason),
+      status: pipelineResult.status,
+      debug: pipelineResult.debug,
+    });
+  }
   if (pipelineResult.status !== 'completed') {
     const failureReason = (pipelineResult.debug as any)?.failureReason || (pipelineResult.debug as any)?.emptyReason;
     return res.status(500).json({

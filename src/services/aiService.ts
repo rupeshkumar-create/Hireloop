@@ -15,6 +15,11 @@ import {
 } from './validator';
 import { registerGuardrailTask, runWithGuardrails } from './systemEngine';
 import { fetchRecruiterFromApollo, type RecruiterContact } from './apolloService';
+import {
+  enrichResumeTextWithHyperlinks,
+  normalizeLinkedInUrl,
+  pickLinkedInFromUrls,
+} from '../lib/resumeHyperlinks.js';
 import { getAiAuthToken } from './aiAuth';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -347,16 +352,20 @@ function shortId(seed: string): string {
  * fields the AI didn't return. Patterns work across resume layouts because
  * email/phone/linkedin/github have very consistent shapes.
  */
-export function extractContactFromText(text: string): ExtractedContact {
+export function extractContactFromText(text: string, hyperlinkUrls: string[] = []): ExtractedContact {
   const out: ExtractedContact = {};
-  const cleaned = text.replace(/\s+/g, ' ');
+  const enriched = enrichResumeTextWithHyperlinks(text, hyperlinkUrls);
+  const cleaned = enriched.replace(/\s+/g, ' ');
+
+  // Hyperlink targets win — resumes often show "LinkedIn" with the real URL only in the link.
+  const linkedinFromLinks = pickLinkedInFromUrls(hyperlinkUrls);
+  if (linkedinFromLinks) out.linkedin = linkedinFromLinks;
 
   // Email — first plausible address wins.
   const emailMatch = cleaned.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/);
   if (emailMatch) out.email = emailMatch[0];
 
   // Phone — international or 10+ digit run. Avoid matching years like "2024".
-  // Look for shapes like +91 9876543210, (415) 555-0123, 415-555-0123.
   const phoneMatch =
     cleaned.match(/\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,5}/) ||
     cleaned.match(/\(\d{3}\)\s?\d{3}[\s.-]?\d{4}/) ||
@@ -364,13 +373,19 @@ export function extractContactFromText(text: string): ExtractedContact {
     cleaned.match(/(?:^|[^\d])\d{10}(?!\d)/);
   if (phoneMatch) out.phone = phoneMatch[0].trim();
 
-  // LinkedIn — handle full URLs or "linkedin.com/in/handle" snippets.
-  const linkedinMatch = cleaned.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i);
-  if (linkedinMatch) out.linkedin = linkedinMatch[0].replace(/^https?:\/\//i, '');
+  // LinkedIn — full URL or linkedin.com/in/… in text (including enriched hyperlink block).
+  if (!out.linkedin) {
+    const linkedinMatch = cleaned.match(
+      /(?:https?:\/\/)?(?:[a-z0-9-]+\.)?linkedin\.com\/(?:in|pub)\/[\w%-]+(?:\/[\w%-]+)*/i
+    );
+    if (linkedinMatch) {
+      out.linkedin = normalizeLinkedInUrl(linkedinMatch[0]);
+    }
+  }
 
   // GitHub — github.com/handle.
   const githubMatch = cleaned.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+\/?/i);
-  if (githubMatch) out.github = githubMatch[0].replace(/^https?:\/\//i, '');
+  if (githubMatch) out.github = githubMatch[0].replace(/^https?:\/\//i, '').replace(/^www\./i, '');
 
   // Personal website — any URL that isn't linkedin/github/the user's email
   // domain. Strip the email substring first so its domain doesn't pollute
@@ -511,7 +526,10 @@ ${resumeText.substring(0, 12000)}`;
   }
 }
 
-export async function extractResume(resumeText: string): Promise<ExtractedResumeProfile | null> {
+export async function extractResume(
+  resumeText: string,
+  hyperlinkUrls: string[] = []
+): Promise<ExtractedResumeProfile | null> {
   try {
     const parsed = await runExtractResumeCall(resumeText);
     if (!parsed) return null;
@@ -534,7 +552,7 @@ export async function extractResume(resumeText: string): Promise<ExtractedResume
     });
     // Regex backfill — every contact field the AI dropped gets retried against
     // the raw resume text. Deterministic, free, never wrong about email shape.
-    const contact = omitUndefined(mergeContact(aiContact, extractContactFromText(resumeText)));
+    const contact = omitUndefined(mergeContact(aiContact, extractContactFromText(resumeText, hyperlinkUrls)));
 
     const mapExperience = (arr: any[]): ExtractedExperience[] =>
       arr

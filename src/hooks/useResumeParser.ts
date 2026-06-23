@@ -8,6 +8,7 @@ import {
   normalizeUserPreferences,
   syncLegacyPreferenceFields,
 } from '../services/validator';
+import { enrichResumeTextWithHyperlinks, extractPdfTextAndUrls, extractDocxTextAndUrls } from '../lib/resumeHyperlinks';
 
 interface ProcessResumeTextOptions {
   onSuccess?: () => void;
@@ -16,6 +17,8 @@ interface ProcessResumeTextOptions {
   quiet?: boolean;
   careerPathsOverride?: string[];
   preferencesOverride?: NormalizedUserPreferences;
+  /** Hyperlink targets from PDF/DOCX (LinkedIn often only exists here). */
+  hyperlinkUrls?: string[];
 }
 
 export function useResumeParser(updateProfile: (data: any) => Promise<void>, profile: any) {
@@ -38,7 +41,10 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
 
     try {
       const resumeRaw = rawText;
-      const resumeCleaned = normalizeResumeText(resumeRaw);
+      const hyperlinkUrls = options?.hyperlinkUrls || [];
+      const resumeCleaned = normalizeResumeText(
+        enrichResumeTextWithHyperlinks(resumeRaw, hyperlinkUrls)
+      );
 
       if (!resumeCleaned || resumeCleaned.length < 10) {
         console.error('Resume extraction failed or content too short:', { 
@@ -90,7 +96,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         syncLegacyPreferenceFields(normalizedPreferences);
       notify.success('Job preferences configured.');
 
-      let extractedStructuredProfile = await extractResume(resumeCleaned);
+      let extractedStructuredProfile = await extractResume(resumeCleaned, hyperlinkUrls);
       let displayName = profile?.displayName;
 
       if (extractedStructuredProfile) {
@@ -200,40 +206,21 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
 
     setAnalyzingResume(true);
     let text = '';
+    let hyperlinkUrls: string[] = [];
     
     try {
       if (file.type === 'text/plain' || file.name.endsWith('.md')) {
         text = await file.text();
       } else if (file.type === 'application/pdf') {
-        const pdfjsLib = await import('pdfjs-dist');
-        // unpkg is more reliable for specific versioned ESM modules than cdnjs
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-        
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        const pdf = await loadingTask.promise;
-        
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          
-          // Better text extraction that handles individual items and spacing
-          const pageText = textContent.items
-            .map((item: any) => {
-              if ('str' in item) return item.str;
-              return '';
-            })
-            .join(' ');
-          
-          fullText += pageText + '\n';
-        }
-        text = fullText;
+        const parsed = await extractPdfTextAndUrls(arrayBuffer);
+        text = parsed.text;
+        hyperlinkUrls = parsed.hyperlinkUrls;
       } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const mammoth = await import('mammoth');
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        text = result.value;
+        const parsed = await extractDocxTextAndUrls(arrayBuffer);
+        text = parsed.text;
+        hyperlinkUrls = parsed.hyperlinkUrls;
       } else {
         toast.error("Unsupported file type. Please upload a PDF, DOCX, or TXT file.");
         setAnalyzingResume(false);
@@ -250,6 +237,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       onSuccess,
       quiet: options?.quiet,
       successMessage: options?.successMessage || 'Resume uploaded successfully!',
+      hyperlinkUrls,
     });
   };
 
