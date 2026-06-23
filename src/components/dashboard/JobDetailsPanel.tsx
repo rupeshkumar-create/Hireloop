@@ -278,27 +278,27 @@ export function JobDetailsPanel({
             </p>
 
             {typeof reviewIndex === 'number' && typeof reviewTotal === 'number' && reviewTotal > 0 ? (
-              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-3 py-2">
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--hs-app-border-strong)] bg-[var(--hs-app-bg)] px-3 py-2.5">
                 <button
                   type="button"
-                  className="hs-btn h-8 w-8 p-0"
+                  className="hs-review-nav-btn"
                   disabled={!onPrevious}
                   onClick={onPrevious}
                   aria-label="Previous job"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden />
                 </button>
-                <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
+                <span className="text-[11px] font-semibold text-[var(--hs-app-fg)]">
                   Match {reviewIndex + 1} of {reviewTotal}
                 </span>
                 <button
                   type="button"
-                  className="hs-btn h-8 w-8 p-0"
+                  className="hs-review-nav-btn"
                   disabled={!onNext}
                   onClick={onNext}
                   aria-label="Next job"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
                 </button>
               </div>
             ) : null}

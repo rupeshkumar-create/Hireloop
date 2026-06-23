@@ -293,6 +293,62 @@
   transform: translateY(-1px);
 }
 
+.hs-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hs-btn:disabled:hover {
+  border-color: var(--hs-app-border);
+  background: var(--hs-app-surface);
+  transform: none;
+}
+
+.hs-review-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--hs-app-border-strong);
+  border-radius: 8px;
+  background: var(--hs-app-surface);
+  color: var(--hs-app-fg);
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.06);
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.hs-review-nav-btn:hover:not(:disabled) {
+  border-color: var(--hs-app-accent);
+  background: var(--hs-app-accent-soft);
+  color: var(--hs-app-fg);
+  box-shadow: 0 2px 6px oklch(0% 0 0 / 0.08);
+}
+
+.hs-review-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: var(--hs-app-border);
+  background: var(--hs-app-bg);
+  color: var(--hs-app-muted);
+  box-shadow: none;
+}
+
+.dark .hs-review-nav-btn {
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.35);
+}
+
+.dark .hs-review-nav-btn:hover:not(:disabled) {
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.45);
+}
+
 .hs-btn-primary {
   background: var(--hs-app-fg);
   border-color: var(--hs-app-fg);
