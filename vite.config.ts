@@ -30,19 +30,7 @@ type ApiMount = {
 };
 
 const API_MOUNTS: ApiMount[] = [
-  { prefix: '/api/admin', module: '/api/admin/[[...route]].ts', routeParam: true },
-  { prefix: '/api/blog', module: '/api/blog/[[...route]].ts', routeParam: true },
-  { prefix: '/api/public', module: '/api/public/[[...route]].ts', routeParam: true },
-  { prefix: '/api/jobs', module: '/api/jobs/index.ts' },
-  { prefix: '/api/openai', module: '/api/ai/[[...route]].ts', fixedRoute: 'openai' },
-  { prefix: '/api/apollo', module: '/api/ai/[[...route]].ts', fixedRoute: 'apollo' },
-  { prefix: '/api/ai', module: '/api/ai/[[...route]].ts', routeParam: true },
-  { prefix: '/api/apify', module: '/api/apify/[[...route]].ts', routeParam: true },
-  { prefix: '/api/connections', module: '/api/connections/[[...route]].ts', routeParam: true },
-  { prefix: '/api/jill', module: '/api/jill/[[...route]].ts', routeParam: true },
-  { prefix: '/api/chat', module: '/api/chat/[[...route]].ts', routeParam: true },
-  { prefix: '/api/storage', module: '/api/storage/[[...route]].ts', routeParam: true },
-  { prefix: '/api/cron/process-user', module: '/api/cron/process-user.ts' },
+  { prefix: '/api', module: '/api/[[...route]].ts', routeParam: true },
 ];
 
 function localApiVercelPlugin() {

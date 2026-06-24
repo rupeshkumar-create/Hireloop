@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { routeApiRequest } from '../api/router.js';
 
 describe('AI API route wiring', () => {
-  it('ai catch-all resolves openai and apollo sub-routes', async () => {
-    const mod = await import('../../../api/ai/[[...route]].ts');
+  it('unified API router exports a handler', async () => {
+    const mod = await import('../../../api/[[...route]].ts');
     expect(typeof mod.default).toBe('function');
   });
 
-  it('ai catch-all dispatches /api/ai/openai via URL path fallback', async () => {
-    const aiCatchAll = (await import('../../../api/ai/[[...route]].ts')).default;
+  it('dispatches /api/ai/openai via URL path', async () => {
     const req = {
       method: 'POST',
       headers: {},
@@ -29,14 +29,13 @@ describe('AI API route wiring', () => {
       body: undefined as unknown,
     } as VercelResponse & { body?: unknown };
 
-    await aiCatchAll(req, res);
+    await routeApiRequest(req, res);
 
     expect(res.statusCode).toBe(401);
     expect((res.body as { error?: string }).error).toMatch(/authorization/i);
   });
 
-  it('vercel rewrite target /api/openai maps through ai catch-all', async () => {
-    const aiCatchAll = (await import('../../../api/ai/[[...route]].ts')).default;
+  it('vercel rewrite target /api/openai maps through unified router', async () => {
     const req = {
       method: 'POST',
       headers: {},
@@ -57,7 +56,7 @@ describe('AI API route wiring', () => {
       body: undefined as unknown,
     } as VercelResponse & { body?: unknown };
 
-    await aiCatchAll(req, res);
+    await routeApiRequest(req, res);
 
     expect(res.statusCode).toBe(401);
     expect((res.body as { error?: string }).error).toMatch(/authorization/i);
@@ -65,13 +64,37 @@ describe('AI API route wiring', () => {
 });
 
 describe('Blog API route wiring', () => {
-  it('exports explicit /api/blog list handler', async () => {
-    const mod = await import('../../../api/blog/index.ts');
-    expect(typeof mod.default).toBe('function');
+  it('dispatches /api/blog list handler', async () => {
+    const req = {
+      method: 'GET',
+      headers: {},
+      url: '/api/blog',
+      query: {},
+    } as VercelRequest;
+    const res = {
+      statusCode: 200,
+      headers: {} as Record<string, string>,
+      setHeader(key: string, value: string) {
+        this.headers[key] = value;
+        return this;
+      },
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        this.body = payload;
+        return this;
+      },
+      body: undefined as unknown,
+    } as VercelResponse & { body?: unknown; headers: Record<string, string> };
+
+    await routeApiRequest(req, res);
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray((res.body as { posts?: unknown[] }).posts)).toBe(true);
   });
 
-  it('blog catch-all resolves sub-routes from URL path', async () => {
-    const blogCatchAll = (await import('../../../api/blog/[[...route]].ts')).default;
+  it('dispatches blog cover sub-route from URL path', async () => {
     const req = {
       method: 'GET',
       headers: {},
@@ -104,7 +127,7 @@ describe('Blog API route wiring', () => {
       body: undefined as unknown,
     } as VercelResponse & { body?: unknown; headers: Record<string, string> };
 
-    await blogCatchAll(req, res);
+    await routeApiRequest(req, res);
     expect(res.statusCode).toBe(200);
     expect(String(res.body || '')).toContain('<svg');
   });

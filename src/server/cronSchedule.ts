@@ -85,13 +85,7 @@ function formatSchedule(job: CronJobSchedule): string {
 
 /** API route manifest (used by /api/cron/tick health check). */
 export const API_ROUTE_MANIFEST = [
-  { path: 'api/cron/[job].ts', purpose: 'All cron routes incl. /api/cron/tick' },
-  { path: 'api/jobs/index.ts', purpose: 'User-triggered Scout runs' },
-  { path: 'api/ai/[[...route]].ts', purpose: 'OpenAI + Apollo proxies' },
-  { path: 'api/blog/[[...route]].ts', purpose: 'Blog API + RSS + covers' },
-  { path: 'api/admin/[[...route]].ts', purpose: 'Super Admin API' },
-  { path: 'api/public/[[...route]].ts', purpose: 'Sitemap + analytics' },
-  { path: 'api/webhook/dodo.ts', purpose: 'Billing webhooks' },
+  { path: 'api/[[...route]].ts', purpose: 'Unified API router (all /api/* routes)' },
 ] as const;
 
 export const API_ROUTE_COUNT = API_ROUTE_MANIFEST.length;

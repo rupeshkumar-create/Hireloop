@@ -1,18 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { findProfilesByEmail } from '../../src/server/db/profiles.js';
-import { upsertProfile } from '../../src/server/db/profiles.js';
+import { findProfilesByEmail } from '../../db/profiles.js';
+import { upsertProfile } from '../../db/profiles.js';
 import {
   extractCustomerEmail,
   readWebhookRawBody,
   resolvePlanFromEvent,
   verifyStandardWebhookSignature,
-} from '../../src/server/dodoWebhook.js';
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+} from '../../dodoWebhook.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
