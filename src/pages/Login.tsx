@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
-import { HireschemaLogo } from '../components/brand/HireschemaLogo';
+import { HireloopLogo } from '../components/brand/HireloopLogo';
 import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
 import { SeoHead } from '../components/seo/SeoHead';
 import { SITE_URL } from '../lib/siteSeo';
@@ -29,7 +29,7 @@ export function Login() {
   return (
     <div className="hs-landing min-h-screen flex flex-col">
       <SeoHead
-        title="Sign in — HireSchema"
+        title="Sign in — Hireloop"
         description={BRAND_LOGIN_DESCRIPTION}
         canonicalUrl={`${SITE_URL}/login`}
         ogType="website"
@@ -38,7 +38,7 @@ export function Login() {
       <nav className="hs-land-nav">
         <div className="hs-land-container hs-land-nav-inner">
           <Link to="/" className="inline-flex no-underline">
-            <HireschemaLogo height={26} />
+            <HireloopLogo height={26} />
           </Link>
           <Link to="/" className="flex items-center gap-2 text-sm text-[var(--hs-land-muted)] no-underline transition hover:text-[var(--hs-land-fg)]">
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -157,7 +157,7 @@ export function Login() {
       </main>
 
       <footer className="hs-land-container flex flex-wrap items-center justify-between gap-3 py-10">
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--hs-land-muted)]">© 2026 Hireschema</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--hs-land-muted)]">© 2026 Hireloop</span>
         <WhatsAppSupportLink className="text-xs font-medium text-[#128C7E] hover:underline" />
       </footer>
     </div>

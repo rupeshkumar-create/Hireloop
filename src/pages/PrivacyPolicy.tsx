@@ -15,7 +15,7 @@ export function PrivacyPolicy() {
         <p>Last updated: {new Date().toLocaleDateString()}</p>
         
         <h2>1. Introduction</h2>
-        <p>Welcome to Hireschema. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you.</p>
+        <p>Welcome to Hireloop. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you.</p>
 
         <h2>2. The Data We Collect About You</h2>
         <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together follows:</p>
@@ -49,7 +49,7 @@ export function PrivacyPolicy() {
         <p>
           If you have any questions about this privacy policy or our privacy practices, contact us on{' '}
           <WhatsAppSupportLink className="text-[#128C7E] hover:underline" showIcon={false} /> ({WHATSAPP_SUPPORT_PHONE_DISPLAY})
-          {' '}or email support@hireschema.com.
+          {' '}or email support@hireloop.vercel.app.
         </p>
       </div>
     </div>

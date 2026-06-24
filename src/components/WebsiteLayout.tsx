@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { HireschemaLogo } from './brand/HireschemaLogo';
+import { HireloopLogo } from './brand/HireloopLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ui/theme-toggle';
 import { WhatsAppSupportLink } from './support/WhatsAppSupportLink';
@@ -14,7 +14,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
       <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-6">
           <Link to="/" className="inline-flex items-center no-underline">
-            <HireschemaLogo height={28} />
+            <HireloopLogo height={28} />
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/blog" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
@@ -48,7 +48,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
         <div className="mx-auto mb-12 grid max-w-7xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
           <div className="col-span-2">
             <Link to="/" className="mb-4 inline-flex no-underline">
-              <HireschemaLogo height={26} />
+              <HireloopLogo height={26} />
             </Link>
             <p className="max-w-sm text-sm leading-6 text-foreground-muted">
               The AI-powered platform for job seekers. Scout matches roles to your resume, helps you connect with hiring managers, and coaches your search.
@@ -79,7 +79,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="mx-auto max-w-7xl border-t border-border px-6 pt-8 text-center text-sm text-foreground-muted">
-          <p>© {new Date().getFullYear()} Hireschema. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Hireloop. All rights reserved.</p>
         </div>
       </footer>
       <WhatsAppFloatingButton />

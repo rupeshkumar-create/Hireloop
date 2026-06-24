@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isOnboardingComplete } from '../lib/onboarding';
-import { HireschemaLogo } from '../components/brand/HireschemaLogo';
+import { HireloopLogo } from '../components/brand/HireloopLogo';
 import { SeoHead } from '../components/seo/SeoHead';
 import {
   HOME_META_DESCRIPTION,
@@ -35,7 +35,7 @@ const LP_STYLE = `
     -webkit-font-smoothing: antialiased;
     /* Use overflow-x: clip (not hidden). overflow:hidden makes this a
        scrolling container, which breaks position:sticky on descendants
-       like the Why Hireschema left panel. overflow:clip hides overflow
+       like the Why Hireloop left panel. overflow:clip hides overflow
        without creating a scroll container. */
     overflow-x: clip;
   }
@@ -773,7 +773,7 @@ const RECRUITER_BENEFITS = [
   'Early access recruiter portal (rolling out now)',
 ] as const;
 
-const RECRUITER_WAITLIST_EMAIL = 'mailto:support@hireschema.com?subject=HireSchema%20Recruiter%20Early%20Access';
+const RECRUITER_WAITLIST_EMAIL = 'mailto:support@hireloop.vercel.app?subject=Hireloop%20Recruiter%20Early%20Access';
 
 function ArrowIcon() {
   return (
@@ -938,7 +938,7 @@ export function LandingPage() {
       <nav ref={navRef} className="lp-nav">
         <div className="lp-nav-inner">
           <Link to="/" className="lp-wordmark">
-            <HireschemaLogo height={26} />
+            <HireloopLogo height={26} />
           </Link>
           <button
             type="button"
@@ -1135,7 +1135,7 @@ export function LandingPage() {
 
             {/* sticky left — content swaps as user scrolls right column */}
             <div className="lp-feat-left">
-              <p className="lp-feat-left-eyebrow">Why Hireschema</p>
+              <p className="lp-feat-left-eyebrow">Why Hireloop</p>
               <div key={activeFeat} className="lp-feat-left-body">
                 <p className="lp-feat-left-num">0{activeFeat + 1}&nbsp;/&nbsp;0{FEATURES.length}</p>
                 <h3 className="lp-feat-left-title">{FEATURES[activeFeat].title}</h3>
@@ -1192,7 +1192,7 @@ export function LandingPage() {
             Get matched candidates.
           </h2>
           <p className="lp-body-lg lp-reveal" style={{ maxWidth: 620, marginTop: 12 }}>
-            HireSchema is building a two-sided platform. Candidates connect with intent — you get ranked shortlists and structured intros instead of another flooded inbox.
+            Hireloop is building a two-sided platform. Candidates connect with intent — you get ranked shortlists and structured intros instead of another flooded inbox.
           </p>
           <div className="lp-recruiters-grid">
             <div className="lp-recruiters-card lp-reveal lp-d1">
@@ -1247,7 +1247,7 @@ export function LandingPage() {
       <section id="blog" className="lp-section">
         <div className="lp-container">
           <p className="lp-eyebrow lp-reveal">Product guides</p>
-          <h2 className="lp-display lp-ds lp-reveal">How HireSchema works.</h2>
+          <h2 className="lp-display lp-ds lp-reveal">How Hireloop works.</h2>
           <p className="lp-body-lg lp-reveal" style={{ maxWidth: 640, marginTop: 12 }}>
             Five guides on Jack, Jill, Scout, and the chat-first workflow — everything you need to get started.
           </p>
@@ -1314,7 +1314,7 @@ export function LandingPage() {
               {/* Brand column */}
               <div>
                 <Link to="/" className="lp-footer-logo">
-                  <HireschemaLogo height={30} />
+                  <HireloopLogo height={30} />
                 </Link>
                 <p className="lp-footer-tagline">Your autonomous job-search agent. Daily matches, zero noise.</p>
                 <div className="lp-status-badge">
@@ -1369,7 +1369,7 @@ export function LandingPage() {
           <div className="lp-container">
             <div className="lp-footer-bottom-inner">
               <span className="lp-footer-copy">
-                © {new Date().getFullYear()} Hireschema, Inc. · All rights reserved.
+                © {new Date().getFullYear()} Hireloop, Inc. · All rights reserved.
               </span>
               <ul className="lp-footer-legal">
                 <li><Link to="/privacy">Privacy</Link></li>

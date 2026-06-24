@@ -58,9 +58,9 @@ export function Blog() {
   return (
     <>
       <SeoHead
-        title="About HireSchema — Jack, Jill & Scout | HireSchema"
-        description="Five guides on how HireSchema works: Jack the career copilot, Jill for recruiters, Scout job discovery, and the match-to-offer workflow."
-        canonicalUrl="https://hireschema.com/blog"
+        title="About Hireloop — Jack, Jill & Scout | Hireloop"
+        description="Five guides on how Hireloop works: Jack the career copilot, Jill for recruiters, Scout job discovery, and the match-to-offer workflow."
+        canonicalUrl="https://hireloop.vercel.app/blog"
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
         keywords={['hireschema', 'jack ai', 'job search agent', 'scout job matching']}
@@ -70,7 +70,7 @@ export function Blog() {
         <header className="blog-lp-header">
           <p className="blog-lp-eyebrow">Product guides</p>
           <h1 className="blog-lp-display blog-lp-title-xl">
-            How HireSchema works
+            How Hireloop works
           </h1>
           <p className="blog-lp-lede">
             Everything you need to know about Jack, Jill, Scout, and the chat-first job search workflow.

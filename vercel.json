@@ -1,0 +1,55 @@
+{
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "headers": [
+    {
+      "source": "/BingSiteAuth.xml",
+      "headers": [
+        { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-DNS-Prefetch-Control", "value": "on" }
+      ]
+    }
+  ],
+  "functions": {
+    "api/cron/[job].ts": { "maxDuration": 60 },
+    "api/blog/[[...route]].ts": { "maxDuration": 60 },
+    "api/admin/[[...route]].ts": { "maxDuration": 60 },
+    "api/ai/[[...route]].ts": { "maxDuration": 60 },
+    "api/apify/[[...route]].ts": { "maxDuration": 120 },
+    "api/chat/[[...route]].ts": { "maxDuration": 60 },
+    "api/connections/[[...route]].ts": { "maxDuration": 60 },
+    "api/jill/[[...route]].ts": { "maxDuration": 60 },
+    "api/storage/[[...route]].ts": { "maxDuration": 60 },
+    "api/public/[[...route]].ts": { "maxDuration": 30 },
+    "api/jobs/index.ts": { "maxDuration": 300 },
+    "api/webhook/dodo.ts": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/api/openai", "destination": "/api/ai/openai" },
+    { "source": "/api/apollo", "destination": "/api/ai/apollo" },
+    { "source": "/api/cron", "destination": "/api/cron/tick" },
+    { "source": "/api/analytics/pageview", "destination": "/api/public/analytics/pageview" },
+    { "source": "/blog/rss.xml", "destination": "/api/blog/rss.xml" },
+    { "source": "/BingSiteAuth.xml", "destination": "/api/public/bing-site-auth" },
+    { "source": "/((?!api/|assets/|.*\\..*).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-alerts",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}

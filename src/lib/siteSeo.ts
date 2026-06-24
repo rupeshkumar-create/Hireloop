@@ -1,8 +1,21 @@
-/** Shared SEO / GEO constants and JSON-LD builders for HireSchema. */
+/** Shared SEO / GEO constants and JSON-LD builders for Hireloop. */
 
-import { BRAND_NAME, BRAND_SHORT_DESCRIPTION, BRAND_SITE_STATUS, HOME_KEYWORDS } from './brand';
+import { BRAND_NAME, BRAND_SHORT_DESCRIPTION, BRAND_SITE_STATUS, HOME_KEYWORDS, SUPPORT_EMAIL } from './brand';
 
-export const SITE_URL = 'https://hireschema.com';
+function resolveSiteUrl(): string {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) {
+    return String(import.meta.env.VITE_SITE_URL).replace(/\/$/, '');
+  }
+  if (typeof process !== 'undefined' && process.env?.VITE_SITE_URL) {
+    return String(process.env.VITE_SITE_URL).replace(/\/$/, '');
+  }
+  if (typeof process !== 'undefined' && process.env?.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'https://hireloop.vercel.app';
+}
+
+export const SITE_URL = resolveSiteUrl();
 export const SITE_NAME = BRAND_NAME;
 export const SITE_STATUS = BRAND_SITE_STATUS;
 
@@ -13,39 +26,39 @@ export { HOME_KEYWORDS };
 
 export const HOME_FAQ: { question: string; answer: string }[] = [
   {
-    question: 'What is HireSchema?',
+    question: 'What is Hireloop?',
     answer:
-      'HireSchema is an AI-powered job matching platform and career copilot. Scout discovers live listings daily, scores each role against your resume and career path, delivers personalized matches, and helps you connect with hiring managers — plus AI chat, resume tailoring, and interview prep.',
+      'Hireloop is an AI career copilot. Jack scouts live job listings daily, scores each role against your resume, coaches interviews, and helps you apply — with Jill on the recruiter side for warm introductions.',
   },
   {
-    question: 'How does HireSchema job search work?',
+    question: 'How does Hireloop job search work?',
     answer:
-      'Upload your resume or paste your LinkedIn URL, set your career paths and preferences, and Scout runs a daily AI pipeline to discover roles, filter irrelevant listings, and surface high-fit matches. Free includes 10 curated matches per day; Pro adds connect-with-recruiter outreach, tailored resumes, cover letters, and interview prep.',
+      'Sign in with Google or LinkedIn, confirm your profile, and Scout runs a nightly pipeline to discover real listings, validate them, score fit with AI, and deliver matches in Jack chat and your dashboard.',
   },
   {
-    question: 'What does HireSchema Pro cost?',
+    question: 'Is Hireloop free?',
     answer:
-      'Pro is $19 per month or $180 per year (billed annually). Free includes the same 10 daily AI-scored job matches — Pro unlocks connect with hiring managers, AI application tools on saved roles, and Scout Chat.',
+      'Yes. Jack is free — daily matches, chat coaching, resume tailoring, and interview prep are included without a paywall.',
   },
   {
     question: 'Can I use LinkedIn instead of uploading a resume?',
     answer:
-      'Yes. During onboarding you can paste your LinkedIn profile URL or upload a CV. Scout uses the same profile signals either way to score matches and power Scout Chat.',
+      'Yes. Sign in with LinkedIn or paste your profile URL during onboarding. Jack imports your background and asks you to confirm before searching.',
   },
   {
-    question: 'How is HireSchema different from job boards like LinkedIn or Indeed?',
+    question: 'How is Hireloop different from job boards?',
     answer:
-      'Traditional job boards show the same listings to everyone. HireSchema matches jobs to your specific resume, skills, seniority, and career path using AI scoring — then helps you connect with hiring managers instead of spraying cold applications.',
+      'Job boards show the same listings to everyone. Hireloop matches roles to your specific resume with AI scoring and guides you in chat — with warm recruiter intros instead of cold spam.',
   },
   {
-    question: 'Does HireSchema work in the US and Europe?',
+    question: 'What is Jack?',
     answer:
-      'Yes. HireSchema is optimized for knowledge-worker hiring in the United States, United Kingdom, Canada, and Europe. Scout discovery and ranking respect your target markets and location preferences in Settings.',
+      'Jack is Hireloop\'s candidate AI agent — a chat-first copilot for reviewing matches, mock interviews, salary coaching, and application prep.',
   },
   {
-    question: 'What is Scout Chat?',
+    question: 'What is Jill?',
     answer:
-      'Scout Chat is HireSchema’s LLM career copilot — ask about today’s matches, interview strategy, resume tweaks, or your pipeline. It uses your profile context so answers stay grounded in your search.',
+      'Jill is Hireloop\'s recruiter agent. Hiring teams post roles, review matched candidates, and request warm introductions that candidates approve in Jack first.',
   },
 ];
 
@@ -61,7 +74,7 @@ export function buildOrganizationSchema() {
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',
-      email: 'support@hireschema.com',
+      email: SUPPORT_EMAIL,
       telephone: '+91-79039-59739',
       availableLanguage: 'English',
     },
@@ -75,7 +88,7 @@ export function buildWebSiteSchema() {
     name: SITE_NAME,
     url: SITE_URL,
     description:
-      'Find jobs matched to your resume with AI. Daily personalized job alerts, recruiter connect, and Scout Chat for software engineers, PMs, designers, and more.',
+      'AI job matching with Jack & Jill — daily personalized matches, warm recruiter intros, and chat-first career coaching.',
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -99,13 +112,13 @@ export function buildSoftwareApplicationSchema() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
-      description: 'Free: 10 curated job matches per day. Pro: $19/mo or $180/yr for connect, AI application tools, and Scout Chat.',
+      description: 'Free AI career copilot with daily matches and Jack chat.',
     },
     description: BRAND_SHORT_DESCRIPTION,
     featureList: [
       'Daily AI-scored job matches',
-      'Connect with hiring managers',
-      'Scout Chat career copilot',
+      'Jack chat career copilot',
+      'Jill warm recruiter intros',
       'Resume or LinkedIn onboarding',
       'Resume tailoring per job',
       'Interview prep',

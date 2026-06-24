@@ -81,7 +81,7 @@ export function SeoHead({
     upsertMeta('property', 'og:description', description);
     upsertMeta('property', 'og:url', canonicalUrl);
     upsertMeta('property', 'og:type', ogType);
-    upsertMeta('property', 'og:site_name', 'HireSchema');
+    upsertMeta('property', 'og:site_name', 'Hireloop');
     if (ogImage) {
       upsertMeta('property', 'og:image', ogImage);
       upsertMeta('name', 'twitter:image', ogImage);

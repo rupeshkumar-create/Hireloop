@@ -90,7 +90,7 @@ export function ResumeProfile() {
           <div className="hs-label mb-2">Parsed from your latest resume</div>
           <h1 className="hs-section-title">Your Resume Profile</h1>
           <p className="mt-2 text-sm text-[var(--hs-app-muted)]">
-            Everything Hireschema knows about you. Click any section to edit and save.
+            Everything Hireloop knows about you. Click any section to edit and save.
           </p>
         </div>
         <div className="flex gap-2">

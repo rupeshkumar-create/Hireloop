@@ -7,4 +7,6 @@ export const SITEMAP_STATIC_PAGES = [
   { loc: '/terms', priority: '0.3', changefreq: 'yearly' as const },
 ];
 
-export const SITEMAP_BASE_URL = 'https://hireschema.com';
+import { SITE_URL } from './siteSeo';
+
+export const SITEMAP_BASE_URL = SITE_URL;

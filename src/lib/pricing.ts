@@ -23,7 +23,7 @@ export const PAYMENT_SUCCESS_PATH = '/dashboard?payment=success';
 
 export function checkoutReturnOrigin(): string {
   if (typeof window !== 'undefined') return window.location.origin;
-  return 'https://www.hireschema.com';
+  return 'https://hireloop.vercel.app';
 }
 
 /** Detect Dodo redirect query params after checkout (static link return_url). */

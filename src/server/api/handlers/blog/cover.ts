@@ -14,8 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const post = getCoreBlogPostBySlug(slug);
-    const title = post?.title ?? 'HireSchema Guide';
-    const clusterId = post?.clusterId ?? 'hireschema';
+    const title = post?.title ?? 'Hireloop Guide';
+    const clusterId = post?.clusterId ?? 'hireloop';
     const svg = generateCoverSvg(title, clusterId);
 
     res.setHeader('Content-Type', 'image/svg+xml');

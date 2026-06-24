@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { HireschemaLogo } from './brand/HireschemaLogo';
+import { HireloopLogo } from './brand/HireloopLogo';
 import { cn } from '../lib/utils';
 import { isAppAdmin } from '../lib/isAppAdmin';
 import { getAppNavGroups } from '../lib/appNav';
@@ -57,7 +57,7 @@ export function Sidebar() {
   return (
     <aside className="hs-sidebar">
       <Link to="/dashboard" className="hs-sidebar-logo">
-        <HireschemaLogo height={22} />
+        <HireloopLogo height={22} />
         <span className="hs-badge">{plan}</span>
       </Link>
 

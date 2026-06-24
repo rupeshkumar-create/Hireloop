@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { HireschemaLogo } from '../brand/HireschemaLogo';
+import { HireloopLogo } from '../brand/HireloopLogo';
 import { WhatsAppSupportLink } from '../support/WhatsAppSupportLink';
 import { WhatsAppFloatingButton } from '../support/WhatsAppFloatingButton';
 import '../../styles/blogLanding.css';
@@ -18,7 +18,7 @@ export function BlogLayout({ children }: BlogLayoutProps) {
       <nav className="blog-lp-nav">
         <div className="blog-lp-nav-inner">
           <Link to="/" className="blog-lp-wordmark">
-            <HireschemaLogo height={26} />
+            <HireloopLogo height={26} />
           </Link>
           <div className="blog-lp-nav-actions">
             <Link to="/blog" className="blog-lp-nav-link">
@@ -45,7 +45,7 @@ export function BlogLayout({ children }: BlogLayoutProps) {
 
       <footer className="blog-lp-footer">
         <p className="blog-lp-footer-copy">
-          © {new Date().getFullYear()} Hireschema ·{' '}
+          © {new Date().getFullYear()} Hireloop ·{' '}
           <Link to="/privacy" className="blog-lp-nav-link">
             Privacy
           </Link>

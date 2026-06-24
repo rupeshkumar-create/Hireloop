@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SeoHead } from '../components/seo/SeoHead';
-import { HireschemaLogo } from '../components/brand/HireschemaLogo';
+import { HireloopLogo } from '../components/brand/HireloopLogo';
 import {
   SITE_URL,
   DEFAULT_OG_IMAGE,
@@ -14,27 +14,27 @@ const JOB_SEARCH_FAQ = [
   {
     question: 'What is the best way to find jobs in 2026?',
     answer:
-      'The most effective approach combines targeted channels (company career pages, referrals, and LinkedIn) with AI job matching that filters listings to your resume and career path. HireSchema automates this by scouting live listings daily, scoring each job against your profile, and delivering only high-fit matches.',
+      'The most effective approach combines targeted channels (company career pages, referrals, and LinkedIn) with AI job matching that filters listings to your resume and career path. Hireloop automates this by scouting live listings daily, scoring each job against your profile, and delivering only high-fit matches.',
   },
   {
-    question: 'How does HireSchema job search work?',
+    question: 'How does Hireloop job search work?',
     answer:
-      'Upload your resume or LinkedIn URL and set your target career paths. HireSchema runs a nightly AI pipeline: it discovers live listings, applies career-path filters, scores jobs with AI against your skills, and delivers up to 10 curated matches daily. Pro adds connect with hiring managers, Scout Chat, resume tailoring, and interview prep ($19/mo).',
+      'Upload your resume or LinkedIn URL and set your target career paths. Hireloop runs a nightly AI pipeline: it discovers live listings, applies career-path filters, scores jobs with AI against your skills, and delivers up to 10 curated matches daily. Pro adds connect with hiring managers, Scout Chat, resume tailoring, and interview prep ($19/mo).',
   },
   {
-    question: 'Is HireSchema better than LinkedIn or Indeed?',
+    question: 'Is Hireloop better than LinkedIn or Indeed?',
     answer:
-      'LinkedIn and Indeed show the same listings to every user. HireSchema is built for personalized job matching — it rejects irrelevant roles, aligns matches to your career path, and helps you connect with hiring managers instead of spraying applications.',
+      'LinkedIn and Indeed show the same listings to every user. Hireloop is built for personalized job matching — it rejects irrelevant roles, aligns matches to your career path, and helps you connect with hiring managers instead of spraying applications.',
   },
   {
-    question: 'What types of jobs does HireSchema match?',
+    question: 'What types of jobs does Hireloop match?',
     answer:
-      'HireSchema matches knowledge-worker roles: software engineering, product management, design, data, marketing, sales, customer success, and related careers. Matches are filtered by your chosen career paths and seniority level.',
+      'Hireloop matches knowledge-worker roles: software engineering, product management, design, data, marketing, sales, customer success, and related careers. Matches are filtered by your chosen career paths and seniority level.',
   },
   {
-    question: 'Are there free job alerts on HireSchema?',
+    question: 'Are there free job alerts on Hireloop?',
     answer:
-      'Yes. HireSchema Free includes 10 AI-scored job matches every day. Pro ($19/mo or $180/yr) unlocks connect with recruiters, Scout Chat, tailored resumes, cover letters, and interview prep on saved roles.',
+      'Yes. Hireloop Free includes 10 AI-scored job matches every day. Pro ($19/mo or $180/yr) unlocks connect with recruiters, Scout Chat, tailored resumes, cover letters, and interview prep on saved roles.',
   },
 ];
 
@@ -60,8 +60,8 @@ export function JobSearchPage() {
   return (
     <div className="blog-lp-root">
       <SeoHead
-        title="AI Job Search (2026) — Matched Roles & Scout | HireSchema"
-        description="Find jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path, and delivers personalized job alerts with connect and Scout Chat."
+        title="AI Job Search (2026) — Matched Roles & Scout | Hireloop"
+        description="Find jobs matched to your resume. Hireloop scouts live listings daily, scores each role against your career path, and delivers personalized job alerts with connect and Scout Chat."
         canonicalUrl={`${SITE_URL}/job-search`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
@@ -78,7 +78,7 @@ export function JobSearchPage() {
       <header className="blog-lp-nav">
         <div className="blog-lp-nav-inner">
           <Link to="/" className="blog-lp-wordmark">
-            <HireschemaLogo height={26} />
+            <HireloopLogo height={26} />
           </Link>
           <div className="blog-lp-nav-actions">
             <Link to="/blog" className="blog-lp-nav-link">Hiring Guides</Link>
@@ -93,7 +93,7 @@ export function JobSearchPage() {
           Find jobs matched to your resume — not another job board scroll
         </h1>
         <p className="blog-lp-lede" style={{ color: 'var(--lp-fg)' }}>
-          <strong>HireSchema</strong> is an AI job matching platform and career copilot.
+          <strong>Hireloop</strong> is an AI job matching platform and career copilot.
           Scout pulls live listings daily, scores each role against your resume and career path, and delivers personalized
           job alerts — so you apply to fewer, better-fit roles and connect with hiring managers when it matters.
         </p>
@@ -118,7 +118,7 @@ export function JobSearchPage() {
           <li className="blog-li"><strong>Connect &amp; apply</strong> — reach hiring managers, chat with Scout, tailor resumes, and track your pipeline.</li>
         </ol>
 
-        <h2 className="blog-h2">HireSchema vs job boards</h2>
+        <h2 className="blog-h2">Hireloop vs job boards</h2>
         <div className="blog-table-wrap">
           <table className="blog-table">
             <thead className="blog-thead">
@@ -140,7 +140,7 @@ export function JobSearchPage() {
                 <td className="blog-td">No personalization to your resume</td>
               </tr>
               <tr className="blog-tr">
-                <td className="blog-td"><strong>HireSchema</strong></td>
+                <td className="blog-td"><strong>Hireloop</strong></td>
                 <td className="blog-td">AI-matched daily alerts + connect</td>
                 <td className="blog-td">Curated fit, not infinite scroll</td>
               </tr>

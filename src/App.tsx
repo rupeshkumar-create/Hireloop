@@ -21,7 +21,7 @@ import { Toaster } from 'sonner';
 import { ArrowRight, MessageSquareText, Search } from 'lucide-react';
 import { isAdminEmail } from './lib/adminEmails';
 import { isOnboardingComplete } from './lib/onboarding';
-import { HireschemaLogo } from './components/brand/HireschemaLogo';
+import { HireloopLogo } from './components/brand/HireloopLogo';
 import { GoogleAnalytics } from './components/GoogleAnalytics';
 import { SeoHead } from './components/seo/SeoHead';
 import { SITE_URL } from './lib/siteSeo';
@@ -99,7 +99,7 @@ function OnboardingLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       <header className="border-b border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] px-6 py-4">
         <Link to="/" className="inline-flex no-underline">
-          <HireschemaLogo height={26} />
+          <HireloopLogo height={26} />
         </Link>
         <p className="mt-1 text-xs text-[var(--hs-app-muted)]">
           About 10 minutes with Jack ·{' '}
@@ -145,7 +145,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="hs-app-frame hs-app-frame-minimal">
           <header className="hs-minimal-header">
             <Link to="/" className="inline-flex no-underline">
-              <HireschemaLogo height={24} />
+              <HireloopLogo height={24} />
             </Link>
             <p className="text-[11px] text-[var(--hs-app-muted)]">Step 1 — review your first matches</p>
           </header>

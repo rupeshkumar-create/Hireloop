@@ -119,8 +119,8 @@ export function BlogPost() {
   }
 
   const canonicalUrl = post.canonicalSlug
-    ? `https://hireschema.com/blog/${post.canonicalSlug}`
-    : `https://hireschema.com/blog/${post.slug}`;
+    ? `https://hireloop.vercel.app/blog/${post.canonicalSlug}`
+    : `https://hireloop.vercel.app/blog/${post.slug}`;
   const lede = post.directAnswer || post.seoDescription;
   const coverSrc = post.coverImageDataUri || post.coverImageUrl || blogCoverUrl(post.slug);
   const topicLabel = clusterLabel(post.clusterId) ?? post.category;
@@ -128,12 +128,12 @@ export function BlogPost() {
   return (
     <>
       <SeoHead
-        title={`${post.seoTitle || post.title} | HireSchema`}
+        title={`${post.seoTitle || post.title} | Hireloop`}
         description={post.seoDescription}
         canonicalUrl={canonicalUrl}
         keywords={post.targetKeywords}
         schema={post.schema}
-        ogImage={post.coverImageUrl || `https://hireschema.com${blogCoverUrl(post.slug)}`}
+        ogImage={post.coverImageUrl || `https://hireloop.vercel.app${blogCoverUrl(post.slug)}`}
       />
 
       <article className="blog-lp-container">
@@ -285,7 +285,7 @@ export function BlogPost() {
         <div className="blog-lp-cta">
           <h3 className="blog-lp-display text-2xl">Ready to find roles that fit you?</h3>
           <p className="blog-lp-lede mx-auto mt-3 max-w-md">
-            HireSchema matches you to jobs daily — resume or LinkedIn, Scout Chat, and connect with hiring managers. Free to start.
+            Hireloop matches you to jobs daily — resume or LinkedIn, Scout Chat, and connect with hiring managers. Free to start.
           </p>
           <Link to="/login" className="blog-lp-btn-p mt-6 inline-flex" onClick={() => slug && trackCtaClick(slug)}>
             Get daily job matches

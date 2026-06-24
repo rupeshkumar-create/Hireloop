@@ -12,7 +12,7 @@ export type CoreBlogPost = {
   readTimeMinutes: number;
   publishedAt: string;
   status: 'published';
-  clusterId: 'hireschema';
+  clusterId: 'hireloop';
   directAnswer?: string;
   faq?: { question: string; answer: string }[];
 };
@@ -23,9 +23,9 @@ export const CORE_BLOG_POSTS: CoreBlogPost[] = [
   {
     slug: 'meet-jack-your-ai-career-copilot',
     title: 'Meet Jack: Your AI Career Copilot',
-    seoTitle: 'Meet Jack — AI Career Copilot | HireSchema',
+    seoTitle: 'Meet Jack — AI Career Copilot | Hireloop',
     seoDescription:
-      'Jack is HireSchema\'s chat-first AI agent that scouts roles, coaches interviews, and negotiates salary — built for candidates who want a copilot, not another job board.',
+      'Jack is Hireloop\'s chat-first AI agent that scouts roles, coaches interviews, and negotiates salary — built for candidates who want a copilot, not another job board.',
     excerpt:
       'Jack is a persistent career agent in chat: he learns your resume, runs nightly Scout matches, and helps you practice interviews and negotiate offers.',
     category: 'Product',
@@ -36,10 +36,10 @@ export const CORE_BLOG_POSTS: CoreBlogPost[] = [
     status: 'published',
     clusterId: 'hireschema',
     directAnswer:
-      'Jack is HireSchema\'s candidate-facing AI agent — a chat copilot that scouts real jobs nightly, surfaces matches with reasons, and helps with mock interviews, salary coaching, and warm recruiter intros.',
+      'Jack is Hireloop\'s candidate-facing AI agent — a chat copilot that scouts real jobs nightly, surfaces matches with reasons, and helps with mock interviews, salary coaching, and warm recruiter intros.',
     content: `## What Jack does
 
-Jack is not a job board with a chat widget bolted on. He is the primary interface for HireSchema: you talk to him, he remembers your goals, and he acts on your behalf between sessions.
+Jack is not a job board with a chat widget bolted on. He is the primary interface for Hireloop: you talk to him, he remembers your goals, and he acts on your behalf between sessions.
 
 Every night, **Scout** runs in the background. It searches the live web for real listings, validates them against your preferences, scores fit against your resume, and stores the best matches. When you open chat, Jack walks you through them one by one — with match reasons, skill gaps, and a clear yes/no on whether to pursue each role.
 
@@ -55,7 +55,7 @@ Your conversation history lives in your profile so Jack picks up where you left 
 
 ## What Jack will not do
 
-HireSchema has hard rules: no fabricated jobs, no AI rescuing listings that fail validation, no hallucinated experience on tailored resumes. Jack works with real data or tells you what is missing.
+Hireloop has hard rules: no fabricated jobs, no AI rescuing listings that fail validation, no hallucinated experience on tailored resumes. Jack works with real data or tells you what is missing.
 
 ## Get started
 
@@ -68,9 +68,9 @@ Sign in, complete onboarding, and open **Jack** at \`/chat\`. Your first Scout r
   {
     slug: 'jill-warm-intros-for-recruiters',
     title: 'Jill: Warm Intros for Recruiters',
-    seoTitle: 'Jill — Recruiter AI & Warm Intros | HireSchema',
+    seoTitle: 'Jill — Recruiter AI & Warm Intros | Hireloop',
     seoDescription:
-      'Jill is HireSchema\'s recruiter-side agent. Post roles, review candidate matches, and send warm introductions — candidates opt in through Jack before any outreach.',
+      'Jill is Hireloop\'s recruiter-side agent. Post roles, review candidate matches, and send warm introductions — candidates opt in through Jack before any outreach.',
     excerpt:
       'Jill helps recruiters post roles and send warm introductions. Candidates approve intros in Jack first — no cold spam.',
     category: 'Product',
@@ -81,10 +81,10 @@ Sign in, complete onboarding, and open **Jack** at \`/chat\`. Your first Scout r
     status: 'published',
     clusterId: 'hireschema',
     directAnswer:
-      'Jill is HireSchema\'s recruiter agent at /jill. Recruiters post jobs, review AI-matched candidates, and request warm intros that candidates must accept in Jack before contact details are shared.',
+      'Jill is Hireloop\'s recruiter agent at /jill. Recruiters post jobs, review AI-matched candidates, and request warm intros that candidates must accept in Jack before contact details are shared.',
     content: `## Two agents, one loop
 
-HireSchema mirrors the [Jack & Jill](https://www.jackandjill.ai/) model: **Jack** advocates for candidates; **Jill** advocates for hiring teams. They meet in the middle through **warm introductions** — never blind cold outreach.
+Hireloop mirrors the [Jack & Jill](https://www.jackandjill.ai/) model: **Jack** advocates for candidates; **Jill** advocates for hiring teams. They meet in the middle through **warm introductions** — never blind cold outreach.
 
 ## How Jill works
 
@@ -109,9 +109,9 @@ Candidates control the gate. Jack notifies them of pending intros and polls for 
   {
     slug: 'how-scout-finds-real-jobs-every-night',
     title: 'How Scout Finds Real Jobs Every Night',
-    seoTitle: 'How Scout Job Discovery Works | HireSchema',
+    seoTitle: 'How Scout Job Discovery Works | Hireloop',
     seoDescription:
-      'Scout is HireSchema\'s nightly pipeline: web search, deduplication, hard validation, AI scoring, and enrichment — no fake listings, no client-side generation.',
+      'Scout is Hireloop\'s nightly pipeline: web search, deduplication, hard validation, AI scoring, and enrichment — no fake listings, no client-side generation.',
     excerpt:
       'Scout discovers listings via live web search, validates them with hard rules, scores fit with AI, and delivers your top matches by email and in Jack.',
     category: 'Product',
@@ -163,10 +163,10 @@ You can trigger Scout from the dashboard or ask Jack to run it. The same server 
   },
   {
     slug: 'from-match-to-offer-the-hireschema-workflow',
-    title: 'From Match to Offer: The HireSchema Workflow',
-    seoTitle: 'Job Search Workflow — Match to Offer | HireSchema',
+    title: 'From Match to Offer: The Hireloop Workflow',
+    seoTitle: 'Job Search Workflow — Match to Offer | Hireloop',
     seoDescription:
-      'A practical HireSchema workflow: review Scout matches in Jack, save to Pipeline, generate tailored assets, practice interviews, and track through to offer.',
+      'A practical Hireloop workflow: review Scout matches in Jack, save to Pipeline, generate tailored assets, practice interviews, and track through to offer.',
     excerpt:
       'Review matches in Jack, save strong roles to Pipeline, generate emails and resumes, practice interviews, and track status through to offer.',
     category: 'Product',
@@ -177,7 +177,7 @@ You can trigger Scout from the dashboard or ask Jack to run it. The same server 
     status: 'published',
     clusterId: 'hireschema',
     directAnswer:
-      'The HireSchema workflow: Jack presents nightly Scout matches → you save fits to Pipeline → generate grounded application assets → practice in mock interview mode → track saved/applied/interviewing states → accept warm recruiter intros when relevant.',
+      'The Hireloop workflow: Jack presents nightly Scout matches → you save fits to Pipeline → generate grounded application assets → practice in mock interview mode → track saved/applied/interviewing states → accept warm recruiter intros when relevant.',
     content: `## 1. Review today's matches
 
 Open **Jack** (\`/chat\`) or the **dashboard**. Each match includes a score, company, role summary, and AI insight. Say yes to pursue, no to skip — Jack learns from both.
@@ -215,11 +215,11 @@ When Jill requests an intro, Jack shows a preview card. Accept only if you want 
   {
     slug: 'why-we-built-a-chat-first-job-search-agent',
     title: 'Why We Built a Chat-First Job Search Agent',
-    seoTitle: 'Why Chat-First Job Search | HireSchema',
+    seoTitle: 'Why Chat-First Job Search | Hireloop',
     seoDescription:
-      'Job search is emotionally heavy and information-dense. HireSchema chose a conversational agent over another dashboard because guidance beats filters.',
+      'Job search is emotionally heavy and information-dense. Hireloop chose a conversational agent over another dashboard because guidance beats filters.',
     excerpt:
-      'Job search is high-stakes and noisy. We built HireSchema as a chat-first agent so candidates get guidance, not another infinite scroll.',
+      'Job search is high-stakes and noisy. We built Hireloop as a chat-first agent so candidates get guidance, not another infinite scroll.',
     category: 'Product',
     tags: ['mission', 'product design', 'ai agent'],
     targetKeywords: ['chat first job search', 'ai job search agent'],
@@ -228,7 +228,7 @@ When Jill requests an intro, Jack shows a preview card. Accept only if you want 
     status: 'published',
     clusterId: 'hireschema',
     directAnswer:
-      'HireSchema is chat-first because job search is decision-heavy: candidates need an agent that explains matches, coaches next steps, and remembers context — not another passive list of links.',
+      'Hireloop is chat-first because job search is decision-heavy: candidates need an agent that explains matches, coaches next steps, and remembers context — not another passive list of links.',
     content: `## The problem with job boards
 
 Most platforms optimize for **volume**: more listings, more clicks, more tabs. Candidates drown in noise. Recruiters drown in irrelevant applications. Everyone loses time.
@@ -237,7 +237,7 @@ AI made this worse before it made it better — generic cover letters, fake list
 
 ## Our bet: agency, not alerts
 
-HireSchema treats the candidate as someone hiring an **agent**, not browsing a catalog:
+Hireloop treats the candidate as someone hiring an **agent**, not browsing a catalog:
 
 - **Jack** explains *why* a role fits and what to do next.
 - **Scout** does the overnight legwork so mornings start with curated options, not a blank search bar.

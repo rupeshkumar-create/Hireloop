@@ -4,7 +4,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listCoreBlogSummaries } from '../../../../lib/coreBlogPosts.js';
 
-const BASE = 'https://hireschema.com';
+import { SITE_URL } from '../../../../lib/siteSeo.js';
+
+const BASE = SITE_URL;
 
 function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -29,9 +31,9 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>HireSchema Product Guides</title>
+    <title>Hireloop Product Guides</title>
     <link>${BASE}/blog</link>
-    <description>Guides on Jack, Jill, Scout, and the HireSchema job search workflow.</description>
+    <description>Guides on Jack, Jill, Scout, and the Hireloop job search workflow.</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${BASE}/blog/rss.xml" rel="self" type="application/rss+xml"/>

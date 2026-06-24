@@ -409,7 +409,7 @@ export function Settings() {
 
               {profile?.automationPausedReason === 'inactive_3d' ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
-                  Scout was paused after 3 days without a visit. Opening Hireschema again re-enables automation — save preferences here to confirm your delivery settings.
+                  Scout was paused after 3 days without a visit. Opening Hireloop again re-enables automation — save preferences here to confirm your delivery settings.
                 </div>
               ) : null}
 
