@@ -3,7 +3,7 @@
  * Zero AI calls.
  */
 
-import { getAdminDb } from '../firebaseAdmin.js';
+import { getDoc, setDoc, queryDocs } from '../db/docStore.js';
 import type { BlogPost } from '../marketingEngine.js';
 import type { InternalLink } from '../../types/contentGrowth.js';
 
@@ -154,16 +154,14 @@ export async function applyBidirectionalLinks(
 ): Promise<number> {
   if (relatedSlugs.length === 0) return 0;
 
-  const db = getAdminDb();
   let updated = 0;
 
   for (const oldSlug of relatedSlugs.slice(0, 4)) {
     if (oldSlug === newPost.slug) continue;
-    const ref = db.collection(BLOG_COLLECTION).doc(oldSlug);
-    const doc = await ref.get();
-    if (!doc.exists) continue;
+    const doc = await getDoc(BLOG_COLLECTION, oldSlug);
+    if (!doc.data) continue;
 
-    const data = doc.data() as BlogPost & { internalLinks?: InternalLink[] };
+    const data = doc.data as BlogPost & { internalLinks?: InternalLink[] };
     const existing = data.internalLinks ?? [];
     if (existing.some((l) => l.slug === newPost.slug)) continue;
 
@@ -174,10 +172,10 @@ export async function applyBidirectionalLinks(
       relevanceScore: 5,
     };
 
-    await ref.update({
+    await setDoc(BLOG_COLLECTION, oldSlug, {
       internalLinks: [...existing, newLink].slice(-6),
       updatedAt: new Date().toISOString(),
-    });
+    }, true);
     updated++;
   }
 

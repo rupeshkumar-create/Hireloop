@@ -1,0 +1,44 @@
+-- Dev reset: remove all user-linked data, then auth accounts.
+-- Handles legacy tables (conversations, recruiters, etc.) in this Supabase project.
+
+DELETE FROM public.messages;
+DELETE FROM public.conversations;
+DELETE FROM public.intro_messages;
+DELETE FROM public.intro_requests;
+DELETE FROM public.voice_sessions;
+DELETE FROM public.mock_interviews;
+DELETE FROM public.notifications;
+DELETE FROM public.whatsapp_messages;
+DELETE FROM public.job_application_kits;
+DELETE FROM public.job_applications;
+DELETE FROM public.tailored_resumes;
+DELETE FROM public.saved_jobs;
+DELETE FROM public.match_feedback;
+DELETE FROM public.match_scores;
+DELETE FROM public.match_audits;
+DELETE FROM public.daily_matches;
+DELETE FROM public.tracked_jobs;
+DELETE FROM public.connection_requests;
+DELETE FROM public.recruiter_jobs;
+DELETE FROM public.recruiter_profiles;
+DELETE FROM public.recruiter_searches;
+DELETE FROM public.recruiter_invites;
+DELETE FROM public.hiring_managers;
+DELETE FROM public.recruiters;
+DELETE FROM public.resumes;
+DELETE FROM public.career_paths;
+DELETE FROM public.candidate_embeddings;
+DELETE FROM public.candidates;
+DELETE FROM public.gmail_tokens;
+DELETE FROM public.otp_verifications;
+DELETE FROM public.consent_log;
+DELETE FROM public.dpdp_export_jobs;
+DELETE FROM public.agent_actions;
+DELETE FROM public.background_jobs;
+DELETE FROM public.cron_runs;
+DELETE FROM public.ai_logs;
+DELETE FROM public.admin_logs;
+DELETE FROM public.firestore_docs;
+DELETE FROM public.profiles;
+DELETE FROM public.users;
+DELETE FROM auth.users;

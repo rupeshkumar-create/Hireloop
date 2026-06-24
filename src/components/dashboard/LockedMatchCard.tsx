@@ -14,7 +14,7 @@ export function LockedMatchCard({ slot }: Props) {
       <div className="pointer-events-none select-none blur-[3px] opacity-80 min-w-0 flex-1">
         <div className="mb-2 flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-md border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--hs-app-muted)]">
-            <Wifi className="h-3 w-3" /> Remote
+            <Wifi className="h-3 w-3" /> Match
           </span>
         </div>
         <h2 className="mb-1 text-[14px] font-semibold text-[var(--hs-app-fg)]">{slot.title}</h2>

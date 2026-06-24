@@ -1,21 +1,7 @@
 /**
- * /api/cron/process-user
- *
- * Per-user job generation pipeline:
- *
- *  1. Load user profile from Firestore
- *  2. Feed/API job discovery from configured RSS/API sources
- *  3. Deduplicate against user's seen fingerprints
- *  4. Deterministic scoring against resume, career paths, and preferences
- *  5. Store match reasons, gaps, and summaries with each job
- *  6. Store complete job objects in Firestore (inline, no redirects)
- *  7. Update seenJobFingerprints (capped at MAX_SEEN)
- *
- * All users → 10 matched jobs/day (same Apify discovery cost).
- * Pro adds AI application tools (resume tailoring, cold email, interview prep).
+ * /api/cron/process-user — per-user job generation pipeline (Supabase-backed).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../../../firebaseAdmin.js';
 import { requireInternalCronSecret } from '../../../cronAuth.js';
 import { processUserCronRun } from '../../../../services/cronEngine.js';
 import { computeNextJobDeliveryAt } from '../../../../services/jobDeliveryProfile.js';
@@ -29,8 +15,11 @@ import { getDiscoveryPoolTarget } from '../../../../lib/planLimits.js';
 import { PIPELINE_MIN_MATCH_SCORE } from '../../../../lib/matchQuality.js';
 import { resolveOrderedCareerPaths, priorityCareerPaths } from '../../../../lib/careerPaths.js';
 import { resolveTargetMarkets } from '../../../../lib/targetMarkets.js';
+import { getProfile, upsertProfile } from '../../../db/profiles.js';
+import { getCronRun, setCronRun } from '../../../db/cronRuns.js';
+import { setDailyMatch } from '../../../db/dailyMatches.js';
 
-const MAX_SEEN_FINGERPRINTS = 500; // ~50 days of 10 jobs/day
+const MAX_SEEN_FINGERPRINTS = 500;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -42,30 +31,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const db = getAdminDb();
-
     const result = await processUserCronRun(
       { userId, runDate },
       {
-        // ── Load user ───────────────────────────────────────────────────────
         loadUser: async (uid) => {
-          const snap = await db.collection('users').doc(uid).get();
-          return snap.exists ? { id: snap.id, data: snap.data() || {} } : null;
+          const profile = await getProfile(uid);
+          return profile ? { id: uid, data: profile as Record<string, unknown> } : null;
         },
 
-        // ── Cron run record helpers ─────────────────────────────────────────
         getExistingRun: async (runId) => {
-          const snap = await db.collection('cronRuns').doc(runId).get();
-          return snap.exists ? ({ id: snap.id, ...snap.data() } as any) : null;
-        },
-        markRun: async (runId, patch) => {
-          await db.collection('cronRuns').doc(runId).set(
-            { userId, runDate, dispatchSource: 'daily-alerts-v2', ...patch },
-            { merge: true }
-          );
+          const run = await getCronRun(runId);
+          return run.exists ? ({ id: runId, ...run.data } as Record<string, unknown>) : null;
         },
 
-        // ── Job generation ──────────────────────────────────────────────────
+        markRun: async (runId, patch) => {
+          await setCronRun(runId, { userId, runDate, dispatchSource: 'daily-alerts-v2', ...patch });
+        },
+
         generateJobs: async (profile, limit) => {
           const careerPaths = resolveOrderedCareerPaths(profile);
           const priorityPaths = priorityCareerPaths(profile);
@@ -83,17 +65,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             location,
             targetCount,
             seenFingerprints,
-            getAdminDb: () => db,
             targetMarkets,
             structuredProfile: profile.structuredProfile,
             deliveryTimezone: profile.deliveryTimezone,
             preferences: profile.matchingPreferences || profile.preferences,
           });
 
-          console.log(
-            `[process-user] ${userId}: discovered ${discovered.length} jobs`,
-            sources
-          );
+          console.log(`[process-user] ${userId}: discovered ${discovered.length} jobs`, sources);
 
           if (discovered.length === 0) {
             return {
@@ -126,19 +104,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             createOpenRouterCaller(),
           );
 
-          console.log(
-            `[process-user] ${userId}: matched ${matchResult.jobs.length} jobs ` +
-            `(fallback=${matchResult.usedFallback})`
-          );
-
           const qualityFilteredCount =
-            'qualityFilteredCount' in matchResult &&
-            typeof matchResult.qualityFilteredCount === 'number'
+            'qualityFilteredCount' in matchResult && typeof matchResult.qualityFilteredCount === 'number'
               ? matchResult.qualityFilteredCount
               : 0;
           const dedupedCount =
-            'dedupedCount' in matchResult &&
-            typeof matchResult.dedupedCount === 'number'
+            'dedupedCount' in matchResult && typeof matchResult.dedupedCount === 'number'
               ? matchResult.dedupedCount
               : 0;
 
@@ -154,7 +125,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           };
         },
 
-        // ── Store results ───────────────────────────────────────────────────
         storeJobs: async (uid, date, profile, generated) => {
           const fetchedAt = new Date().toISOString();
           const jobs: DailyJob[] = generated.jobs || [];
@@ -171,7 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ...new Set([...(profile.seenJobFingerprints || []), ...newFingerprints]),
           ].slice(-MAX_SEEN_FINGERPRINTS);
 
-          await db.collection('users').doc(uid).set(
+          await upsertProfile(
+            uid,
             stripUndefinedDeep({
               dailyJobs: jobs,
               dailyJobsMeta: {
@@ -186,45 +157,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               },
               lastJobFetchTime: fetchedAt,
               ...(jobs.length > 0 ? { lastSuccessfulJobRunLocalDate: date } : {}),
-              nextJobDeliveryAt: jobs.length > 0
-                ? computeNextJobDeliveryAt(
-                    deliveryTimezone,
-                    preferredDeliveryHour,
-                    new Date(fetchedAt)
-                  )
-                : profile.nextJobDeliveryAt,
+              nextJobDeliveryAt:
+                jobs.length > 0
+                  ? computeNextJobDeliveryAt(deliveryTimezone, preferredDeliveryHour, new Date(fetchedAt))
+                  : profile.nextJobDeliveryAt,
               matchReadiness: profile.matchReadiness,
               seenJobFingerprints: nextFingerprints,
-            }),
-            { merge: true }
+            }) as Record<string, unknown>,
           );
 
           const sources: Record<string, number> = {};
           for (const j of jobs) sources[j.source] = (sources[j.source] || 0) + 1;
 
-          await db
-            .collection('users')
-            .doc(uid)
-            .collection('daily_matches')
-            .doc(date)
-            .set(stripUndefinedDeep({
-              userId: uid,
-              date,
-              generatedAt: fetchedAt,
-              jobs,
-              jobCount: jobs.length,
-              sources,
-              requestedLimit,
-              returnedCount: jobs.length,
-              qualityFilteredCount,
-              dedupedCount,
-              deliveryTimezone,
-              deliveryLocalDate: date,
-              qualityLimited,
-              warnings,
-            }));
+          await setDailyMatch(uid, date, jobs, stripUndefinedDeep({
+            userId: uid,
+            date,
+            generatedAt: fetchedAt,
+            jobCount: jobs.length,
+            sources,
+            requestedLimit,
+            returnedCount: jobs.length,
+            qualityFilteredCount,
+            dedupedCount,
+            deliveryTimezone,
+            deliveryLocalDate: date,
+            qualityLimited,
+            warnings,
+          }) as Record<string, unknown>);
         },
-      }
+      },
     );
 
     return res.status(200).json(result);

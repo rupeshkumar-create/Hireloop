@@ -1,9 +1,6 @@
 /**
- * Central schedule for Hireschema background jobs.
- * Production runs on Vercel Hobby — Scout uses GitHub Actions:
- *   `.github/workflows/generate-jobs.yml`
- * Blog content is updated manually (no automated publish cron).
- * `/api/cron/tick` remains for manual batch runs with CRON_SECRET (60s cap on Vercel).
+ * Local + API cron schedule metadata.
+ * For local Scout runs: npm run scout  or  USER_ID=xxx npm run scout:user
  */
 
 export type CronJobId = 'daily-alerts';
@@ -21,11 +18,11 @@ export interface CronJobSchedule {
   dayOfMonthUtc?: number;
 }
 
-/** Scheduled jobs — Scout runs via GitHub Actions. */
+/** Scheduled jobs — optional; local Scout uses `npm run scout`. */
 export const CRON_JOBS: CronJobSchedule[] = [
   {
     id: 'daily-alerts',
-    label: 'Daily Scout dispatch (legacy API — Scout uses GitHub Actions)',
+    label: 'Daily Scout dispatch (API cron — optional locally)',
     hourUtc: 8,
     minuteUtc: 0,
   },
@@ -86,8 +83,8 @@ function formatSchedule(job: CronJobSchedule): string {
   return `daily at ${time}`;
 }
 
-/** Vercel Hobby serverless function budget (deploy root). */
-export const VERCEL_FUNCTION_MANIFEST = [
+/** API route manifest (used by /api/cron/tick health check). */
+export const API_ROUTE_MANIFEST = [
   { path: 'api/cron/[job].ts', purpose: 'All cron routes incl. /api/cron/tick' },
   { path: 'api/jobs/index.ts', purpose: 'User-triggered Scout runs' },
   { path: 'api/ai/[[...route]].ts', purpose: 'OpenAI + Apollo proxies' },
@@ -97,5 +94,7 @@ export const VERCEL_FUNCTION_MANIFEST = [
   { path: 'api/webhook/dodo.ts', purpose: 'Billing webhooks' },
 ] as const;
 
-export const VERCEL_FUNCTION_COUNT = VERCEL_FUNCTION_MANIFEST.length;
+export const API_ROUTE_COUNT = API_ROUTE_MANIFEST.length;
+/** @deprecated use API_ROUTE_COUNT */
+export const VERCEL_FUNCTION_COUNT = API_ROUTE_COUNT;
 export const VERCEL_FUNCTION_LIMIT = 12;

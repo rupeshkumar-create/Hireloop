@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx scripts/dev.ts",
+    "dev:web": "vite --port=3001 --host=0.0.0.0",
+    "dev:api": "tsx scripts/local-api-server.ts",
     "build": "tsx scripts/generate-llms-txt.ts && tsx scripts/generate-sitemap.ts && tsx scripts/generate-og-default.ts && vite build && tsx scripts/prerender-blog-posts.ts",
     "generate:og": "tsx scripts/generate-og-default.ts",
     "generate:prerender": "tsx scripts/prerender-blog-posts.ts",
@@ -22,10 +24,12 @@
     "seed:geo": "tsx scripts/seed-geo-posts.ts",
     "seed:all": "tsx scripts/seed-all-posts.ts",
     "seed:all:full": "tsx scripts/seed-all-batches.ts",
-    "deploy:rules": "firebase deploy --only firestore:rules"
+    "scout": "tsx scripts/generate-daily-jobs.ts",
+    "scout:user": "tsx scripts/generate-daily-jobs.ts"
   },
   "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.108.2",
     "@tailwindcss/vite": "^4.1.14",
     "@vercel/functions": "^2.2.13",
     "@vercel/node": "^5.7.5",
@@ -36,8 +40,6 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "file-saver": "^2.0.5",
-    "firebase": "^12.12.0",
-    "firebase-admin": "^13.8.0",
     "html2canvas-pro": "^2.0.2",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
@@ -63,7 +65,6 @@
     "@types/file-saver": "^2.0.7",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
-    "firebase-tools": "^14.20.0",
     "happy-dom": "^20.9.0",
     "marked": "^15.0.12",
     "sharp": "^0.34.2",

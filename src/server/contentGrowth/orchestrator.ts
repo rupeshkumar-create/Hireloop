@@ -842,11 +842,8 @@ export async function getContentGrowthDashboard() {
 
   const operational = buildOperationalChecks(state, strategy, {
     openRouter: Boolean(process.env.OPENROUTER_API_KEY),
-    firebase: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_KEY),
+    supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
     cronSecret: Boolean(process.env.CRON_SECRET),
-    githubDispatch: Boolean(
-      process.env.GITHUB_DISPATCH_TOKEN?.trim() || process.env.GITHUB_PAT?.trim()
-    ),
   }, { postPublishedToday });
 
   return {

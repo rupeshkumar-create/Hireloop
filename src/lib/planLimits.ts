@@ -13,8 +13,9 @@ function normalizePlan(plan?: string): string {
   return (plan || '').trim().toLowerCase();
 }
 
-export function isProPlan(plan?: string): boolean {
-  return normalizePlan(plan) === 'pro';
+/** All features unlocked — Jack-style free-for-candidates model. */
+export function isProPlan(_plan?: string): boolean {
+  return true;
 }
 
 export function getDailyMatchLimit(_plan?: string): number {

@@ -1,8 +1,8 @@
 import { isAdminEmail } from './adminEmails';
-import { hasSuperAdminClaim } from './admin';
+import { isSuperAdminRole } from './admin';
 
-/** Sidebar / mobile nav — email allowlist OR Firebase superAdmin claim. */
-export function isAppAdmin(email?: string | null, tokenClaims?: { superAdmin?: boolean }) {
-  if (tokenClaims?.superAdmin === true) return true;
+/** Sidebar / mobile nav — email allowlist OR Supabase super_admin profile role. */
+export function isAppAdmin(email?: string | null, profileRole?: string | null) {
+  if (isSuperAdminRole(profileRole)) return true;
   return isAdminEmail(email);
 }

@@ -7,7 +7,6 @@ import {
   ExternalLink,
   MapPin,
   DollarSign,
-  Mail,
   FileText,
   MessageSquare,
   TrendingUp,
@@ -17,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
+  UserPlus,
 } from 'lucide-react';
 import { Job } from '../../types/dashboard';
 import { AiActionType } from '../../hooks/useDashboardAI';
@@ -26,6 +26,7 @@ import { ProFeatureOverlay } from '../ui/ProFeatureOverlay';
 import { tailorResume } from '../../services/aiService';
 import { toast } from 'sonner';
 import { AiResultModal } from './AiResultModal';
+import { ConnectWithRecruiterModal } from './ConnectWithRecruiterModal';
 import { resolveJobApplicationUrlWithFallback, isJobUrlFallback } from '../../lib/jobLinks';
 
 interface JobDetailsPanelProps {
@@ -79,6 +80,7 @@ export function JobDetailsPanel({
 }: JobDetailsPanelProps) {
   const { user, profile } = useAuth();
   const [aiModalDismissed, setAiModalDismissed] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const applyUrl = resolveJobApplicationUrlWithFallback(selectedJob);
   const isFallbackUrl = isJobUrlFallback(selectedJob);
 
@@ -378,7 +380,7 @@ export function JobDetailsPanel({
                 </h4>
                 {!isProPlan(profile?.plan) ? (
                   <p className="mb-3 text-[11px] text-[var(--hs-app-muted)]">
-                    This role is saved. Upgrade to Pro to generate cold email, tailored resume, interview prep, and salary data.
+                    This role is saved. Upgrade to Pro to connect with hiring managers, tailor resume, interview prep, and salary data.
                   </p>
                 ) : null}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
@@ -386,9 +388,9 @@ export function JobDetailsPanel({
                     type="button"
                     className="hs-btn justify-center"
                     disabled={!isProPlan(profile?.plan)}
-                    onClick={() => runAiAction('email', selectedJob)}
+                    onClick={() => setConnectOpen(true)}
                   >
-                    <Mail className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Cold Email
+                    <UserPlus className="h-3.5 w-3.5 text-[var(--hs-app-accent)]" /> Connect
                   </button>
                   <button
                     type="button"
@@ -446,7 +448,7 @@ export function JobDetailsPanel({
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 md:px-8">
             <div className="hs-tags mb-6">
               <span className="hs-tag flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> {selectedJob.location || 'Remote'}
+                <MapPin className="h-3 w-3" /> {selectedJob.location || 'Flexible'}
               </span>
               <span className="hs-tag flex items-center gap-1">
                 <DollarSign className="h-3 w-3" /> {selectedJob.salary || 'Salary not listed'}
@@ -508,6 +510,14 @@ export function JobDetailsPanel({
         onContentChange={setAiResult}
         onOpenGmail={handleOpenGmail}
       />
+      ) : null}
+      {selectedJob ? (
+        <ConnectWithRecruiterModal
+          job={selectedJob}
+          profile={profile}
+          open={connectOpen}
+          onClose={() => setConnectOpen(false)}
+        />
       ) : null}
     </>
   );

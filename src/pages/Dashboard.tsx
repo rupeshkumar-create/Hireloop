@@ -13,12 +13,9 @@ import { GettingStartedCard } from '../components/dashboard/GettingStartedCard';
 import { ScoutReadinessBanner } from '../components/dashboard/ScoutReadinessBanner';
 import { DailyMatchHistoryTab } from '../components/dashboard/DailyMatchHistoryTab';
 import { FirstSessionView } from '../components/dashboard/FirstSessionView';
-import { FreeMatchUpsell } from '../components/dashboard/FreeMatchUpsell';
 import { buildMatchFeedItems, getDailyBatchSummary } from '../components/dashboard/matchPaywall';
 import type { Job } from '../types/dashboard';
 import { jobFingerprint } from '../services/jobResearcher';
-import { isProPlan } from '../lib/planLimits';
-import { isDodoPaymentReturn } from '../lib/pricing';
 import type { PipelineNavigationState } from '../lib/pipelineNavigation';
 import { cn } from '../lib/utils';
 import { resolveTodayLocalDateKey } from '../lib/localDate';
@@ -134,7 +131,6 @@ export function Dashboard() {
     downloadResume,
   } = useDashboardAI(profile);
 
-  const [awaitingPaymentUpgrade, setAwaitingPaymentUpgrade] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [firstSessionExpanded, setFirstSessionExpanded] = useState(false);
   const [justCompletedFirstSave, setJustCompletedFirstSave] = useState(false);
@@ -164,30 +160,7 @@ export function Dashboard() {
       setShowWelcome(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    if (isDodoPaymentReturn(params)) {
-      setAwaitingPaymentUpgrade(true);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      toast.info('Payment received. Activating Pro…');
-    }
   }, []);
-
-  useEffect(() => {
-    if (!awaitingPaymentUpgrade) return;
-    if (profile?.plan?.toLowerCase() === 'pro') {
-      setAwaitingPaymentUpgrade(false);
-      toast.success('Welcome to Pro! AI application tools are now unlocked.');
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      toast.message('Pro activation is taking a moment', {
-        description:
-          'If AI tools are still locked after a minute, refresh this page or message us on WhatsApp support with the same email you used at checkout.',
-      });
-    }, 45_000);
-
-    return () => window.clearTimeout(timeout);
-  }, [awaitingPaymentUpgrade, profile?.plan]);
 
   useEffect(() => {
     if (window.location.hash === '#matches') {
@@ -305,7 +278,7 @@ export function Dashboard() {
       top
         ? `${top.company} is the strongest current fit at ${top.matchScore || top.finalScore}/100, mainly because it overlaps with ${top.matchedCareerPath || careerPath}.`
         : `Scout is ready to match roles against ${careerPath}. Generate today's jobs to fill this board.`,
-      `${profile?.preferences?.remoteOnly !== false ? 'Remote-only filtering is active' : 'Remote preference is flexible'}, with salary floor ${profile?.preferences?.salaryFloor ? `$${profile.preferences.salaryFloor.toLocaleString()}` : 'not set'}.`,
+      `${profile?.preferences?.remoteOnly !== false ? 'Flexible-work filter is active' : 'Open to all work arrangements'}, with salary floor ${profile?.preferences?.salaryFloor ? `$${profile.preferences.salaryFloor.toLocaleString()}` : 'not set'}.`,
       dailyJobsMeta?.generatedAt
         ? `Last completed run: ${new Date(dailyJobsMeta.generatedAt).toLocaleString()}.`
         : `Next scheduled run: ${nextRun}.`,
@@ -333,9 +306,7 @@ export function Dashboard() {
       }
 
       toast.success('Saved to Pipeline', {
-        description: isProPlan(profile?.plan)
-          ? `${job.title} at ${job.company} — cold email, resume, and interview prep are generating now.`
-          : `${job.title} at ${job.company} saved. Pro unlocks auto-generated application assets.`,
+        description: `${job.title} at ${job.company} — cold email, resume, and interview prep are available in the job panel.`,
       });
 
       if (
@@ -407,9 +378,7 @@ export function Dashboard() {
         <div className="rounded-xl border border-[var(--hs-app-accent)]/30 bg-[var(--hs-app-accent-soft)] px-5 py-4">
           <div className="text-[13px] font-semibold text-[var(--hs-app-fg)]">Nice — your first role is saved</div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
-            {isProPlan(profile?.plan)
-              ? 'Pipeline is where you track status and generate application assets. Tomorrow Scout will deliver a fresh batch here on the dashboard.'
-              : 'Pipeline is where you track saved roles. Upgrade to Pro when you are ready for AI application assets.'}
+            Pipeline is where you track status and generate application assets. Jack will deliver a fresh batch on your next search.
           </p>
         </div>
       ) : null}
@@ -425,10 +394,8 @@ export function Dashboard() {
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--hs-app-muted)]">
             {filteredAndSortedJobs.length > 0
-              ? isProPlan(profile?.plan)
-                ? 'Review matches here. Save a role to send it to Pipeline — where you track applications and use AI Copilot.'
-                : 'Review your best match here. Save roles to Pipeline to track applications. Upgrade to Pro for AI-tailored resumes, cold emails, and interview prep.'
-              : 'This usually takes 1–2 minutes. Matches appear here automatically — no refresh needed.'}
+              ? 'Review matches here or open Jack for yes/no feedback. Save a role to request introductions and prep.'
+              : 'This usually takes 1–2 minutes. Matches appear in Jack automatically — no refresh needed.'}
           </p>
         </div>
       ) : null}
@@ -455,7 +422,6 @@ export function Dashboard() {
       {showGuidedFirstSession ? (
         <FirstSessionView
           topJob={topJobs[0] || null}
-          plan={profile?.plan}
           loadingJobs={loadingJobs}
           generatingJobs={generatingJobs}
           onReviewJob={openReviewJob}
@@ -495,7 +461,7 @@ export function Dashboard() {
           </span>
           <div>
             <span className="text-[var(--hs-app-fg)] font-medium">
-              Showing remote roles eligible for {countryDisplayName(userCountry)}.
+              Showing roles eligible for {countryDisplayName(userCountry)}.
             </span>{' '}
             Hidden {regionFilteredCount} role{regionFilteredCount === 1 ? '' : 's'} restricted to other regions
             (e.g. US-only) — Scout learns your eligibility from your resume location.
@@ -587,7 +553,7 @@ export function Dashboard() {
                 aria-label="Filter by work type"
               >
                 <option value="all">All work types</option>
-                <option value="remote">Remote only</option>
+                <option value="remote">Flexible work</option>
               </select>
               <select
                 className="hs-form-input text-[12px]"
@@ -670,7 +636,7 @@ export function Dashboard() {
                     <div className="mb-2 flex items-center gap-2">
                       <span className="hs-company-mark">{companyInitials(job.company)}</span>
                       <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
-                        {job.company} · {job.location || 'Remote'}
+                        {job.company} · {job.location || 'Flexible'}
                       </span>
                       {saved ? (
                         <span className="hs-pill hs-pill-success text-[9px]">In pipeline</span>
@@ -701,15 +667,10 @@ export function Dashboard() {
               <Briefcase className="mx-auto mb-3 h-8 w-8 text-[var(--hs-app-muted)]" />
               <div className="text-[15px] font-semibold">No matches loaded yet</div>
               <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--hs-app-muted)]">
-                Run Scout now. It will use your resume, career paths, salary floor, and remote preferences.
+                Run Scout now. It will use your resume, career paths, salary floor, and work preferences.
               </p>
             </div>
           )}
-          {!isProPlan(profile?.plan) && topJobs.length > 0 ? (
-            <div className="border-t border-[var(--hs-app-border)] p-5">
-              <FreeMatchUpsell plan={profile?.plan} />
-            </div>
-          ) : null}
         </section>
 
         <aside className="space-y-5">

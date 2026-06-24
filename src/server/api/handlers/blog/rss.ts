@@ -2,7 +2,7 @@
  * GET /api/blog/rss.xml — RSS feed for hiring guides (distribution + crawlers).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listBlogPosts } from '../../../marketingEngine.js';
+import { listCoreBlogSummaries } from '../../../../lib/coreBlogPosts.js';
 
 const BASE = 'https://hireschema.com';
 
@@ -12,7 +12,7 @@ function escapeXml(s: string): string {
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
-    const posts = await listBlogPosts(50);
+    const posts = listCoreBlogSummaries(5);
     const items = posts
       .map(
         (p) => `    <item>
@@ -29,9 +29,9 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>HireSchema Hiring Guides</title>
+    <title>HireSchema Product Guides</title>
     <link>${BASE}/blog</link>
-    <description>Hiring guides on remote job search, AI matching, salary data, and interview prep.</description>
+    <description>Guides on Jack, Jill, Scout, and the HireSchema job search workflow.</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${BASE}/blog/rss.xml" rel="self" type="application/rss+xml"/>

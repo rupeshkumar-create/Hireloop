@@ -34,24 +34,25 @@ export function extractLeverToken(boardUrl: string): string | null {
   }
 }
 
-export async function loadAtsAllowlist(getAdminDb: () => any): Promise<AtsSource[]> {
-  const db = getAdminDb();
-  const snap = await db.collection('job_sources').where('enabled', '==', true).get();
-  const sources: AtsSource[] = [];
+export async function loadAtsAllowlist(_getAdminDb?: () => unknown): Promise<AtsSource[]> {
+  const { queryDocs } = await import('../../server/db/docStore.js');
+  const docs = await queryDocs('job_sources', {
+    where: [{ field: 'enabled', op: 'eq', value: true }],
+  });
 
-  snap.forEach((doc: any) => {
-    const data = doc.data?.() || {};
+  const sources: AtsSource[] = [];
+  for (const doc of docs) {
+    const data = doc.data;
     const companyName = typeof data.companyName === 'string' ? data.companyName.trim() : '';
-    const ats = data.ats === 'greenhouse' || data.ats === 'lever' ? data.ats : null;
+    const ats = data.ats === 'greenhouse' || data.ats === 'lever' ? (data.ats as AtsProvider) : null;
     const boardUrl = typeof data.boardUrl === 'string' ? data.boardUrl.trim() : '';
     const enabled = data.enabled === true;
     const remoteOnly = data.remoteOnly !== false;
-    const tags = Array.isArray(data.tags) ? data.tags.filter((t: any) => typeof t === 'string') : [];
+    const tags = Array.isArray(data.tags) ? data.tags.filter((t): t is string => typeof t === 'string') : [];
 
-    if (!companyName || !ats || !boardUrl || !enabled) return;
+    if (!companyName || !ats || !boardUrl || !enabled) continue;
     sources.push({ id: doc.id, companyName, ats, boardUrl, enabled, remoteOnly, tags });
-  });
+  }
 
   return sources;
 }
-

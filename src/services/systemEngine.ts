@@ -1,5 +1,4 @@
-import { addDoc, collection } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { getSupabaseBrowserClient } from '../lib/supabaseClient';
 import type { ValidationResult } from './validator';
 
 export type GuardedTaskName =
@@ -56,7 +55,22 @@ interface GuardrailTaskConfig<TInput, TOutput> {
 const taskRegistry = new Map<GuardedTaskName, GuardrailTaskConfig<any, any>>();
 
 async function writeAILog(record: AILogRecord): Promise<void> {
-  await addDoc(collection(db, 'aiLogs'), record);
+  const { taskName, userId, input, output, validation, latency, createdAt, status, errorMessage } =
+    record;
+  const { error } = await getSupabaseBrowserClient().from('ai_logs').insert({
+    user_id: userId ?? null,
+    data: {
+      taskName,
+      input,
+      output,
+      validation,
+      latency,
+      createdAt,
+      status,
+      ...(errorMessage ? { errorMessage } : {}),
+    },
+  });
+  if (error) throw error;
 }
 
 export function registerGuardrailTask<TInput, TOutput>(
@@ -135,6 +149,14 @@ export async function runWithGuardrails<TInput, TOutput>(
     );
   } finally {
     const latency = Date.now() - start;
+    let userId: string | undefined;
+    try {
+      const { data } = await getSupabaseBrowserClient().auth.getSession();
+      userId = data.session?.user?.id;
+    } catch {
+      // non-fatal
+    }
+
     const logRecord: AILogRecord = {
       taskName,
       input,
@@ -144,7 +166,7 @@ export async function runWithGuardrails<TInput, TOutput>(
       createdAt: new Date().toISOString(),
       status,
       ...(errorMessage ? { errorMessage } : {}),
-      ...(auth.currentUser?.uid ? { userId: auth.currentUser.uid } : {}),
+      ...(userId ? { userId } : {}),
     };
 
     try {

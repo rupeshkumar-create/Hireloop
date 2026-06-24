@@ -1,19 +1,8 @@
 /**
- * One-time bootstrap endpoint to grant superAdmin custom claim to a Firebase user.
- *
- * Usage (run once per admin account):
- *   curl -X POST https://your-domain.com/api/admin/bootstrap \
- *     -H "Content-Type: application/json" \
- *     -H "X-Bootstrap-Secret: <ADMIN_BOOTSTRAP_SECRET>" \
- *     -d '{"email": "you@example.com"}'
- *
- * After calling this, the user must sign out and back in (or wait ~1 hour
- * for their ID token to expire) to receive the new custom claim.
- *
- * Set ADMIN_BOOTSTRAP_SECRET in Vercel env vars — never expose it to the client.
+ * One-time bootstrap: grant super_admin role on a Supabase profile.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth } from '../../../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../../../supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -36,25 +25,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const auth = getAdminAuth();
+    const { data, error } = await getSupabaseAdmin().auth.admin.listUsers({ perPage: 1000 });
+    if (error) throw error;
 
-    let userRecord;
-    try {
-      userRecord = await auth.getUserByEmail(email);
-    } catch {
-      return res.status(404).json({ error: `No Firebase user found with email: ${email}` });
+    const user = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (!user) {
+      return res.status(404).json({ error: `No user found with email: ${email}` });
     }
 
-    await auth.setCustomUserClaims(userRecord.uid, { superAdmin: true });
+    await getSupabaseAdmin()
+      .from('profiles')
+      .update({ role: 'super_admin' })
+      .eq('id', user.id);
 
     return res.status(200).json({
       ok: true,
-      uid: userRecord.uid,
-      email: userRecord.email,
-      message: `superAdmin claim set on ${email}. User must sign out and back in to receive the updated token.`,
+      uid: user.id,
+      email: user.email,
+      message: `super_admin role set on ${email}.`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Bootstrap Error]', err);
-    return res.status(500).json({ error: err.message || 'Unknown error' });
+    return res.status(500).json({ error: message });
   }
 }

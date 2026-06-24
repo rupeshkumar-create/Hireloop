@@ -18,7 +18,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/blog" className="hidden text-sm font-medium text-foreground-muted transition-colors hover:text-foreground sm:block">
-              Hiring Guides
+              Product guides
             </Link>
             <WhatsAppSupportLink className="hidden text-sm font-medium text-[#128C7E] hover:text-[#075E54] sm:inline-flex" />
             <ThemeToggle isCollapsed={true} />
@@ -51,7 +51,7 @@ export function WebsiteLayout({ children }: { children: React.ReactNode }) {
               <HireschemaLogo height={26} />
             </Link>
             <p className="max-w-sm text-sm leading-6 text-foreground-muted">
-              The AI-powered platform exclusively for remote job seekers. Find, track, and land remote roles from anywhere in the world.
+              The AI-powered platform for job seekers. Scout matches roles to your resume, helps you connect with hiring managers, and coaches your search.
             </p>
           </div>
           <div>

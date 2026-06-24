@@ -1,34 +1,21 @@
-import { getAdminAuth, getAdminDb } from './firebaseAdmin.js';
-import { isAdminEmail } from '../lib/adminEmails.js';
+import { verifySupabaseToken } from './supabaseAuth.js';
+import { getProfile } from './db/profiles.js';
 
-export async function verifyFirebaseToken(token: string) {
-  const auth = getAdminAuth();
-  return auth.verifyIdToken(token);
+export async function verifyAuthToken(token: string) {
+  return verifySupabaseToken(token);
 }
 
+/** @deprecated Use verifyAuthToken */
+export const verifyFirebaseToken = verifyAuthToken;
+
 export async function getUserPlan(uid: string): Promise<string> {
-  const db = getAdminDb();
-  const doc = await db.collection('users').doc(uid).get();
-  return (doc.data()?.plan as string | undefined)?.toLowerCase() || 'free';
+  const profile = await getProfile(uid);
+  return profile?.plan?.toLowerCase() || 'free';
 }
 
 export async function verifyAiAccess(token: string) {
-  const decoded = await verifyFirebaseToken(token);
-  const email = decoded.email?.toLowerCase();
-  const isAdmin = decoded.superAdmin === true || isAdminEmail(email);
-
-  if (isAdmin) return { decoded, plan: 'pro' as const };
-
-  const db = getAdminDb();
-  const userDoc = await db.collection('users').doc(decoded.uid).get();
-  const userData = userDoc.data();
-  const plan = (userData?.plan as string | undefined)?.toLowerCase() || 'free';
-
-  if (plan === 'pro') return { decoded, plan: 'pro' as const };
-
-  const needsOnboarding =
-    !userData?.onboardingCompletedAt && !String(userData?.resumeText || '').trim();
-  if (needsOnboarding) return { decoded, plan: 'free' as const };
-
-  throw Object.assign(new Error('Pro plan required for AI features.'), { status: 403 });
+  const decoded = await verifyAuthToken(token);
+  const profile = await getProfile(decoded.uid);
+  const plan = profile?.plan?.toLowerCase() || 'free';
+  return { decoded, plan: plan === 'pro' ? ('pro' as const) : ('free' as const) };
 }

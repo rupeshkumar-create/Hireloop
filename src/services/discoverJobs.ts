@@ -48,24 +48,22 @@ export async function discoverJobsForMatching(
     combined.push(job);
   };
 
-  if (input.getAdminDb) {
-    try {
-      const atsSources = await loadAtsAllowlist(input.getAdminDb);
-      if (atsSources.length > 0) {
-        const atsJobs = await fetchAtsJobs(atsSources, {
-          fetchFn: fetch,
-          verifyUrl: async (url) => await verifyHttpUrl(url),
-          seenFingerprints,
-          maxJobs: targetDiscoveryCount,
-          concurrency: 8,
-          perSourceTimeoutMs: 4500,
-        });
-        for (const job of atsJobs) addJob(job as DiscoveredJob);
-        console.log(`[discoverJobs] ATS returned ${atsJobs.length} jobs (${combined.length} unique).`);
-      }
-    } catch (err) {
-      console.warn('[discoverJobs] ATS discovery failed:', err);
+  try {
+    const atsSources = await loadAtsAllowlist();
+    if (atsSources.length > 0) {
+      const atsJobs = await fetchAtsJobs(atsSources, {
+        fetchFn: fetch,
+        verifyUrl: async (url) => await verifyHttpUrl(url),
+        seenFingerprints,
+        maxJobs: targetDiscoveryCount,
+        concurrency: 8,
+        perSourceTimeoutMs: 4500,
+      });
+      for (const job of atsJobs) addJob(job as DiscoveredJob);
+      console.log(`[discoverJobs] ATS returned ${atsJobs.length} jobs (${combined.length} unique).`);
     }
+  } catch (err) {
+    console.warn('[discoverJobs] ATS discovery failed:', err);
   }
 
   const sourceCounts: Record<string, number> = {};

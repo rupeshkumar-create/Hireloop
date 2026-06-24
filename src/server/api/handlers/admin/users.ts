@@ -1,18 +1,11 @@
 /**
- * Super Admin — Users API
- *
- * Auth: Firebase ID token (Authorization: Bearer <token>) with superAdmin custom claim.
- *
- * GET    /api/admin/users            → list users (up to limit)
- * GET    /api/admin/users?userId=xxx → get single user detail
- * PATCH  /api/admin/users?userId=xxx → update user fields (plan, jobType, location, minSalary, careerPaths)
- * DELETE /api/admin/users?userId=xxx → delete user from Firebase Auth + Firestore + trackedJobs
+ * Super Admin — Users API (Supabase-backed)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth, getAdminDb } from '../../../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../../../supabaseAdmin.js';
 import { getBearerToken, verifySuperAdmin } from '../../../adminAuth.js';
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+import { getProfile, listProfiles, upsertProfile, deleteProfile } from '../../../db/profiles.js';
+import { deleteTrackedJobsForUser } from '../../../db/trackedJobs.js';
 
 function getSortableTime(value: unknown): number {
   if (!value) return 0;
@@ -20,18 +13,12 @@ function getSortableTime(value: unknown): number {
     const t = new Date(value).getTime();
     return Number.isNaN(t) ? 0 : t;
   }
-  if (typeof value === 'object' && value !== null && 'seconds' in value) {
-    return ((value as { seconds: number }).seconds) * 1000;
-  }
   return 0;
 }
 
 function normalizeDateLike(value: unknown): unknown {
   if (!value) return value;
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'object' && value !== null && 'toDate' in value) {
-    try { return (value as { toDate: () => Date }).toDate().toISOString(); } catch { return undefined; }
-  }
   return value;
 }
 
@@ -46,8 +33,7 @@ function toOptionalNumber(v: unknown): number | null | undefined {
 
 function toStringArray(v: unknown): string[] | undefined {
   if (!Array.isArray(v)) return undefined;
-  const items = v.filter((i): i is string => typeof i === 'string' && i.trim().length > 0);
-  return items;
+  return v.filter((i): i is string => typeof i === 'string' && i.trim().length > 0);
 }
 
 type RawUser = { id: string } & Record<string, unknown>;
@@ -74,7 +60,7 @@ function toPreferences(v: unknown): Record<string, unknown> | undefined {
   if (typeof p.remoteOnly === 'boolean') result.remoteOnly = p.remoteOnly;
   if (typeof p.salaryFloor === 'number') result.salaryFloor = p.salaryFloor;
   if (p.salaryFloor === null) result.salaryFloor = null;
-  if (Array.isArray(p.locations)) result.locations = p.locations.filter((l: unknown) => typeof l === 'string');
+  if (Array.isArray(p.locations)) result.locations = p.locations.filter((l) => typeof l === 'string');
   return Object.keys(result).length ? result : undefined;
 }
 
@@ -83,8 +69,8 @@ function buildDetail(u: RawUser) {
   const learningProfile =
     lp && typeof lp === 'object'
       ? {
-          jobPreferences: toOptionalString((lp as any).jobPreferences),
-          writingStyle: toOptionalString((lp as any).writingStyle),
+          jobPreferences: toOptionalString((lp as Record<string, unknown>).jobPreferences),
+          writingStyle: toOptionalString((lp as Record<string, unknown>).writingStyle),
         }
       : undefined;
 
@@ -110,40 +96,24 @@ function getLimit(v: unknown): number {
   return DEFAULT_LIMIT;
 }
 
-// ── Route Handlers ───────────────────────────────────────────────────────────
-
 async function handleGet(req: VercelRequest, res: VercelResponse) {
-  const db = getAdminDb();
   const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
 
   if (userId) {
-    const snap = await db.collection('users').doc(userId).get();
-    if (!snap.exists) return res.status(404).json({ error: 'User not found.' });
-    return res.status(200).json({ user: buildDetail({ id: snap.id, ...snap.data() } as RawUser) });
+    const profile = await getProfile(userId);
+    if (!profile) return res.status(404).json({ error: 'User not found.' });
+    return res.status(200).json({ user: buildDetail({ id: userId, ...profile } as RawUser) });
   }
 
   const limit = getLimit(req.query.limit);
-  let snapshot: any;
-
-  try {
-    snapshot = await db.collection('users').orderBy('createdAt', 'desc').limit(limit).get();
-  } catch (err: any) {
-    const msg: string = err?.message || '';
-    if (msg.includes('requires an index') || msg.includes('FAILED_PRECONDITION') || msg.includes('index')) {
-      // createdAt index not created yet — fall back to unordered full scan, sort in memory
-      snapshot = await db.collection('users').limit(limit).get();
-    } else {
-      throw err;
-    }
-  }
-
-  const users = snapshot.docs
-    .map((d: any) => buildListItem({ id: d.id, ...d.data() } as RawUser))
-    .sort((a: any, b: any) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt));
+  const rows = await listProfiles(limit);
+  const users = rows
+    .map((r) => buildListItem({ id: r.id, ...r.data } as RawUser))
+    .sort((a, b) => getSortableTime(b.createdAt) - getSortableTime(a.createdAt));
 
   return res.status(200).json({
     users,
-    meta: { count: users.length, limit, truncated: snapshot.size >= limit },
+    meta: { count: users.length, limit, truncated: rows.length >= limit },
   });
 }
 
@@ -151,7 +121,6 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
   const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
   if (!userId) return res.status(400).json({ error: 'Missing userId query param.' });
 
-  const db = getAdminDb();
   const body = req.body || {};
   const patch: Record<string, unknown> = {};
 
@@ -171,11 +140,10 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
 
   patch.updatedAt = new Date().toISOString();
 
-  const docRef = db.collection('users').doc(userId);
-  const snap = await docRef.get();
-  if (!snap.exists) return res.status(404).json({ error: 'User not found.' });
+  const existing = await getProfile(userId);
+  if (!existing) return res.status(404).json({ error: 'User not found.' });
 
-  await docRef.set(patch, { merge: true });
+  await upsertProfile(userId, patch);
 
   return res.status(200).json({ ok: true, updated: patch });
 }
@@ -184,33 +152,18 @@ async function handleDelete(req: VercelRequest, res: VercelResponse) {
   const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
   if (!userId) return res.status(400).json({ error: 'Missing userId query param.' });
 
-  const auth = getAdminAuth();
-  const db = getAdminDb();
-
-  // 1. Delete from Firebase Auth (ignore if already gone)
   try {
-    await auth.deleteUser(userId);
-  } catch (err: any) {
-    if (err.code !== 'auth/user-not-found') {
-      throw err;
-    }
+    await getSupabaseAdmin().auth.admin.deleteUser(userId);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.toLowerCase().includes('not found')) throw err;
   }
 
-  // 2. Delete Firestore user document
-  await db.collection('users').doc(userId).delete();
-
-  // 3. Delete tracked jobs (batch, up to 200)
-  const trackedSnap = await db.collection('trackedJobs').where('userId', '==', userId).limit(200).get();
-  if (!trackedSnap.empty) {
-    const batch = db.batch();
-    trackedSnap.docs.forEach((d: any) => batch.delete(d.ref));
-    await batch.commit();
-  }
+  await deleteProfile(userId);
+  await deleteTrackedJobsForUser(userId);
 
   return res.status(200).json({ ok: true, deleted: userId });
 }
-
-// ── Main Handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -220,14 +173,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await verifySuperAdmin(token);
 
     switch (req.method) {
-      case 'GET':    return await handleGet(req, res);
-      case 'PATCH':  return await handlePatch(req, res);
+      case 'GET': return await handleGet(req, res);
+      case 'PATCH': return await handlePatch(req, res);
       case 'DELETE': return await handleDelete(req, res);
-      default:       return res.status(405).json({ error: 'Method Not Allowed' });
+      default: return res.status(405).json({ error: 'Method Not Allowed' });
     }
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    const message = err.message || 'Internal server error';
+  } catch (err: unknown) {
+    const status = (err as { status?: number }).status ?? 500;
+    const message = err instanceof Error ? err.message : 'Internal server error';
     if (status >= 500) console.error('[Admin API Error]', err);
     return res.status(status).json({ error: message });
   }

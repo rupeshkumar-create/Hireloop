@@ -13,19 +13,15 @@
  * does not yet exist (e.g. before midnight cron fires).
  */
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { getSupabaseBrowserClient } from '../lib/supabaseClient';
+import { updateProfile as saveProfile } from '../services/profileService';
 import {
-  collection,
-  addDoc,
-  query,
-  where,
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot,
-  getDocs,
-  updateDoc,
-} from 'firebase/firestore';
+  subscribeTrackedJobs,
+  createTrackedJob,
+  updateTrackedJob,
+  fetchTrackedJobs,
+} from '../services/trackedJobsService';
+import { getAiAuthToken } from '../services/aiAuth';
 import { toast } from 'sonner';
 import type { DailyJob } from '../types/dailyJob';
 import type { Job, SortOption } from '../types/dashboard';
@@ -170,34 +166,33 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     if (!user) return;
     setStatsLoading(true);
 
-    const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let saved = 0, applied = 0, interviewing = 0;
-      const fps: string[] = [];
-      snapshot.forEach((d) => {
-        const data = d.data();
-        fps.push(jobFingerprint(data.title || '', data.company || ''));
-        const status = data.status || 'saved';
-        if (status === 'saved') saved++;
-        if (status === 'applied') applied++;
-        if (status === 'interviewing') interviewing++;
-      });
+    return subscribeTrackedJobs(
+      user.uid,
+      (tracked) => {
+        let saved = 0, applied = 0, interviewing = 0;
+        const fps: string[] = [];
+        for (const data of tracked) {
+          fps.push(jobFingerprint(data.title || '', data.company || ''));
+          const status = data.status || 'saved';
+          if (status === 'saved') saved++;
+          if (status === 'applied') applied++;
+          if (status === 'interviewing') interviewing++;
+        }
 
-      const nextStats = {
-        saved,
-        applied,
-        interviewing,
-        total: snapshot.size
-      };
-      setStats(nextStats as any);
-      setPipelineFingerprints(fps);
-      setStatsLoading(false);
-    }, (error) => {
-      console.error('[useDashboardJobs] stats listener failed:', error);
-      setStatsLoading(false);
-    });
-
-    return () => unsubscribe();
+        setStats({
+          saved,
+          applied,
+          interviewing,
+          total: tracked.length,
+        } as any);
+        setPipelineFingerprints(fps);
+        setStatsLoading(false);
+      },
+      (error) => {
+        console.error('[useDashboardJobs] stats listener failed:', error);
+        setStatsLoading(false);
+      }
+    );
   }, [user]);
 
   const fetchStats = () => {
@@ -223,26 +218,35 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
       let foundInDaily = false;
       let dailyHasJobs = false;
       try {
-        const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
-        const dailySnap = await getDoc(dailyRef);
-        if (dailySnap.exists()) {
-          const record = dailySnap.data();
-          const { visible, paywall } = splitJobsByPlan(record.jobs || [], profile?.plan);
+        const { data: dailyRow, error: dailyError } = await getSupabaseBrowserClient()
+          .from('daily_matches')
+          .select('jobs, meta')
+          .eq('user_id', user.uid)
+          .eq('match_date', today)
+          .maybeSingle();
+
+        if (dailyError) throw dailyError;
+
+        if (dailyRow) {
+          const record = (dailyRow.meta || {}) as Record<string, unknown>;
+          const { visible, paywall } = splitJobsByPlan((dailyRow.jobs || []) as DailyJob[], profile?.plan);
           setJobs(visible);
           setPaywallJobs(paywall);
           const fetched = visible;
           dailyHasJobs = fetched.length > 0;
           setDailyJobsMeta({
-            requestedLimit: record.requestedLimit ?? limit,
-            returnedCount: record.returnedCount ?? fetched.length,
-            qualityFilteredCount: record.qualityFilteredCount ?? 0,
-            dedupedCount: record.dedupedCount ?? 0,
+            requestedLimit: (record.requestedLimit as number | undefined) ?? limit,
+            returnedCount: (record.returnedCount as number | undefined) ?? fetched.length,
+            qualityFilteredCount: (record.qualityFilteredCount as number | undefined) ?? 0,
+            dedupedCount: (record.dedupedCount as number | undefined) ?? 0,
             qualityLimited: record.qualityLimited === true,
-            warnings: record.warnings || [],
-            deliveryTimezone: record.deliveryTimezone || timeZone,
-            deliveryLocalDate: record.deliveryLocalDate || today,
+            warnings: (record.warnings as string[] | undefined) || [],
+            deliveryTimezone: (record.deliveryTimezone as string | undefined) || timeZone,
+            deliveryLocalDate: (record.deliveryLocalDate as string | undefined) || today,
           });
-          setLastFetchTime(record.generatedAt || today);
+          setLastFetchTime(
+            (typeof record.generatedAt === 'string' ? record.generatedAt : undefined) || today
+          );
           foundInDaily = true;
         }
       } catch (subErr) {
@@ -306,50 +310,85 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     if (!user) return;
     stopDailyMatchesWatch();
 
-    const dailyRef = doc(db, 'users', user.uid, 'daily_matches', today);
-    dailyMatchesUnsubRef.current = onSnapshot(
-      dailyRef,
-      (snap) => {
-        if (!snap.exists()) return;
-        const record = snap.data();
-        const allJobs = (record.jobs || []) as DailyJob[];
-        const scoutDone =
-          typeof record.generatedAt === 'string' ||
-          typeof record.returnedCount === 'number';
+    const supabase = getSupabaseBrowserClient();
 
-        if (!scoutDone) return;
+    const applyRecord = (row: {
+      match_date?: string;
+      jobs?: DailyJob[];
+      meta?: Record<string, unknown>;
+    }) => {
+      if (row.match_date !== today) return;
+      const record = row.meta || {};
+      const allJobs = (row.jobs || []) as DailyJob[];
+      const scoutDone =
+        typeof record.generatedAt === 'string' ||
+        typeof record.returnedCount === 'number';
 
-        const { visible, paywall } = splitJobsByPlan(allJobs, profile?.plan);
-        setJobs(visible);
-        setPaywallJobs(paywall);
-        setDailyJobsMeta({
-          requestedLimit: record.requestedLimit ?? getDailyMatchLimit(profile?.plan),
-          returnedCount: record.returnedCount ?? visible.length,
-          qualityFilteredCount: record.qualityFilteredCount ?? 0,
-          dedupedCount: record.dedupedCount ?? 0,
-          qualityLimited: record.qualityLimited === true,
-          warnings: record.warnings || [],
-          deliveryTimezone: record.deliveryTimezone || resolveDeliveryTimeZone(profile),
-          deliveryLocalDate: record.deliveryLocalDate || today,
-        });
-        setLastFetchTime(record.generatedAt || new Date().toISOString());
-        setGeneratingJobs(false);
-        stopDailyMatchesWatch();
+      if (!scoutDone) return;
 
-        if (visible.length > 0) {
-          toast.success(`${visible.length} jobs curated for you!`);
-        } else if (!noJobsToastShownRef.current) {
-          noJobsToastShownRef.current = true;
-          toast.info(
-            'No matching jobs found this time. Try broadening your career paths or work preferences.',
-            { duration: 8000 }
-          );
-        }
-      },
-      (error) => {
-        console.warn('[useDashboardJobs] daily_matches watch failed:', error);
+      const { visible, paywall } = splitJobsByPlan(allJobs, profile?.plan);
+      setJobs(visible);
+      setPaywallJobs(paywall);
+      setDailyJobsMeta({
+        requestedLimit: (record.requestedLimit as number | undefined) ?? getDailyMatchLimit(profile?.plan),
+        returnedCount: (record.returnedCount as number | undefined) ?? visible.length,
+        qualityFilteredCount: (record.qualityFilteredCount as number | undefined) ?? 0,
+        dedupedCount: (record.dedupedCount as number | undefined) ?? 0,
+        qualityLimited: record.qualityLimited === true,
+        warnings: (record.warnings as string[] | undefined) || [],
+        deliveryTimezone: (record.deliveryTimezone as string | undefined) || resolveDeliveryTimeZone(profile),
+        deliveryLocalDate: (record.deliveryLocalDate as string | undefined) || today,
+      });
+      setLastFetchTime(
+        (typeof record.generatedAt === 'string' ? record.generatedAt : undefined) ||
+          new Date().toISOString()
+      );
+      setGeneratingJobs(false);
+      stopDailyMatchesWatch();
+
+      if (visible.length > 0) {
+        toast.success(`${visible.length} jobs curated for you!`);
+      } else if (!noJobsToastShownRef.current) {
+        noJobsToastShownRef.current = true;
+        toast.info(
+          'No matching jobs found this time. Try broadening your career paths or work preferences.',
+          { duration: 8000 }
+        );
       }
-    );
+    };
+
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('daily_matches')
+          .select('match_date, jobs, meta')
+          .eq('user_id', user.uid)
+          .eq('match_date', today)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) applyRecord(data);
+      } catch (error) {
+        console.warn('[useDashboardJobs] daily_matches watch load failed:', error);
+      }
+    };
+
+    void load();
+
+    const channel = supabase
+      .channel(`daily_matches:${user.uid}:${today}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_matches', filter: `user_id=eq.${user.uid}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') return;
+          applyRecord(payload.new as { match_date?: string; jobs?: DailyJob[]; meta?: Record<string, unknown> });
+        }
+      )
+      .subscribe();
+
+    dailyMatchesUnsubRef.current = () => {
+      void supabase.removeChannel(channel);
+    };
   };
 
   useEffect(() => () => stopDailyMatchesWatch(), []);
@@ -436,7 +475,12 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     let asyncDispatched = false;
 
     try {
-      const idToken = await user.getIdToken(true);
+      const idToken = await getAiAuthToken();
+      if (!idToken) {
+        toast.error('Not authenticated.');
+        setGeneratingJobs(false);
+        return;
+      }
 
       const controller = new AbortController();
       const timeoutMs = 55_000;
@@ -568,7 +612,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
 
   const persistLearningSignals = async (signals: LearningSignals) => {
     if (!user) return;
-    await setDoc(doc(db, 'users', user.uid), { learningSignals: signals }, { merge: true });
+    await saveProfile(user.uid, { learningSignals: signals });
   };
 
   const recordLearningEvent = async (
@@ -586,19 +630,16 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     jobId: string,
     assets: GeneratedTrackedJobAssets
   ) => {
+    if (!user) return;
     const timestamp = new Date().toISOString();
     const entries = Object.entries(assets).filter(([, value]) => {
       if (Array.isArray(value)) return value.length > 0;
       return typeof value === 'string' && value.trim().length > 0;
     }) as Array<[keyof GeneratedTrackedJobAssets, string | string[]]>;
 
-    for (const [field, value] of entries) {
-      await setDoc(
-        doc(db, 'trackedJobs', jobId),
-        { [field]: value, updatedAt: timestamp },
-        { merge: true }
-      );
-    }
+    if (entries.length === 0) return;
+    const patch = Object.fromEntries(entries) as GeneratedTrackedJobAssets;
+    await updateTrackedJob(jobId, user.uid, { ...patch, updatedAt: timestamp });
   };
 
   // ── Save job ────────────────────────────────────────────────────────────────
@@ -607,7 +648,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
     if (!user) return null;
     try {
       const applicationUrl = resolveJobApplicationUrl(job);
-      const docRef = await addDoc(collection(db, 'trackedJobs'), {
+      const jobId = await createTrackedJob({
         userId: user.uid,
         title: job.title,
         company: job.company,
@@ -656,7 +697,7 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
           if (interviewRes.status === 'fulfilled') generatedAssets.interviewQuestions = interviewRes.value;
 
           if (Object.keys(generatedAssets).length > 0) {
-            await persistTrackedJobAssets(docRef.id, generatedAssets);
+            await persistTrackedJobAssets(jobId, generatedAssets);
             toast.success('AI assets ready for ' + job.company);
           }
         }).catch(console.error);
@@ -670,9 +711,9 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
         }
       }
 
-      return docRef.id;
+      return jobId;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'trackedJobs');
+      console.error('[useDashboardJobs] saveJob failed:', error);
       toast.error('Failed to save job.');
       return null;
     }
@@ -703,27 +744,20 @@ export function useDashboardJobs(user: any, profile: any, updateProfile: any) {
   const markJobApplied = async (job: Job): Promise<boolean> => {
     if (!user) return false;
     const fp = jobFingerprint(job.title, job.company);
-    // Find the tracked doc by fingerprint — we don't carry trackedJob IDs
-    // around in the dashboard's job objects.
-    const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
-    const snap = await getDocs(q);
-    const target = snap.docs.find((d) => {
-      const data = d.data() as any;
-      return jobFingerprint(data.title || '', data.company || '') === fp;
-    });
+    const tracked = await fetchTrackedJobs(user.uid);
+    const target = tracked.find((row) => jobFingerprint(row.title || '', row.company || '') === fp);
     if (!target) return false;
-    const data = target.data() as any;
-    if (data.status === 'applied' || data.status === 'interviewing' ||
-        data.status === 'offered' || data.status === 'rejected') {
-      return false; // already past saved
+    if (target.status === 'applied' || target.status === 'interviewing' ||
+        target.status === 'offered' || target.status === 'rejected') {
+      return false;
     }
     const now = new Date().toISOString();
-    await updateDoc(doc(db, 'trackedJobs', target.id), {
+    await updateTrackedJob(target.id, user.uid, {
       status: 'applied',
-      appliedAt: data.appliedAt || now,
+      appliedAt: target.appliedAt || now,
       statusChangedAt: now,
       updatedAt: now,
-    } as any);
+    });
     return true;
   };
 

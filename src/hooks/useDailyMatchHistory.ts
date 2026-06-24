@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getSupabaseBrowserClient } from '../lib/supabaseClient';
+import { fetchTrackedJobs } from '../services/trackedJobsService';
 import type { DailyJob } from '../types/dailyJob';
-import type { DailyMatchRecord } from '../types/dailyJob';
 import { jobFingerprint } from '../services/jobResearcher';
 
 export interface HistoryJob extends DailyJob {
@@ -34,31 +33,31 @@ export function useDailyMatchHistory(user: { uid: string } | null | undefined) {
     async function load() {
       setLoading(true);
       try {
-        const trackedSnap = await getDocs(
-          query(collection(db, 'trackedJobs'), where('userId', '==', user.uid))
-        );
+        const tracked = await fetchTrackedJobs(user.uid);
         const fps = new Set<string>();
-        trackedSnap.forEach((docSnap) => {
-          const data = docSnap.data();
-          fps.add(jobFingerprint(data.title || '', data.company || ''));
-        });
+        for (const job of tracked) {
+          fps.add(jobFingerprint(job.title || '', job.company || ''));
+        }
         if (!cancelled) setSavedFingerprints(fps);
 
-        const historySnap = await getDocs(
-          collection(db, 'users', user.uid, 'daily_matches')
-        );
+        const { data: historyRows, error } = await getSupabaseBrowserClient()
+          .from('daily_matches')
+          .select('match_date, jobs, meta')
+          .eq('user_id', user.uid);
 
-        const parsed: DailyMatchHistoryDay[] = historySnap.docs
-          .map((docSnap) => {
-            const record = docSnap.data() as DailyMatchRecord;
-            const jobs = (record.jobs || []).map((job) => ({
+        if (error) throw error;
+
+        const parsed: DailyMatchHistoryDay[] = (historyRows || [])
+          .map((row) => {
+            const jobs = ((row.jobs || []) as DailyJob[]).map((job) => ({
               ...job,
               saved: fps.has(jobFingerprint(job.title || '', job.company || '')),
             }));
+            const meta = (row.meta || {}) as Record<string, unknown>;
             return {
-              date: docSnap.id,
-              generatedAt: record.generatedAt,
-              jobCount: record.jobCount ?? jobs.length,
+              date: row.match_date as string,
+              generatedAt: typeof meta.generatedAt === 'string' ? meta.generatedAt : undefined,
+              jobCount: typeof meta.jobCount === 'number' ? meta.jobCount : jobs.length,
               jobs,
             };
           })

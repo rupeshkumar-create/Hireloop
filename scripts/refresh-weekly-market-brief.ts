@@ -30,22 +30,19 @@ function normalizeTitle(title: string): string {
     .slice(0, 80);
 }
 
-async function aggregateFromFirestore(): Promise<RoleAgg[] | null> {
-  const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!key) return null;
+async function aggregateFromSupabase(): Promise<RoleAgg[] | null> {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
 
   try {
-    const { getAdminDb } = await import('../src/server/firebaseAdmin.js');
-    const db = getAdminDb();
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
-
-    const snap = await db.collectionGroup('daily_matches').where('date', '>=', since).limit(200).get();
+    const { queryDailyMatchesSince } = await import('../src/server/db/dailyMatches.js');
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const rows = await queryDailyMatchesSince(since, 200);
 
     const agg = new Map<string, RoleAgg>();
 
-    for (const doc of snap.docs) {
-      const data = doc.data() as { jobs?: { title?: string; matchScore?: number; requirements?: string[] }[] };
-      for (const job of data.jobs ?? []) {
+    for (const row of rows) {
+      const jobs = (row.jobs || []) as { title?: string; matchScore?: number; requirements?: string[] }[];
+      for (const job of jobs) {
         const title = normalizeTitle(job.title ?? '');
         if (!title || title.length < 4) continue;
         const entry = agg.get(title) ?? { title, count: 0, skills: new Map(), matchTotal: 0 };
@@ -116,7 +113,7 @@ export const WEEKLY_MARKET_BRIEF_SLUG = 'weekly-top-remote-roles';
 }
 
 async function main() {
-  const aggregated = await aggregateFromFirestore();
+  const aggregated = await aggregateFromSupabase();
 
   let roles: {
     title: string;

@@ -1,7 +1,7 @@
 /**
  * Ensure every blog post has internal links in metadata and markdown.
  */
-import { getAdminDb } from '../firebaseAdmin.js';
+import { queryDocs } from '../db/docStore.js';
 import {
   getBlogPostBySlug,
   listBlogPosts,
@@ -90,17 +90,17 @@ export async function backfillAllPostInternalLinks(options: {
     if (!post) return { updated, skipped, errors: [{ slug: options.slug, error: 'Post not found' }] };
     posts = [post];
   } else {
-    const db = getAdminDb();
-    const snap = await db
-      .collection('blog_posts')
-      .where('status', '==', 'published')
-      .limit(Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT))
-      .get();
-    posts = snap.docs.map((d) => d.data() as BlogPost);
+    const docs = await queryDocs('blog_posts', {
+      where: [{ field: 'status', op: 'eq', value: 'published' }],
+      limit: Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT),
+    });
+    posts = docs.map((d) => d.data as BlogPost);
     if (posts.length === 0) {
-      const fallback = await db.collection('blog_posts').limit(Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT)).get();
-      posts = fallback.docs
-        .map((d) => d.data() as BlogPost)
+      const fallback = await queryDocs('blog_posts', {
+        limit: Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT),
+      });
+      posts = fallback
+        .map((d) => d.data as BlogPost)
         .filter((p) => p.status !== 'draft');
     }
   }

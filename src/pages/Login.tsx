@@ -8,14 +8,16 @@ import { SeoHead } from '../components/seo/SeoHead';
 import { SITE_URL } from '../lib/siteSeo';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
 
+import { BRAND_LOGIN_DESCRIPTION } from '../lib/brand';
+
 const FLOW_STEPS = [
-  { icon: Upload, label: 'Upload resume', detail: 'We extract skills and suggest career paths' },
+  { icon: Upload, label: 'Resume or LinkedIn', detail: 'We extract skills and suggest career paths' },
   { icon: Compass, label: 'Confirm paths', detail: 'Pick 1–3 roles Scout should search' },
-  { icon: Rocket, label: 'See matches', detail: 'Scout finds remote roles scored to your profile' },
+  { icon: Rocket, label: 'See matches', detail: 'Scout finds roles scored to your profile' },
 ];
 
 export function Login() {
-  const { user, profile, loading, signInWithGoogle, signingIn } = useAuth();
+  const { user, profile, loading, signInWithGoogle, signInWithLinkedIn, signingIn } = useAuth();
   const navigate = useNavigate();
   const isNewUser = !profile?.resumeText && !isOnboardingComplete(profile);
 
@@ -28,7 +30,7 @@ export function Login() {
     <div className="hs-landing min-h-screen flex flex-col">
       <SeoHead
         title="Sign in — HireSchema"
-        description="Sign in to HireSchema with Google to access your daily AI-scored remote job matches."
+        description={BRAND_LOGIN_DESCRIPTION}
         canonicalUrl={`${SITE_URL}/login`}
         ogType="website"
         noIndex
@@ -56,8 +58,8 @@ export function Login() {
             </h1>
             <p className="text-[17px] leading-relaxed text-[var(--hs-land-muted)]">
               {isNewUser
-                ? 'Sign in with Google, upload your resume once, and Scout delivers remote roles matched to your profile.'
-                : 'Continue your remote job search with a warmer, more deliberate AI workflow.'}
+                ? 'Sign in with Google or LinkedIn, add your resume or LinkedIn URL, and Scout delivers roles matched to your profile.'
+                : 'Continue your job search with Scout matches, connect, and Scout Chat.'}
             </p>
           </div>
 
@@ -93,6 +95,22 @@ export function Login() {
               </svg>
               )}
               {signingIn ? 'Signing in…' : 'Continue with Google'}
+            </button>
+
+            <button
+              type="button"
+              onClick={signInWithLinkedIn}
+              disabled={signingIn}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-[var(--hs-land-border)] bg-[var(--hs-land-surface)] px-4 py-4 text-sm font-medium text-[var(--hs-land-fg)] transition hover:border-[var(--hs-land-fg)] disabled:opacity-60 disabled:pointer-events-none"
+            >
+              {signingIn ? (
+                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 114.128 0 2.063 2.063 0 01-2.065 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                </svg>
+              )}
+              {signingIn ? 'Signing in…' : 'Continue with LinkedIn'}
             </button>
 
             {isNewUser ? (

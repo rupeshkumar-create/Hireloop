@@ -1,6 +1,5 @@
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { FALLBACK_FIRESTORE_DATABASE_ID } from '../src/lib/firebaseProjectDefaults';
+import './load-env.ts';
+import { setDoc } from '../src/server/db/docStore.js';
 
 type AtsProvider = 'greenhouse' | 'lever';
 
@@ -13,24 +12,6 @@ type SeedSource = {
   tags?: string[];
 };
 
-function initAdmin() {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not set');
-  const serviceAccount = JSON.parse(raw);
-
-  const apps = getApps();
-  const app = apps.length ? apps[0] : initializeApp({ credential: cert(serviceAccount) });
-
-  const dbId = (
-    process.env.FIRESTORE_DATABASE_ID ||
-    FALLBACK_FIRESTORE_DATABASE_ID ||
-    ''
-  ).trim();
-  const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
-
-  return { db };
-}
-
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -41,47 +22,16 @@ function slugify(value: string): string {
 }
 
 const SEED_SOURCES: SeedSource[] = [
-  { companyName: 'Stripe', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/stripe' },
-  { companyName: 'Datadog', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/datadog' },
-  { companyName: 'Dropbox', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/dropbox' },
-  { companyName: 'Reddit', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/reddit' },
-  { companyName: 'Pinterest', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/pinterest' },
-  { companyName: 'Lyft', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/lyft' },
-  { companyName: 'Robinhood', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/robinhood' },
+  { companyName: 'Airbnb', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/airbnb' },
   { companyName: 'Coinbase', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/coinbase' },
-  { companyName: 'Twilio', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/twilio' },
-  { companyName: 'Plaid', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/plaid' },
-  { companyName: 'Patreon', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/patreon' },
-  { companyName: 'DoorDash', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/doordash' },
-  { companyName: 'Affirm', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/affirm' },
-  { companyName: 'Duolingo', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/duolingo' },
-  { companyName: 'Snowflake', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/snowflakecomputing' },
-  { companyName: 'Elastic', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/elastic' },
-  { companyName: 'Sentry', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/sentry' },
+  { companyName: 'Discord', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/discord' },
   { companyName: 'Figma', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/figma' },
-  { companyName: 'Airtable', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/airtable' },
-  { companyName: 'Gusto', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/gusto' },
-  { companyName: 'Intercom', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/intercom' },
-  { companyName: 'Asana', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/asana' },
-  { companyName: 'Okta', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/okta' },
-  { companyName: 'Notion', ats: 'lever', boardUrl: 'https://jobs.lever.co/notion' },
-  { companyName: 'Vercel', ats: 'lever', boardUrl: 'https://jobs.lever.co/vercel' },
-  { companyName: 'HashiCorp', ats: 'lever', boardUrl: 'https://jobs.lever.co/hashicorp' },
-  { companyName: 'Scale AI', ats: 'lever', boardUrl: 'https://jobs.lever.co/scaleai' },
-  { companyName: 'Brex', ats: 'lever', boardUrl: 'https://jobs.lever.co/brex' },
-  { companyName: 'Ramp', ats: 'lever', boardUrl: 'https://jobs.lever.co/ramp' },
-  { companyName: 'Retool', ats: 'lever', boardUrl: 'https://jobs.lever.co/retool' },
-  { companyName: 'Algolia', ats: 'lever', boardUrl: 'https://jobs.lever.co/algolia' },
-  { companyName: 'ClickUp', ats: 'lever', boardUrl: 'https://jobs.lever.co/clickup' },
-  { companyName: 'Postman', ats: 'lever', boardUrl: 'https://jobs.lever.co/postman' },
-  { companyName: 'Webflow', ats: 'lever', boardUrl: 'https://jobs.lever.co/webflow' },
-  { companyName: 'Aledade', ats: 'lever', boardUrl: 'https://jobs.lever.co/aledade' },
-  { companyName: 'Anduril', ats: 'lever', boardUrl: 'https://jobs.lever.co/anduril' },
-  { companyName: 'Attentive', ats: 'lever', boardUrl: 'https://jobs.lever.co/attentive' },
-  { companyName: 'Benchling', ats: 'lever', boardUrl: 'https://jobs.lever.co/benchling' },
-  { companyName: 'Fivetran', ats: 'lever', boardUrl: 'https://jobs.lever.co/fivetran' },
-  { companyName: 'Hopin', ats: 'lever', boardUrl: 'https://jobs.lever.co/hopin' },
-  { companyName: 'Lattice', ats: 'lever', boardUrl: 'https://jobs.lever.co/lattice' },
+  { companyName: 'GitLab', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/gitlab' },
+  { companyName: 'Notion', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/notion' },
+  { companyName: 'Reddit', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/reddit' },
+  { companyName: 'Stripe', ats: 'greenhouse', boardUrl: 'https://boards.greenhouse.io/stripe' },
+  { companyName: 'Airtable', ats: 'lever', boardUrl: 'https://jobs.lever.co/airtable' },
+  { companyName: 'Canva', ats: 'lever', boardUrl: 'https://jobs.lever.co/canva' },
   { companyName: 'Miro', ats: 'lever', boardUrl: 'https://jobs.lever.co/miro' },
   { companyName: 'Monday.com', ats: 'lever', boardUrl: 'https://jobs.lever.co/monday' },
   { companyName: 'Nuro', ats: 'lever', boardUrl: 'https://jobs.lever.co/nuro' },
@@ -93,14 +43,14 @@ const SEED_SOURCES: SeedSource[] = [
 ];
 
 async function upsertSources() {
-  const { db } = initAdmin();
   const now = new Date().toISOString();
-  const collection = db.collection('job_sources');
 
   let count = 0;
   for (const source of SEED_SOURCES) {
     const id = `${source.ats}_${slugify(source.companyName)}`;
-    await collection.doc(id).set(
+    await setDoc(
+      'job_sources',
+      id,
       {
         companyName: source.companyName,
         ats: source.ats,
@@ -111,15 +61,15 @@ async function upsertSources() {
         updatedAt: now,
         createdAt: now,
       },
-      { merge: true }
+      true,
     );
     count++;
   }
 
-  console.log(`Seeded ${count} ATS sources into job_sources`);
+  console.log(`Seeded ${count} job_sources documents.`);
 }
 
 upsertSources().catch((err) => {
-  console.error('Seed failed:', err);
-  process.exitCode = 1;
+  console.error(err);
+  process.exit(1);
 });

@@ -11,7 +11,7 @@
  *  Cover images = deterministic SVG (zero AI calls)
  */
 
-import { getAdminDb } from './firebaseAdmin.js';
+import { getDoc, setDoc, queryDocs, addDoc } from './db/docStore.js';
 import { chat, chatJSON, MODELS } from './contentGrowth/ai.js';
 import { CONTENT_YEAR, normalizeBlogPostYears } from './contentGrowth/contentStandards.js';
 import { BLOG_TARGET_WORD_COUNT } from './contentGrowth/wordCount.js';
@@ -104,16 +104,12 @@ export { MODELS };
 // ─── Strategy ─────────────────────────────────────────────────────────────────
 
 export async function loadStrategy(): Promise<MarketingStrategy | null> {
-  const db = getAdminDb();
-  const parts = STRATEGY_DOC.split('/');
-  const doc = await db.collection(parts[0]).doc(parts[1]).get();
-  return doc.exists ? (doc.data() as MarketingStrategy) : null;
+  const doc = await getDoc('marketing', 'strategy');
+  return doc.data ? (doc.data as MarketingStrategy) : null;
 }
 
 export async function saveStrategy(strategy: MarketingStrategy): Promise<void> {
-  const db = getAdminDb();
-  const parts = STRATEGY_DOC.split('/');
-  await db.collection(parts[0]).doc(parts[1]).set(strategy);
+  await setDoc('marketing', 'strategy', strategy as unknown as Record<string, unknown>, false);
 }
 
 export async function initializeStrategy(): Promise<MarketingStrategy> {
@@ -369,13 +365,16 @@ Return JSON with:
 
 export async function saveBlogPost(post: BlogPost): Promise<string> {
   const normalized = normalizeBlogPostYears(post);
-  const db = getAdminDb();
-  const ref = db.collection(BLOG_COLLECTION).doc(normalized.slug);
-  const existing = await ref.get();
-  const createdAt = existing.exists
-    ? ((existing.data()?.createdAt as string | undefined) ?? normalized.createdAt ?? new Date().toISOString())
+  const existing = await getDoc(BLOG_COLLECTION, normalized.slug);
+  const createdAt = existing.data
+    ? ((existing.data.createdAt as string | undefined) ?? normalized.createdAt ?? new Date().toISOString())
     : (normalized.createdAt ?? new Date().toISOString());
-  await ref.set({ ...normalized, createdAt, updatedAt: new Date().toISOString() });
+  await setDoc(
+    BLOG_COLLECTION,
+    normalized.slug,
+    { ...normalized, createdAt, updatedAt: new Date().toISOString() } as unknown as Record<string, unknown>,
+    false
+  );
   return normalized.slug;
 }
 
@@ -391,10 +390,8 @@ export async function listBlogPosts(
       .slice(0, limit);
   };
 
-  const db = getAdminDb();
-
-  const mapDoc = (d: { data: () => BlogPost }) => {
-    const data = d.data();
+  const mapDoc = (d: { id: string; data: Record<string, unknown> }) => {
+    const data = d.data as BlogPost;
     const { content: _content, ...rest } = data;
     void _content;
     return rest;
@@ -404,29 +401,26 @@ export async function listBlogPosts(
     let fromDb: Omit<BlogPost, 'content'>[] = [];
 
     try {
-      const snap = await db
-        .collection(BLOG_COLLECTION)
-        .where('status', '==', 'published')
-        .orderBy('publishedAt', 'desc')
-        .limit(limit)
-        .get();
-      fromDb = snap.docs.map(mapDoc);
+      const docs = await queryDocs(BLOG_COLLECTION, {
+        where: [{ field: 'status', op: 'eq', value: 'published' }],
+        orderBy: { field: 'publishedAt', ascending: false },
+        limit,
+      });
+      fromDb = docs.map(mapDoc);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const needsIndex = message.includes('index') || message.includes('FAILED_PRECONDITION');
-      if (!needsIndex) throw error;
-
-      console.warn('[listBlogPosts] Composite index missing — using fallback query. Deploy firestore.indexes.json.');
-      const snap = await db.collection(BLOG_COLLECTION).where('status', '==', 'published').limit(limit).get();
-      fromDb = snap.docs.map(mapDoc).sort(
+      console.warn('[listBlogPosts] Query fallback:', error);
+      const docs = await queryDocs(BLOG_COLLECTION, {
+        where: [{ field: 'status', op: 'eq', value: 'published' }],
+        limit,
+      });
+      fromDb = docs.map(mapDoc).sort(
         (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
       );
     }
 
-    // Legacy posts may omit status — include anything that isn't explicitly draft
     if (fromDb.length === 0) {
-      const snap = await db.collection(BLOG_COLLECTION).limit(Math.max(limit, 50)).get();
-      fromDb = snap.docs
+      const docs = await queryDocs(BLOG_COLLECTION, { limit: Math.max(limit, 50) });
+      fromDb = docs
         .map(mapDoc)
         .filter((p) => p.status !== 'draft')
         .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
@@ -438,7 +432,7 @@ export async function listBlogPosts(
     if (catalogOnly.length > 0) return catalogOnly;
     return getEvergreenPostSummaries(limit);
   } catch (error) {
-    console.warn('[listBlogPosts] Firestore unavailable — serving programmatic catalog:', error);
+    console.warn('[listBlogPosts] Supabase unavailable — serving programmatic catalog:', error);
     const catalogOnly = getProgrammaticPostSummaries(limit, options);
     if (catalogOnly.length > 0) return catalogOnly;
     return getEvergreenPostSummaries(limit);
@@ -447,11 +441,10 @@ export async function listBlogPosts(
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
   try {
-    const db = getAdminDb();
-    const doc = await db.collection(BLOG_COLLECTION).doc(slug).get();
-    if (doc.exists) return doc.data() as BlogPost;
+    const doc = await getDoc(BLOG_COLLECTION, slug);
+    if (doc.data) return doc.data as BlogPost;
   } catch (error) {
-    console.warn('[getBlogPostBySlug] Firestore unavailable — trying programmatic catalog:', error);
+    console.warn('[getBlogPostBySlug] Supabase unavailable — trying programmatic catalog:', error);
   }
 
   return getProgrammaticPostBySlug(slug) ?? getEvergreenPostBySlug(slug);
@@ -558,8 +551,6 @@ Rules:
  * Returns the published post slug.
  */
 export async function generateAndPublishPost(): Promise<{ slug: string; title: string }> {
-  const db = getAdminDb();
-
   let strategy = await loadStrategy();
   if (!strategy) {
     strategy = await initializeStrategy();
@@ -589,7 +580,7 @@ export async function generateAndPublishPost(): Promise<{ slug: string; title: s
   await saveStrategy(updatedStrategy);
 
   // Log run
-  await db.collection('marketing_runs').add({
+  await addDoc('marketing_runs', {
     type: 'daily_post',
     slug: post.slug,
     title: post.title,

@@ -1,7 +1,7 @@
 /**
  * Batch reformat existing blog posts in Firestore.
  */
-import { getAdminDb } from '../firebaseAdmin.js';
+import { queryDocs } from '../db/docStore.js';
 import {
   getBlogPostBySlug,
   saveBlogPost,
@@ -18,7 +18,6 @@ export async function reformatBlogPosts(options: {
   slug?: string;
   limit?: number;
 } = {}): Promise<{ reformatted: string[]; skipped: string[]; errors: { slug: string; error: string }[] }> {
-  const db = getAdminDb();
   const reformatted: string[] = [];
   const skipped: string[] = [];
   const errors: { slug: string; error: string }[] = [];
@@ -33,8 +32,8 @@ export async function reformatBlogPosts(options: {
     posts = [post];
   } else {
     const limit = Math.min(options.limit ?? BLOG_BACKFILL_LIMIT, BLOG_BACKFILL_LIMIT);
-    const snap = await db.collection(BLOG_COLLECTION).limit(limit).get();
-    posts = snap.docs.map((d) => d.data() as BlogPost);
+    const docs = await queryDocs(BLOG_COLLECTION, { limit });
+    posts = docs.map((d) => d.data as BlogPost);
   }
 
   if (posts.length === 0) {

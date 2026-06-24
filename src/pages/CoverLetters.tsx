@@ -11,7 +11,6 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { useTrackedJobsList } from '../hooks/useTrackedJobsList';
@@ -20,7 +19,7 @@ import { isProPlan } from '../lib/planLimits';
 import { showProRequiredToast } from '../lib/proUpgrade';
 import { ProFeatureOverlay } from '../components/ui/ProFeatureOverlay';
 import { exportCoverLetterAsPdf } from '../lib/resumeExport';
-import { db } from '../firebase';
+import { updateTrackedJob } from '../services/trackedJobsService';
 
 type RoleOption = {
   id: string;
@@ -89,8 +88,8 @@ export function CoverLetters() {
   const name = profile?.displayName || 'Your Name';
 
   const persistCoverLetter = async (job: RoleOption, letter: string) => {
-    if (job.source !== 'pipeline') return;
-    await updateDoc(doc(db, 'trackedJobs', job.id), {
+    if (job.source !== 'pipeline' || !user?.uid) return;
+    await updateTrackedJob(job.id, user.uid, {
       coverLetter: letter,
       updatedAt: new Date().toISOString(),
     });

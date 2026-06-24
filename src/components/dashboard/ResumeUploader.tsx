@@ -26,7 +26,7 @@ export function ResumeUploader({ updateProfile, profile, onSuccess, quiet }: Res
       </motion.div>
       <div>
         <h2 className="mb-2 text-3xl text-foreground">Upload your resume</h2>
-        <p className="text-lg text-foreground-muted">You only need to do this once. We'll analyze it automatically and use it to find better-fit remote roles.</p>
+        <p className="text-lg text-foreground-muted">You only need to do this once. We'll analyze it automatically and use it to find better-fit roles.</p>
       </div>
       
       <Card className="mt-8 w-full border-2 border-dashed border-border shadow-none">

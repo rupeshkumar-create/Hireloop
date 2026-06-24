@@ -2,7 +2,7 @@
  * /api/cron/tick
  *
  * Optional batch runner for manual/admin use (force=all or force=daily-alerts).
- * Scout scheduling uses GitHub Actions — see `.github/workflows/generate-jobs.yml`.
+ * Scout scheduling: local `npm run scout` or dashboard Generate Jobs (localhost runs inline).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireCronSecret } from '../../../cronAuth.js';
@@ -57,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     if (!requireCronSecret(req, res)) return;
     return res.status(200).json({
-      message: 'POST with Authorization: Bearer CRON_SECRET. Long jobs run via GitHub Actions on Hobby.',
+      message: 'POST with Authorization: Bearer CRON_SECRET. Local Scout: npm run scout',
       vercelFunctions: {
         used: VERCEL_FUNCTION_COUNT,
         limit: VERCEL_FUNCTION_LIMIT,

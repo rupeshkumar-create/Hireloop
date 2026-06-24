@@ -6,74 +6,71 @@ import {
   DEFAULT_OG_IMAGE,
   buildBreadcrumbSchema,
   buildFaqPageSchema,
+  HOME_KEYWORDS,
 } from '../lib/siteSeo';
 import '../styles/blogLanding.css';
 
-const REMOTE_JOBS_FAQ = [
+const JOB_SEARCH_FAQ = [
   {
-    question: 'What is the best way to find remote jobs in 2026?',
+    question: 'What is the best way to find jobs in 2026?',
     answer:
-      'The most effective approach combines targeted channels (company career pages, curated remote boards, and referrals) with AI job matching that filters listings to your resume and career path. HireSchema automates this by scouting live remote listings daily, scoring each job against your profile, and delivering only high-fit matches.',
+      'The most effective approach combines targeted channels (company career pages, referrals, and LinkedIn) with AI job matching that filters listings to your resume and career path. HireSchema automates this by scouting live listings daily, scoring each job against your profile, and delivering only high-fit matches.',
   },
   {
-    question: 'How does HireSchema help you find remote jobs?',
+    question: 'How does HireSchema job search work?',
     answer:
-      'Upload your resume and set your target career paths. HireSchema runs a nightly AI pipeline: it discovers remote listings, applies career-path filters, scores jobs with AI against your skills, and delivers up to 10 curated matches daily — free and Pro users receive the same job batch. Pro adds AI resume tailoring, cold emails, and interview prep on saved roles ($19/mo).',
+      'Upload your resume or LinkedIn URL and set your target career paths. HireSchema runs a nightly AI pipeline: it discovers live listings, applies career-path filters, scores jobs with AI against your skills, and delivers up to 10 curated matches daily. Pro adds connect with hiring managers, Scout Chat, resume tailoring, and interview prep ($19/mo).',
   },
   {
-    question: 'Is HireSchema better than LinkedIn or Indeed for remote jobs?',
+    question: 'Is HireSchema better than LinkedIn or Indeed?',
     answer:
-      'LinkedIn and Indeed show the same listings to every user. HireSchema is built for personalized remote job matching — it rejects irrelevant roles, aligns matches to your career path, and includes AI resume tailoring and interview prep for each saved job.',
+      'LinkedIn and Indeed show the same listings to every user. HireSchema is built for personalized job matching — it rejects irrelevant roles, aligns matches to your career path, and helps you connect with hiring managers instead of spraying applications.',
   },
   {
-    question: 'What types of remote jobs does HireSchema match?',
+    question: 'What types of jobs does HireSchema match?',
     answer:
-      'HireSchema matches knowledge-worker remote roles: software engineering, product management, design, data, marketing, sales, customer success, and related careers. Matches are filtered by your chosen career paths and seniority level.',
+      'HireSchema matches knowledge-worker roles: software engineering, product management, design, data, marketing, sales, customer success, and related careers. Matches are filtered by your chosen career paths and seniority level.',
   },
   {
-    question: 'Are there free remote job alerts on HireSchema?',
+    question: 'Are there free job alerts on HireSchema?',
     answer:
-      'Yes. HireSchema Free includes 10 AI-scored remote job matches every day. Pro ($19/mo or $180/yr) unlocks AI application tools — tailored resumes, cold emails, cover letters, and interview prep on saved roles.',
+      'Yes. HireSchema Free includes 10 AI-scored job matches every day. Pro ($19/mo or $180/yr) unlocks connect with recruiters, Scout Chat, tailored resumes, cover letters, and interview prep on saved roles.',
   },
 ];
 
 const GEO_GUIDES = [
-  { slug: '2026-06-10-remote-jobs-united-states', label: 'Remote jobs in the United States' },
-  { slug: '2026-06-10-remote-jobs-united-kingdom', label: 'Remote jobs in the United Kingdom' },
-  { slug: '2026-06-10-remote-jobs-germany', label: 'Remote jobs in Germany' },
-  { slug: '2026-06-10-remote-jobs-canada', label: 'Remote jobs in Canada' },
-  { slug: '2026-06-10-remote-jobs-ireland', label: 'Remote jobs in Ireland (EU)' },
+  { slug: '2026-06-10-remote-jobs-united-states', label: 'Jobs in the United States' },
+  { slug: '2026-06-10-remote-jobs-united-kingdom', label: 'Jobs in the United Kingdom' },
+  { slug: '2026-06-10-remote-jobs-germany', label: 'Jobs in Germany' },
+  { slug: '2026-06-10-remote-jobs-canada', label: 'Jobs in Canada' },
+  { slug: '2026-06-10-remote-jobs-ireland', label: 'Jobs in Ireland (EU)' },
 ];
 
 const ROLE_GUIDES = [
-  { slug: '2026-06-10-remote-software-engineer-jobs', label: 'Remote software engineer jobs' },
-  { slug: '2026-06-10-remote-product-manager-jobs', label: 'Remote product manager jobs' },
+  { slug: '2026-06-10-remote-software-engineer-jobs', label: 'Software engineer jobs' },
+  { slug: '2026-06-10-remote-product-manager-jobs', label: 'Product manager jobs' },
 ];
 
+/** @deprecated Use JobSearchPage — kept for imports */
 export function RemoteJobsPage() {
+  return <JobSearchPage />;
+}
+
+export function JobSearchPage() {
   return (
     <div className="blog-lp-root">
       <SeoHead
-        title="Remote Jobs USA & Europe (2026) — AI-Matched Remote Work | HireSchema"
-        description="Find US and European remote jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path, and delivers personalized remote job alerts."
-        canonicalUrl={`${SITE_URL}/remote-jobs`}
+        title="AI Job Search (2026) — Matched Roles & Scout | HireSchema"
+        description="Find jobs matched to your resume. HireSchema scouts live listings daily, scores each role against your career path, and delivers personalized job alerts with connect and Scout Chat."
+        canonicalUrl={`${SITE_URL}/job-search`}
         ogType="website"
         ogImage={DEFAULT_OG_IMAGE}
-        keywords={[
-          'remote jobs USA',
-          'remote jobs Europe',
-          'remote jobs UK',
-          'find remote jobs',
-          'remote job search',
-          'work from home jobs US',
-          'AI job matching',
-          'remote job alerts',
-        ]}
+        keywords={[...HOME_KEYWORDS]}
         schema={{
-          faqPage: buildFaqPageSchema(REMOTE_JOBS_FAQ),
+          faqPage: buildFaqPageSchema(JOB_SEARCH_FAQ),
           breadcrumb: buildBreadcrumbSchema([
             { name: 'Home', url: `${SITE_URL}/` },
-            { name: 'Remote Jobs', url: `${SITE_URL}/remote-jobs` },
+            { name: 'Job search', url: `${SITE_URL}/job-search` },
           ]),
         }}
       />
@@ -91,37 +88,37 @@ export function RemoteJobsPage() {
       </header>
 
       <main className="blog-lp-container">
-        <p className="blog-lp-eyebrow">Remote Jobs · USA &amp; Europe · 2026</p>
+        <p className="blog-lp-eyebrow">Job search · USA &amp; Europe · 2026</p>
         <h1 className="blog-lp-display blog-lp-title-xl" style={{ marginBottom: 16 }}>
-          Find US &amp; European remote jobs matched to your resume
+          Find jobs matched to your resume — not another job board scroll
         </h1>
         <p className="blog-lp-lede" style={{ color: 'var(--lp-fg)' }}>
-          <strong>HireSchema</strong> is an AI remote job matching platform focused on United States and European hiring.
+          <strong>HireSchema</strong> is an AI job matching platform and career copilot.
           Scout pulls live listings daily, scores each role against your resume and career path, and delivers personalized
-          remote job alerts — so you apply to fewer, better-fit roles instead of scrolling generic job boards.
+          job alerts — so you apply to fewer, better-fit roles and connect with hiring managers when it matters.
         </p>
         <Link to="/login" className="blog-lp-btn-p" style={{ marginTop: 24, display: 'inline-flex' }}>
-          Get daily remote job matches
+          Get daily job matches
         </Link>
 
-        <h2 className="blog-h2" style={{ marginTop: 48 }}>Why generic remote job searches fail</h2>
+        <h2 className="blog-h2" style={{ marginTop: 48 }}>Why generic job searches fail</h2>
         <p className="blog-p">
-          Most job boards show the same remote listings to everyone. Keyword search surfaces irrelevant roles —
-          wrong seniority, wrong function, hybrid jobs labeled remote, and listings that match buzzwords but not
-          your actual career path. Effective remote job search requires filtering by fit, not volume.
+          Most job boards show the same listings to everyone. Keyword search surfaces irrelevant roles —
+          wrong seniority, wrong function, and listings that match buzzwords but not your actual career path.
+          Effective job search requires filtering by fit, not volume.
         </p>
 
-        <h2 className="blog-h2">How HireSchema finds remote jobs for you</h2>
+        <h2 className="blog-h2">How Scout job search works</h2>
         <ol className="blog-ol">
-          <li className="blog-li"><strong>Upload your resume</strong> — skills, seniority, and career signals extracted automatically.</li>
-          <li className="blog-li"><strong>Set career paths</strong> — target roles like Senior Frontend Engineer or Remote Product Manager.</li>
-          <li className="blog-li"><strong>Daily AI scouting</strong> — live remote listings from ATS feeds and the open web.</li>
+          <li className="blog-li"><strong>Resume or LinkedIn</strong> — skills, seniority, and career signals extracted automatically.</li>
+          <li className="blog-li"><strong>Set career paths</strong> — target roles like Senior Frontend Engineer or Product Manager.</li>
+          <li className="blog-li"><strong>Daily AI scouting</strong> — live listings from ATS feeds and the open web.</li>
           <li className="blog-li"><strong>Career-path filtering</strong> — irrelevant functions removed before you see them.</li>
           <li className="blog-li"><strong>AI scoring</strong> — only strong fits are delivered to your dashboard.</li>
-          <li className="blog-li"><strong>Apply faster</strong> — resume tailoring, outreach emails, and interview prep in one place.</li>
+          <li className="blog-li"><strong>Connect &amp; apply</strong> — reach hiring managers, chat with Scout, tailor resumes, and track your pipeline.</li>
         </ol>
 
-        <h2 className="blog-h2">Remote job search: HireSchema vs job boards</h2>
+        <h2 className="blog-h2">HireSchema vs job boards</h2>
         <div className="blog-table-wrap">
           <table className="blog-table">
             <thead className="blog-thead">
@@ -138,20 +135,20 @@ export function RemoteJobsPage() {
                 <td className="blog-td">Same listings for everyone; heavy noise</td>
               </tr>
               <tr className="blog-tr">
-                <td className="blog-td">Remote job boards</td>
-                <td className="blog-td">Remote-only listings</td>
+                <td className="blog-td">Niche job boards</td>
+                <td className="blog-td">Category-specific listings</td>
                 <td className="blog-td">No personalization to your resume</td>
               </tr>
               <tr className="blog-tr">
                 <td className="blog-td"><strong>HireSchema</strong></td>
-                <td className="blog-td">AI-matched daily alerts</td>
+                <td className="blog-td">AI-matched daily alerts + connect</td>
                 <td className="blog-td">Curated fit, not infinite scroll</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <h2 className="blog-h2">Explore remote job guides</h2>
+        <h2 className="blog-h2">Explore job search guides</h2>
         <ul className="blog-ul">
           {GEO_GUIDES.map((g) => (
             <li key={g.slug} className="blog-li">
@@ -167,7 +164,7 @@ export function RemoteJobsPage() {
 
         <h2 className="blog-h2">Frequently asked questions</h2>
         <dl>
-          {REMOTE_JOBS_FAQ.map((faq) => (
+          {JOB_SEARCH_FAQ.map((faq) => (
             <div key={faq.question} style={{ marginBottom: 20 }}>
               <dt className="blog-h3" style={{ marginTop: 0 }}>{faq.question}</dt>
               <dd className="blog-p" style={{ margin: '6px 0 0' }}>{faq.answer}</dd>
@@ -176,7 +173,7 @@ export function RemoteJobsPage() {
         </dl>
 
         <Link to="/login" className="blog-lp-btn-p" style={{ marginTop: 32, display: 'inline-flex' }}>
-          Start matching remote jobs
+          Start matching jobs
         </Link>
       </main>
     </div>

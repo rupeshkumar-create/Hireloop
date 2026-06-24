@@ -9,6 +9,6 @@ describe('sitemapPages', () => {
     expect(locs).not.toContain('/llms-full.txt');
     expect(locs).toContain('/');
     expect(locs).toContain('/blog');
-    expect(locs).toContain('/remote-jobs');
+    expect(locs).toContain('/job-search');
   });
 });

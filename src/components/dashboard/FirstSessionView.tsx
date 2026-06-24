@@ -2,12 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Briefcase, Loader2, RefreshCw, Settings } from 'lucide-react';
 import type { Job } from '../../types/dashboard';
-import { FreeMatchUpsell } from './FreeMatchUpsell';
 import { Button } from '../ui/button';
 
 interface Props {
   topJob: Job | null;
-  plan?: string;
   loadingJobs: boolean;
   generatingJobs: boolean;
   onReviewJob: (job: Job) => void;
@@ -19,7 +17,6 @@ interface Props {
 
 export function FirstSessionView({
   topJob,
-  plan,
   loadingJobs,
   generatingJobs,
   onReviewJob,
@@ -80,7 +77,7 @@ export function FirstSessionView({
                 <div className="mb-2 flex items-center gap-2">
                   <span className="hs-company-mark">{companyInitials(topJob.company)}</span>
                   <span className="text-[11px] font-medium text-[var(--hs-app-muted)]">
-                    {topJob.company} · {topJob.location || 'Remote'}
+                    {topJob.company} · {topJob.location || 'Flexible'}
                   </span>
                 </div>
                 <h2 className="text-lg font-semibold text-[var(--hs-app-fg)]">{topJob.title}</h2>
@@ -109,12 +106,10 @@ export function FirstSessionView({
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
               <p className="mt-2 text-[11px] text-[var(--hs-app-muted)]">
-                Next: save to Pipeline, then generate a tailored resume or cold email (Pro).
+                Next: save to Pipeline, then generate a tailored resume or cold email from the job panel.
               </p>
             </div>
           </article>
-
-          <FreeMatchUpsell plan={plan} />
         </>
       ) : (
         <div className="rounded-2xl border border-dashed border-[var(--hs-app-border)] bg-[var(--hs-app-surface)] p-10 text-center">

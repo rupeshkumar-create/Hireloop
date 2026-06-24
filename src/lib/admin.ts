@@ -1,6 +1,4 @@
-import type { IdTokenResult } from 'firebase/auth';
-
-/** Returns true if the Firebase ID token carries the superAdmin custom claim. */
-export function hasSuperAdminClaim(tokenResult: IdTokenResult): boolean {
-  return tokenResult.claims.superAdmin === true;
+/** Returns true when the profile carries the super_admin role (Supabase profiles.role). */
+export function isSuperAdminRole(role?: string | null): boolean {
+  return role === 'super_admin';
 }

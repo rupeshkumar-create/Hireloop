@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { Save, Upload, X, Plus, Loader2, CreditCard, CheckCircle2 } from 'lucide-react';
+import { Save, Upload, X, Plus, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageShell } from '../components/ui/page-shell';
 import { useResumeParser } from '../hooks/useResumeParser';
@@ -13,14 +13,6 @@ import {
   normalizeUserPreferences,
   syncLegacyPreferenceFields,
 } from '../services/validator';
-import {
-  PRO_ANNUAL_SAVINGS_PERCENT,
-  PRO_ANNUAL_USD,
-  PRO_MONTHLY_USD,
-  buildCheckoutUrl,
-  DODO_CHECKOUT_ANNUAL,
-  DODO_CHECKOUT_MONTHLY,
-} from '../lib/pricing';
 import {
   computeMatchReadiness,
   computeNextJobDeliveryAt,
@@ -223,56 +215,21 @@ export function Settings() {
 
         <Card id="billing-plan">
           <CardHeader>
-            <CardTitle>Billing & Plan</CardTitle>
-            <CardDescription>Manage your subscription and upgrade to Pro.</CardDescription>
+            <CardTitle>Your plan</CardTitle>
+            <CardDescription>Jack is completely free for job seekers.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent>
             <div className="flex items-center justify-between rounded-xl border border-border bg-background p-4">
               <div>
-                <p className="font-medium text-foreground">Current Plan: <span className="uppercase text-primary">{profile?.plan || 'Free'}</span></p>
+                <p className="font-medium text-foreground">Everything included</p>
                 <p className="text-sm text-foreground-muted mt-1">
-                  {profile?.plan?.toLowerCase() === 'pro' 
-                    ? 'You have Pro — AI tailored resumes, cold emails, cover letters, and interview prep on saved roles.' 
-                    : 'Free includes 10 daily AI-scored job matches. Upgrade to Pro for AI application tools on saved roles.'}
+                  Daily matches, Jack chat, introductions, mock interviews, salary coaching, and pipeline — no subscription required.
                 </p>
               </div>
-              {profile?.plan?.toLowerCase() === 'pro' ? (
-                <div className="flex items-center text-foreground font-medium">
-                  <CheckCircle2 className="mr-2 h-5 w-5" /> Active
-                </div>
-              ) : (
-                <CreditCard className="h-6 w-6 text-foreground-muted" />
-              )}
-            </div>
-
-            {profile?.plan?.toLowerCase() !== 'pro' && (
-              <div className="space-y-3 pt-4 border-t border-border">
-                <label className="text-sm font-medium text-foreground-muted">Choose a Plan</label>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 p-4 rounded-xl border border-border bg-surface">
-                    <h4 className="font-medium text-foreground">Monthly Pro</h4>
-                    <p className="text-2xl font-medium mt-1 mb-4">${PRO_MONTHLY_USD}<span className="text-sm font-normal text-foreground-muted">/mo</span></p>
-                    <a 
-                      href={buildCheckoutUrl(DODO_CHECKOUT_MONTHLY, profile?.email || '')}
-                      className="w-full inline-flex justify-center items-center h-10 px-4 py-2 rounded-full border border-border bg-surface-hover text-foreground transition-[border-color,background-color,color,transform,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] font-medium text-sm hover:border-[var(--ember-400)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)] active:bg-[var(--ember-tint)] active:scale-[0.985]"
-                    >
-                      Subscribe Monthly
-                    </a>
-                  </div>
-                  <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-surface p-4">
-                    <div className="absolute right-0 top-0 rounded-bl-md border-b border-l border-border bg-background px-2 py-0.5 text-[10px] font-medium text-[var(--ember-400)]">SAVE {PRO_ANNUAL_SAVINGS_PERCENT}%</div>
-                    <h4 className="font-medium text-foreground">Yearly Pro</h4>
-                    <p className="mb-4 mt-1 text-2xl font-medium text-foreground">${PRO_ANNUAL_USD}<span className="text-sm font-normal text-foreground-muted">/yr</span></p>
-                    <a 
-                      href={buildCheckoutUrl(DODO_CHECKOUT_ANNUAL, profile?.email || '')}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-border bg-surface-hover px-4 py-2 text-sm font-medium text-foreground transition-[border-color,background-color,color,transform,box-shadow] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--ember-400)] focus-visible:outline-none focus-visible:shadow-[var(--ember-glow)] active:bg-[var(--ember-tint)] active:scale-[0.985]"
-                    >
-                      Subscribe Yearly
-                    </a>
-                  </div>
-                </div>
+              <div className="flex items-center text-foreground font-medium">
+                <CheckCircle2 className="mr-2 h-5 w-5 text-[var(--hs-app-accent)]" /> Free
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -347,10 +304,10 @@ export function Settings() {
               />
               <div>
                 <label htmlFor="remoteOnly" className="text-sm font-medium text-foreground">
-                  Remote roles only
+                  Prioritize flexible &amp; distributed roles
                 </label>
                 <p className="mt-1 text-sm text-foreground-muted">
-                  When enabled, Scout prioritizes fully remote listings. Turn off to allow hybrid/on-site matches too.
+                  When enabled, Scout prioritizes flexible and distributed listings. Turn off to allow hybrid and on-site matches too.
                 </p>
               </div>
             </div>

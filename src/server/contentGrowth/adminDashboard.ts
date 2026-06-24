@@ -105,7 +105,7 @@ export interface OperationalCheck {
 export function buildOperationalChecks(
   state: ContentGrowthState,
   strategy: MarketingStrategy | null,
-  env: { openRouter: boolean; firebase: boolean; cronSecret: boolean; githubDispatch?: boolean },
+  env: { openRouter: boolean; supabase: boolean; cronSecret?: boolean },
   publishContext?: { postPublishedToday?: boolean }
 ): { ready: boolean; checks: OperationalCheck[] } {
   const checks: OperationalCheck[] = [];
@@ -120,27 +120,20 @@ export function buildOperationalChecks(
   });
 
   checks.push({
-    id: 'firebase',
-    label: 'Firebase Admin SDK',
-    passed: env.firebase,
+    id: 'supabase',
+    label: 'Supabase',
+    passed: env.supabase,
     severity: 'critical',
-    detail: env.firebase ? 'Service account configured' : 'Missing FIREBASE_SERVICE_ACCOUNT_KEY',
-    action: 'Add FIREBASE_SERVICE_ACCOUNT_KEY in Vercel env',
+    detail: env.supabase ? 'URL + service role configured' : 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY',
+    action: 'Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env',
   });
 
   checks.push({
     id: 'cron_job',
-    label: 'Cron authentication',
-    passed: env.cronSecret || Boolean(env.githubDispatch),
+    label: 'Background jobs',
+    passed: true,
     severity: 'info',
-    detail: env.githubDispatch
-      ? 'GITHUB_DISPATCH_TOKEN set — Publish Now dispatches GitHub Actions'
-      : env.cronSecret
-        ? 'CRON_SECRET set — manual /api/cron/* only (60s Vercel cap)'
-        : 'Add GITHUB_DISPATCH_TOKEN for admin publish + scheduled GitHub workflows',
-    action: !env.githubDispatch
-      ? 'Add GITHUB_DISPATCH_TOKEN in Vercel env (repo workflow scope)'
-      : undefined,
+    detail: 'Local: npm run scout · Dashboard: Generate Daily Jobs button',
   });
 
   checks.push({
@@ -188,27 +181,14 @@ export function buildOperationalChecks(
     detail: publishedToday
       ? `Today's post is live (${todayUtc} UTC)`
       : autoPublishPending
-        ? `Auto-publish scheduled — GitHub Actions runs at 08:05, 09:00, 12:00, and 18:00 UTC`
+        ? 'Manual publish available from admin — no cloud scheduler in local mode'
         : lastPublish > 0
           ? `Last publish: ${Math.round(hoursSincePublish)}h ago — none yet today (${todayUtc} UTC)`
-          : 'No publish recorded yet — autopilot will retry via GitHub Actions and RSS/sitemap triggers',
+          : 'No publish recorded yet — use admin Publish or seed scripts locally',
     action:
       !publishedToday && !autoPublishPending && hoursSincePublish >= 36
-        ? 'Check GitHub Actions → Content Growth Cron / Generate Daily Jobs for errors'
+        ? 'Run blog seed or admin publish locally'
         : undefined,
-  });
-
-  checks.push({
-    id: 'github_scheduler',
-    label: 'GitHub Actions autopilot',
-    passed: Boolean(env.githubDispatch),
-    severity: env.githubDispatch ? 'info' : 'critical',
-    detail: env.githubDispatch
-      ? 'Vercel dispatches GitHub on deploy + RSS/sitemap. Add VERCEL_TOKEN + ORG_ID + PROJECT_ID in GitHub secrets so scheduled runs can read your Vercel env.'
-      : 'Missing GITHUB_DISPATCH_TOKEN in Vercel — autopilot cannot trigger GitHub Actions',
-    action: env.githubDispatch
-      ? 'GitHub → Settings → Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID (see docs/CRON_SETUP.md)'
-      : 'Add GITHUB_DISPATCH_TOKEN in Vercel env',
   });
 
   const criticalFailed = checks.filter((c) => c.severity === 'critical' && !c.passed);

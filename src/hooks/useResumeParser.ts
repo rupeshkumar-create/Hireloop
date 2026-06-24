@@ -9,6 +9,7 @@ import {
   syncLegacyPreferenceFields,
 } from '../services/validator';
 import { enrichResumeTextWithHyperlinks, extractPdfTextAndUrls, extractDocxTextAndUrls } from '../lib/resumeHyperlinks';
+import { uploadResumeFileToSupabase } from '../services/resumeStorage';
 
 interface ProcessResumeTextOptions {
   onSuccess?: () => void;
@@ -19,6 +20,10 @@ interface ProcessResumeTextOptions {
   preferencesOverride?: NormalizedUserPreferences;
   /** Hyperlink targets from PDF/DOCX (LinkedIn often only exists here). */
   hyperlinkUrls?: string[];
+  /** Original file metadata after Supabase upload */
+  resumeStoragePath?: string;
+  resumeStorageBucket?: string;
+  resumeFileName?: string;
 }
 
 export function useResumeParser(updateProfile: (data: any) => Promise<void>, profile: any) {
@@ -169,6 +174,13 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
         jobType: legacyPreferenceFields.jobType,
         minSalary: legacyPreferenceFields.minSalary,
         location: legacyPreferenceFields.location,
+        ...(options?.resumeStoragePath
+          ? {
+              resumeStoragePath: options.resumeStoragePath,
+              resumeStorageBucket: options.resumeStorageBucket,
+              resumeFileName: options.resumeFileName,
+            }
+          : {}),
       });
 
       if (options?.showSuccessToast !== false) {
@@ -207,8 +219,25 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
     setAnalyzingResume(true);
     let text = '';
     let hyperlinkUrls: string[] = [];
-    
+    let storageMeta: Pick<ProcessResumeTextOptions, 'resumeStoragePath' | 'resumeStorageBucket' | 'resumeFileName'> = {};
+
     try {
+      try {
+        const uploaded = await uploadResumeFileToSupabase(file);
+        if (uploaded) {
+          storageMeta = {
+            resumeStoragePath: uploaded.path,
+            resumeStorageBucket: uploaded.bucket,
+            resumeFileName: file.name,
+          };
+        }
+      } catch (uploadError) {
+        console.warn('Supabase resume upload failed — continuing with text-only profile.', uploadError);
+        if (!options?.quiet) {
+          toast.info('Resume parsed locally; file storage unavailable. Add Supabase keys to enable cloud backup.');
+        }
+      }
+
       if (file.type === 'text/plain' || file.name.endsWith('.md')) {
         text = await file.text();
       } else if (file.type === 'application/pdf') {
@@ -238,6 +267,7 @@ export function useResumeParser(updateProfile: (data: any) => Promise<void>, pro
       quiet: options?.quiet,
       successMessage: options?.successMessage || 'Resume uploaded successfully!',
       hyperlinkUrls,
+      ...storageMeta,
     });
   };
 

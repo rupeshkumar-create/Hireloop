@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, RefreshCw, FileDown, Copy, CheckCheck, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardJobsContext } from '../contexts/DashboardJobsContext';
 import { useTrackedJobsList } from '../hooks/useTrackedJobsList';
@@ -11,7 +10,7 @@ import { isProPlan } from '../lib/planLimits';
 import { showProRequiredToast } from '../lib/proUpgrade';
 import { ProFeatureOverlay } from '../components/ui/ProFeatureOverlay';
 import { exportInterviewPrepAsPdf } from '../lib/resumeExport';
-import { db } from '../firebase';
+import { updateTrackedJob } from '../services/trackedJobsService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -71,8 +70,8 @@ export function InterviewPrep() {
   const selectedJob = roleOptions.find((r) => r.id === selectedId) ?? roleOptions[0];
 
   const persistInterview = async (job: RoleOption, content: string) => {
-    if (job.source !== 'pipeline') return;
-    await updateDoc(doc(db, 'trackedJobs', job.id), {
+    if (job.source !== 'pipeline' || !user?.uid) return;
+    await updateTrackedJob(job.id, user.uid, {
       interviewQuestions: content,
       updatedAt: new Date().toISOString(),
     });

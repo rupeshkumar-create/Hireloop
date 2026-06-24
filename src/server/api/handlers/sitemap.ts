@@ -2,14 +2,14 @@
  * GET /api/sitemap.xml — Auto-generated sitemap for blog posts and core pages.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listBlogPosts } from '../../marketingEngine.js';
+import { listCoreBlogSummaries } from '../../../lib/coreBlogPosts.js';
 import { SITEMAP_BASE_URL, SITEMAP_STATIC_PAGES } from '../../../lib/sitemapPages.js';
 
-const SITEMAP_POST_LIMIT = 500;
+const SITEMAP_POST_LIMIT = 5;
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
-    const posts = await listBlogPosts(SITEMAP_POST_LIMIT, { includeScheduled: false });
+    const posts = listCoreBlogSummaries(SITEMAP_POST_LIMIT);
     const today = new Date().toISOString().split('T')[0];
 
     const urls = [

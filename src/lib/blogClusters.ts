@@ -19,6 +19,7 @@ export const CLUSTER_ACCENTS: Record<string, string> = {
   'hiring-trends': '#34d399',
   'remote-companies': '#60a5fa',
   'career-growth': '#f472b6',
+  hireschema: '#38bdf8',
 };
 
 const CLUSTER_LABEL_BY_ID = Object.fromEntries(

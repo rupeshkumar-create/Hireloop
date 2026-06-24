@@ -12,7 +12,6 @@ import { SITE_URL, SITE_STATUS, DEFAULT_OG_IMAGE, HOME_FAQ, HOME_KEYWORDS, build
 import { blogCardEyebrow, blogCoverUrl, clusterAccent } from '../lib/blogClusters';
 import { fetchLandingBlogPosts, type LandingBlogPost } from '../lib/landingBlogPosts';
 import { DAILY_MATCH_LIMIT } from '../lib/planLimits';
-import { PRO_ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_USD, PRO_MONTHLY_USD } from '../lib/pricing';
 import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
 import { WhatsAppFloatingButton } from '../components/support/WhatsAppFloatingButton';
 
@@ -466,6 +465,48 @@ const LP_STYLE = `
     display:grid; grid-template-columns:1fr 1fr; margin-top:56px;
     border:1px solid var(--lp-border);
   }
+
+  /* recruiters */
+  .lp-recruiters {
+    padding:96px 0; border-bottom:1px solid var(--lp-border);
+    background:linear-gradient(180deg, var(--lp-bg) 0%, oklch(95% .018 80) 100%);
+  }
+  .lp-recruiters-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:48px;
+  }
+  .lp-recruiters-card {
+    border:1px solid var(--lp-border); background:var(--lp-surface);
+    padding:32px 36px; display:flex; flex-direction:column; gap:16px;
+  }
+  .lp-recruiters-card h3 {
+    font-family:var(--lp-font-d); font-size:clamp(20px,2.2vw,26px); font-weight:400;
+    letter-spacing:-.01em; margin:0; color:var(--lp-fg);
+  }
+  .lp-recruiters-steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px; }
+  .lp-recruiters-step {
+    display:flex; gap:14px; align-items:flex-start; font-size:14px; line-height:1.55; color:var(--lp-muted);
+  }
+  .lp-recruiters-step-num {
+    font-family:var(--lp-font-m); font-size:10px; font-weight:600; letter-spacing:.08em;
+    color:var(--lp-accent); border:1px solid oklch(58% .16 35 / .35);
+    border-radius:999px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .lp-recruiters-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+  .lp-recruiters-list li {
+    display:flex; gap:10px; font-size:14px; line-height:1.5; color:var(--lp-muted);
+  }
+  .lp-recruiters-list li::before {
+    content:''; width:4px; height:4px; border-radius:50%; background:var(--lp-accent);
+    margin-top:8px; flex-shrink:0;
+  }
+  .lp-recruiters-cta { margin-top:32px; display:flex; flex-wrap:wrap; align-items:center; gap:16px; }
+  .lp-recruiters-note { font-size:13px; color:var(--lp-muted); max-width:420px; line-height:1.55; }
+  .lp-hero-recruiter-link {
+    display:inline-flex; margin-top:14px; font-size:13px; color:var(--lp-muted); text-decoration:none;
+    border-bottom:1px solid oklch(48% .015 60 / .35); transition:color 200ms, border-color 200ms;
+  }
+  .lp-hero-recruiter-link:hover { color:var(--lp-fg); border-color:var(--lp-fg); }
+
   .lp-plan { padding:48px; transition:background 300ms ease; }
   .lp-plan:hover { background:var(--lp-surface); }
   .lp-plan:first-child { border-right:1px solid var(--lp-border); }
@@ -551,7 +592,8 @@ const LP_STYLE = `
   }
   @media(max-width:600px){
     .lp-hero { padding:32px 0 28px; }
-    .lp-how,.lp-features,.lp-testi,.lp-pricing,.lp-cta { padding:64px 0; }
+    .lp-how,.lp-features,.lp-testi,.lp-pricing,.lp-recruiters,.lp-cta { padding:64px 0; }
+    .lp-recruiters-grid { grid-template-columns:1fr; }
     .lp-footer-grid { grid-template-columns:1fr; gap:32px; }
     .lp-feat-item { padding:32px 0 32px 16px; }
     .lp-feat-list { gap:0; }
@@ -617,8 +659,8 @@ const LP_STYLE = `
 `;
 
 const MARQUEE_ITEMS = [
-  'Remote · Worldwide', '50+ Resume Signals', 'AI Match Scoring', 'ATS Integrity Checks',
-  'Cover Letter Drafts', 'Daily Fresh Matches', 'Learning Loop', 'Job Tracker Built-in',
+  'Job search on autopilot', 'Introductions to hiring managers', 'Mock interviews', 'Salary negotiation',
+  'Career clarity coaching', 'Live job discovery', 'Yes/no match learning', 'Pipeline built-in',
 ];
 
 const HERO_JOBS = [
@@ -626,7 +668,7 @@ const HERO_JOBS = [
     logo: 'VR',
     company: 'Vercel',
     title: 'Senior Full-Stack Engineer',
-    tags: ['React', 'Next.js', 'TypeScript', 'Remote · Global', '$180k–$220k'],
+    tags: ['React', 'Next.js', 'TypeScript', 'Global', '$180k–$220k'],
     match: 94,
     resumeFit: 91,
     seniority: 88,
@@ -636,7 +678,7 @@ const HERO_JOBS = [
     logo: 'ST',
     company: 'Stripe',
     title: 'Staff Software Engineer',
-    tags: ['Python', 'Distributed Systems', 'AWS', 'Remote · US/EU', '$200k–$280k'],
+    tags: ['Python', 'Distributed Systems', 'AWS', 'US/EU', '$200k–$280k'],
     match: 92,
     resumeFit: 89,
     seniority: 91,
@@ -646,7 +688,7 @@ const HERO_JOBS = [
     logo: 'NT',
     company: 'Notion',
     title: 'Product Manager',
-    tags: ['Roadmaps', 'Discovery', 'B2B SaaS', 'Remote · Global', '$160k–$210k'],
+    tags: ['Roadmaps', 'Discovery', 'B2B SaaS', 'Global', '$160k–$210k'],
     match: 90,
     resumeFit: 87,
     seniority: 85,
@@ -656,7 +698,7 @@ const HERO_JOBS = [
     logo: 'FG',
     company: 'Figma',
     title: 'Product Designer',
-    tags: ['Figma', 'Design Systems', 'UX Research', 'Remote · Global', '$140k–$185k'],
+    tags: ['Figma', 'Design Systems', 'UX Research', 'Global', '$140k–$185k'],
     match: 88,
     resumeFit: 86,
     seniority: 83,
@@ -666,7 +708,7 @@ const HERO_JOBS = [
     logo: 'AP',
     company: 'Anthropic',
     title: 'Machine Learning Engineer',
-    tags: ['PyTorch', 'LLMs', 'Python', 'Remote · US', '$185k–$245k'],
+    tags: ['PyTorch', 'LLMs', 'Python', 'US', '$185k–$245k'],
     match: 91,
     resumeFit: 90,
     seniority: 87,
@@ -676,51 +718,62 @@ const HERO_JOBS = [
 
 const FEATURES = [
   {
-    tag: 'Validator',
-    title: 'Hard validation before AI scoring',
-    summary:
-      'Every listing passes deterministic checks before AI touches it. Bad jobs never waste your attention or your match queue.',
-    detailTitle: '50+ hard rules, zero LLM guesswork',
+    tag: 'Autopilot',
+    title: 'Job search on autopilot',
+    summary: 'Jack learns what you want through conversation and searches live roles daily.',
+    detailTitle: 'Tell Jack yes or no — he gets smarter',
     detail:
-      'Before a match score is calculated, each job is screened for remote eligibility, location fit, salary floor, posting freshness, and application-link integrity. Roles that fail any check are dropped immediately — so the AI only ranks listings that are real, relevant, and actually worth applying to.',
+      'Every match arrives in chat with a fit score and summary. Your feedback trains the next search cycle without changing the core matching engine.',
   },
   {
     tag: 'AI Engine',
     title: 'Resume-grounded match scores',
-    summary:
-      'Scores reflect your real experience — not keyword stuffing or title inflation.',
+    summary: 'Scores reflect your real experience — not keyword stuffing.',
     detailTitle: 'Your resume is the scoring input',
     detail:
-      'Hireschema reads your full work history, skills, seniority signals, and compensation expectations — then compares them to each job description. The result is a match score grounded in overlap and fit, not whether you guessed the right buzzwords in a title search.',
+      'Jack reads your work history, skills, and seniority — then compares them to each live listing. The matching engine stays the same; only how you interact changes.',
   },
   {
-    tag: 'Learning Loop',
-    title: 'A system that learns from you',
-    summary:
-      'Saves, skips, and applications teach Scout what "good" looks like for you.',
-    detailTitle: 'Signals that sharpen every cycle',
+    tag: 'Introductions',
+    title: 'Skip the application queue',
+    summary: 'Request warm introductions to hiring managers for roles you love.',
+    detailTitle: 'Jack made an introduction',
     detail:
-      'When you save a role, dismiss one, or mark applied, those actions feed the learning loop. Future Scout runs boost companies and job types you engage with and quietly suppress patterns you consistently skip — so day two feels smarter than day one.',
+      'For saved roles, Jack finds the hiring contact and sends a curated intro with your background — direct to the decision-maker instead of a flooded ATS inbox.',
   },
   {
-    tag: 'AI Tasks',
-    title: 'Application drafts on demand',
+    tag: 'Salary',
+    title: 'Benchmark and negotiate',
     summary:
-      'Cover letters, resume tweaks, and interview prep — generated from your profile and the role.',
-    detailTitle: 'Role-specific drafts in one click',
+      'Market bands, counter language, and negotiation coaching in chat.',
+    detailTitle: 'Know what good looks like',
     detail:
-      'For any matched job, generate a tailored cover letter, a resume variant aligned to the posting, or interview questions drawn from the job description and your background. Everything is anchored to your actual profile — not generic templates.',
+      'See realistic ranges for your role and location, then role-play offers with Jack until you have exact words for your counter.',
   },
   {
-    tag: 'Job Tracker',
-    title: 'Tracker built in',
-    summary:
-      'Matched jobs flow straight into a pipeline — no spreadsheet required.',
-    detailTitle: 'From match to offer, one place',
+    tag: 'Mock interviews',
+    title: 'Practice with real feedback',
+    summary: 'Run mock interviews in chat — one question at a time with scored answers.',
+    detailTitle: 'Walk in prepared',
     detail:
-      'Every role Scout surfaces lands in your built-in tracker. Move jobs through saved, applied, interviewing, and offered stages, attach notes, and keep a clean record of your search — without exporting to another tool.',
+      'Jack asks role-specific questions, scores your stories for clarity and structure, and probes follow-ups like a real hiring manager.',
   },
 ];
+
+const RECRUITER_STEPS = [
+  { n: '01', title: 'Post your open roles', body: 'Jill indexes your roles — title, requirements, and ideal candidate profile.' },
+  { n: '02', title: 'Jack surfaces matched candidates', body: 'Candidates chat with Jack daily. When there is strong fit, Jack requests a warm introduction to you.' },
+  { n: '03', title: 'Accept intros — skip the queue', body: 'Review candidate context in Jill, accept or schedule, and move straight to conversation — no flooded ATS inbox.' },
+] as const;
+
+const RECRUITER_BENEFITS = [
+  'AI-ranked shortlists instead of inbox overload',
+  'Candidates arrive with resume or LinkedIn already parsed',
+  'Two-sided connect — no blind cold applications',
+  'Early access recruiter portal (rolling out now)',
+] as const;
+
+const RECRUITER_WAITLIST_EMAIL = 'mailto:support@hireschema.com?subject=HireSchema%20Recruiter%20Early%20Access';
 
 function ArrowIcon() {
   return (
@@ -859,7 +912,7 @@ export function LandingPage() {
   }, []);
 
   if (!loading && user) {
-    return <Navigate to={isOnboardingComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
+    return <Navigate to={isOnboardingComplete(profile) ? '/chat' : '/onboarding'} replace />;
   }
 
   return (
@@ -899,9 +952,9 @@ export function LandingPage() {
           <div className="lp-nav-actions">
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#features" className="lp-nav-link">Features</a>
-            <a href="#pricing" className="lp-nav-link">Pricing</a>
+            <a href="#recruiters" className="lp-nav-link">For recruiters</a>
             <Link to="/blog" className="lp-nav-link">Hiring Guides</Link>
-            <Link to="/remote-jobs" className="lp-nav-link">Remote Jobs</Link>
+            <Link to="/job-search" className="lp-nav-link">Job search</Link>
             <Link to="/login" className="lp-nav-link">Sign in</Link>
             <Link to="/login" className="lp-btn-p">Start free</Link>
           </div>
@@ -916,9 +969,9 @@ export function LandingPage() {
         <div className="lp-mobile-panel" role="menu" onClick={(e) => e.stopPropagation()}>
           <a href="#how" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>How it works</a>
           <a href="#features" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
-          <a href="#pricing" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+          <a href="#recruiters" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>For recruiters</a>
           <Link to="/blog" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Hiring Guides</Link>
-          <Link to="/remote-jobs" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Remote Jobs</Link>
+          <Link to="/job-search" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Job search</Link>
           <Link to="/login" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
           <Link to="/login" className="lp-btn-p" style={{ marginTop: 12, textAlign: 'center' }} onClick={() => setMobileMenuOpen(false)}>
             Start free
@@ -931,20 +984,23 @@ export function LandingPage() {
         <div className="lp-container">
           <div className="lp-hero-grid">
             <div className="lp-hero-left">
-              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">AI Recruiting Agent · Remote Only</p>
+              <p className="lp-eyebrow lp-hero-eyebrow lp-fi lp-fi-1">Meet Jack — your AI career agent</p>
               <h1 className="lp-display lp-dh lp-hero-hl lp-fi lp-fi-2">
-                AI remote job matching<br />
-                for your <em>next</em> remote role.
+                An AI agent that finds<br />
+                your next job <em>and</em> helps you land it.
               </h1>
               <p className="lp-body-lg lp-hero-sub lp-fi lp-fi-3">
-                Upload your resume. Hireschema scouts the global job market daily, scores every match against your profile, and delivers only the roles worth your attention. {SITE_STATUS}.
+                Jack searches live roles daily, brings you only what's worth your time, and helps with introductions, mock interviews, and salary coaching. Completely free for job seekers. {SITE_STATUS}.
               </p>
               <div className="lp-hero-cta-row lp-fi lp-fi-4">
                 <Link to="/login" className="lp-cta-main">
-                  Start for free <ArrowIcon />
+                  Talk to Jack <ArrowIcon />
                 </Link>
-                <span className="lp-cta-note">Free: {DAILY_MATCH_LIMIT} daily matches · Pro from ${PRO_MONTHLY_USD}/mo</span>
+                <span className="lp-cta-note">Free · No credit card · See matches in ~10 minutes</span>
               </div>
+              <a href="#recruiters" className="lp-hero-recruiter-link lp-fi lp-fi-4">
+                Hiring? See recruiter tools →
+              </a>
             </div>
 
             <div className="lp-hero-right lp-fi lp-fi-3">
@@ -1030,7 +1086,7 @@ export function LandingPage() {
         <div className="lp-stats-grid">
           <div className="lp-stat lp-reveal lp-d1">
             <span className="lp-stat-num" data-count="100" data-suffix="%">100%</span>
-            <span className="lp-stat-lbl">Remote jobs — no on-site, ever</span>
+            <span className="lp-stat-lbl">Live listings — validated before scoring</span>
           </div>
           <div className="lp-stat lp-reveal lp-d2">
             <span className="lp-stat-num" data-count="50" data-suffix="+">50+</span>
@@ -1057,9 +1113,9 @@ export function LandingPage() {
           </div>
           <div className="lp-steps">
             {[
-              { n: '01 / Upload', t: 'Feed the agent your resume', b: 'Hireschema parses your experience into 50+ semantic signals — skills, seniority, preferred domains, career trajectory. This becomes your match baseline. Set once, refined over time.' },
-              { n: '02 / Scout', t: 'The agent searches globally', b: 'Each morning, Scout generates precision queries from your profile, harvests live listings, deduplicates, and applies deterministic hard filters: remote-only, salary floor, freshness, ATS integrity.' },
-              { n: '03 / Match', t: 'You get only the top results', b: 'AI enrichment scores each validated listing against your actual resume. The final ranking blends fit, freshness, company quality, and salary signal. Your dashboard shows today\'s best — nothing else.' },
+              { n: '01 / Tell Jack', t: '10-minute conversation', b: 'Jack asks the right questions to understand what good looks like for you — role, level, location, and compensation. Paste LinkedIn or upload your resume inline.' },
+              { n: '02 / Jack searches', t: 'Live roles while you sleep', b: 'Each day Jack scans live listings, validates them with hard rules, and scores fit against your profile. No keyword spam — only step-ups worth your time.' },
+              { n: '03 / Land the role', t: 'Intros, prep, and negotiate', b: 'Say yes or no on matches in chat. Jack requests introductions, runs mock interviews, benchmarks salary, and coaches negotiation — skip the application queue when there\'s a warm intro.' },
             ].map((s, i) => (
               <div key={s.n} className={`lp-step lp-reveal lp-d${i + 1}`}>
                 <span className="lp-step-num">{s.n}</span>
@@ -1125,40 +1181,49 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ── */}
-      <section id="pricing" className="lp-pricing">
+      {/* Pricing removed — Jack is free for candidates */}
+
+      {/* ── Recruiters ── */}
+      <section id="recruiters" className="lp-recruiters">
         <div className="lp-container">
-          <p className="lp-eyebrow lp-reveal">Pricing</p>
-          <h2 className="lp-display lp-ds lp-reveal">Same Scout for everyone.<br />Pro unlocks AI apply tools.</h2>
-          <p className="lp-body-lg lp-reveal" style={{ maxWidth: 560, marginTop: 12 }}>
-            Apify discovery costs the same per run — so free users get the full {DAILY_MATCH_LIMIT} daily matches.
-            Pro adds AI assets when you save a role to your pipeline.
+          <p className="lp-eyebrow lp-reveal">For recruiters &amp; hiring teams</p>
+          <h2 className="lp-display lp-ds lp-reveal">
+            Post roles.<br />
+            Get matched candidates.
+          </h2>
+          <p className="lp-body-lg lp-reveal" style={{ maxWidth: 620, marginTop: 12 }}>
+            HireSchema is building a two-sided platform. Candidates connect with intent — you get ranked shortlists and structured intros instead of another flooded inbox.
           </p>
-          <div className="lp-pricing-grid lp-reveal">
-            <div className="lp-plan">
-              <span className="lp-plan-name">Free</span>
-              <div className="lp-plan-price">$0</div>
-              <span className="lp-plan-period">Forever free</span>
-              <ul className="lp-plan-features">
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />{DAILY_MATCH_LIMIT} AI-scored remote job matches daily</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Resume parsing &amp; career path matching</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Job tracker pipeline</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Remote-only filtering &amp; match scoring</li>
-              </ul>
-              <Link to="/login" className="lp-btn-g">Start free</Link>
+          <div className="lp-recruiters-grid">
+            <div className="lp-recruiters-card lp-reveal lp-d1">
+              <h3>How it works for hiring teams</h3>
+              <ol className="lp-recruiters-steps">
+                {RECRUITER_STEPS.map((step) => (
+                  <li key={step.n} className="lp-recruiters-step">
+                    <span className="lp-recruiters-step-num">{step.n}</span>
+                    <div>
+                      <strong style={{ display: 'block', color: 'var(--lp-fg)', marginBottom: 4 }}>{step.title}</strong>
+                      {step.body}
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
-            <div className="lp-plan">
-              <span className="lp-plan-name">Pro</span>
-              <div className="lp-plan-price">${PRO_MONTHLY_USD}</div>
-              <span className="lp-plan-period">per month · or ${PRO_ANNUAL_USD}/year (save {PRO_ANNUAL_SAVINGS_PERCENT}%)</span>
-              <ul className="lp-plan-features">
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Everything in Free</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />AI tailored resume per saved role</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />1-click cold outreach emails</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Cover letters &amp; interview prep</li>
-                <li className="lp-plan-feature"><span className="lp-feat-dot" />Auto-generate assets when you save a job</li>
+            <div className="lp-recruiters-card lp-reveal lp-d2">
+              <h3>Why teams are joining early access</h3>
+              <ul className="lp-recruiters-list">
+                {RECRUITER_BENEFITS.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
-              <Link to="/login" className="lp-btn-p">Upgrade in app</Link>
+              <div className="lp-recruiters-cta">
+                <Link to="/jill" className="lp-btn-p">
+                  Open Jill for recruiters
+                </Link>
+                <p className="lp-recruiters-note">
+                  Post roles, review Jack introductions, and accept candidates — companies pay when they hire through Jill.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1173,7 +1238,7 @@ export function LandingPage() {
             The matches were <em>actually relevant</em> — because it read my resume, not just my job title.
           </blockquote>
           <p className="lp-testi-attr lp-reveal" style={{ transitionDelay: '0.2s' }}>
-            — Product Manager · 4 years remote · Landed a role in 6 weeks
+            — Product Manager · 6 years experience · Landed a role in 6 weeks
           </p>
         </div>
       </section>
@@ -1181,10 +1246,10 @@ export function LandingPage() {
       {/* ── Blog ── */}
       <section id="blog" className="lp-section">
         <div className="lp-container">
-          <p className="lp-eyebrow lp-reveal">Hiring Guides</p>
-          <h2 className="lp-display lp-ds lp-reveal">Remote job search advice, updated weekly.</h2>
+          <p className="lp-eyebrow lp-reveal">Product guides</p>
+          <h2 className="lp-display lp-ds lp-reveal">How HireSchema works.</h2>
           <p className="lp-body-lg lp-reveal" style={{ maxWidth: 640, marginTop: 12 }}>
-            Practical guides on remote hiring, ATS strategy, and career growth — written for real job seekers and refreshed every week.
+            Five guides on Jack, Jill, Scout, and the chat-first workflow — everything you need to get started.
           </p>
           {blogPosts.length > 0 ? (
             <div className="lp-blog-grid lp-reveal">
@@ -1217,7 +1282,7 @@ export function LandingPage() {
             <p className="lp-body-sm lp-reveal" style={{ marginTop: 20 }}>New guides publish weekly — check back soon.</p>
           )}
           <div className="lp-reveal" style={{ marginTop: 24 }}>
-            <Link to="/blog" className="lp-btn-g">View all hiring guides</Link>
+            <Link to="/blog" className="lp-btn-g">View all product guides</Link>
           </div>
         </div>
       </section>
@@ -1262,9 +1327,9 @@ export function LandingPage() {
               <div>
                 <span className="lp-footer-col-ttl">Product</span>
                 <ul className="lp-footer-col-list">
-                  <li><a href="#pricing">Pricing</a></li>
-                  <li><Link to="/dashboard">Dashboard</Link></li>
-                  <li><Link to="/jobs">Job Tracker</Link></li>
+                  <li><a href="#recruiters">For recruiters (Jill)</a></li>
+                  <li><Link to="/chat">Jack</Link></li>
+                  <li><Link to="/jobs">Pipeline</Link></li>
                   <li><Link to="/resume">Resume Profile</Link></li>
                   <li><Link to="/cover-letters">Cover Letters</Link></li>
                   <li><Link to="/interview-prep">Interview Prep</Link></li>
@@ -1280,7 +1345,7 @@ export function LandingPage() {
                   <li><a href="#blog">Updates</a></li>
                   <li><WhatsAppSupportLink className="text-[var(--lp-muted)] hover:text-[var(--lp-fg)]" /></li>
                   <li><Link to="/blog">Hiring Guides</Link></li>
-                  <li><Link to="/remote-jobs">Remote Jobs</Link></li>
+                  <li><Link to="/job-search">Job search</Link></li>
                 </ul>
               </div>
 

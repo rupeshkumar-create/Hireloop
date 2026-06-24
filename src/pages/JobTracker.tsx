@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  subscribeTrackedJobs,
+  updateTrackedJob,
+  deleteTrackedJob,
+} from '../services/trackedJobsService';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { ExternalLink, Trash2, MapPin, LayoutGrid, List, ChevronUp, ChevronDown, Mail, FileText, MessageSquare, Download, Loader2, RefreshCw, Sparkles, UserPlus } from 'lucide-react';
 import { AssetEditorModal } from '../components/dashboard/AssetEditorModal';
+import { ConnectWithRecruiterModal } from '../components/dashboard/ConnectWithRecruiterModal';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -86,6 +90,7 @@ export function JobTracker() {
     return (localStorage.getItem('jobTrackerViewMode') as 'board' | 'list') || 'list';
   });
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [connectJob, setConnectJob] = useState<TrackedJob | null>(null);
   // Search query + follow-up generation state used by the new pipeline header.
   const [searchQuery, setSearchQuery] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState<string | null>(null);
@@ -173,20 +178,16 @@ export function JobTracker() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, 'trackedJobs'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const jobsData: TrackedJob[] = [];
-      snapshot.forEach((doc) => {
-        jobsData.push({ id: doc.id, ...doc.data() } as TrackedJob);
-      });
-      // Sort by created at descending
-      jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setJobs(jobsData);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'trackedJobs');
-    });
-
-    return () => unsubscribe();
+    return subscribeTrackedJobs(
+      user.uid,
+      (jobsData) => {
+        setJobs(jobsData as TrackedJob[]);
+      },
+      (error) => {
+        console.error('[JobTracker] tracked jobs subscription failed:', error);
+        toast.error('Failed to load tracked jobs.');
+      }
+    );
   }, [user]);
 
   // Apply the search query to the full jobs list. All downstream rendering
@@ -256,7 +257,7 @@ export function JobTracker() {
         profile?.antiSlopEnabled !== false,
         profile?.learningProfile?.writingStyle || '',
       );
-      await updateDoc(doc(db, 'trackedJobs', job.id), {
+      await updateTrackedJob(job.id, user!.uid, {
         followUpEmail: body,
         updatedAt: new Date().toISOString(),
       } as any);
@@ -278,7 +279,7 @@ export function JobTracker() {
     const patch = statusTransitionPatch(job as any, newStatus as any);
     if (Object.keys(patch).length === 0) return;
     try {
-      await updateDoc(doc(db, 'trackedJobs', jobId), patch as any);
+      await updateTrackedJob(jobId, user!.uid, patch as any);
 
       if (newStatus === 'applied' && job.status !== 'applied' && profile && updateProfile) {
         try {
@@ -293,16 +294,18 @@ export function JobTracker() {
         }
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `trackedJobs/${jobId}`);
+      console.error('[JobTracker] update status failed:', error);
+      toast.error('Failed to update job status.');
     }
   };
 
   const removeJob = async (jobId: string) => {
     if (window.confirm('Are you sure you want to remove this job?')) {
       try {
-        await deleteDoc(doc(db, 'trackedJobs', jobId));
+        await deleteTrackedJob(jobId, user!.uid);
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `trackedJobs/${jobId}`);
+        console.error('[JobTracker] delete failed:', error);
+        toast.error('Failed to remove job.');
       }
     }
   };
@@ -347,7 +350,7 @@ export function JobTracker() {
         updateData = { interviewQuestions: questions };
       }
 
-      await updateDoc(doc(db, 'trackedJobs', job.id), {
+      await updateTrackedJob(job.id, user!.uid, {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
@@ -430,10 +433,10 @@ export function JobTracker() {
       } else failed++;
 
       if (Object.keys(updateData).length > 0) {
-        await updateDoc(doc(db, 'trackedJobs', job.id), {
-          ...updateData,
-          updatedAt: new Date().toISOString()
-        });
+      await updateTrackedJob(job.id, user!.uid, {
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      });
         // Activation event — first successful asset generation, same
         // semantics as the Dashboard AI Copilot path.
         if (profile && !profile.activatedAt && updateProfile) {
@@ -524,7 +527,7 @@ export function JobTracker() {
       if (type === 'cover') updateData = { coverLetter: newContent };
       if (type === 'interview') updateData = { interviewQuestions: newContent };
 
-      await updateDoc(doc(db, 'trackedJobs', job.id), {
+      await updateTrackedJob(job.id, user!.uid, {
         ...updateData,
         updatedAt: new Date().toISOString()
       });
@@ -563,9 +566,10 @@ export function JobTracker() {
 
   const updateContactEmail = async (jobId: string, email: string) => {
     try {
-      await updateDoc(doc(db, 'trackedJobs', jobId), { contactEmail: email, updatedAt: new Date().toISOString() });
+      await updateTrackedJob(jobId, user!.uid, { contactEmail: email, updatedAt: new Date().toISOString() });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `trackedJobs/${jobId}`);
+      console.error('[JobTracker] update contact email failed:', error);
+      toast.error('Failed to save contact email.');
     }
   };
 
@@ -981,7 +985,7 @@ export function JobTracker() {
                         </div>
                       )}
                       <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                        {/* Cold Email Section */}
+                        {/* Connect with hiring manager */}
                         <div className="flex flex-col gap-3 relative h-full">
                           {profile?.plan?.toLowerCase() !== 'pro' && (
                             <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-lg border border-border">
@@ -990,67 +994,19 @@ export function JobTracker() {
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm text-foreground flex items-center"><Mail className="mr-2 h-4 w-4 text-foreground-muted" /> Cold Email</h4>
-                            <div className="flex gap-2">
-                              {hasValidText(job.coldEmail) && (
-                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEditor(job, 'email')}>Edit</Button>
-                              )}
-                              {!hasValidText(job.coldEmail) && (
-                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleGenerateAsset(job, 'email')} disabled={actionLoading[`${job.id}-email`]}>
-                                  {actionLoading[`${job.id}-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
-                                </Button>
-                              )}
-                            </div>
+                            <h4 className="font-medium text-sm text-foreground flex items-center">
+                              <UserPlus className="mr-2 h-4 w-4 text-foreground-muted" /> Connect
+                            </h4>
                           </div>
-                          
-                          {hasValidText(job.coldEmail) ? (
-                            <div className="flex-1 bg-surface border border-border rounded-md p-3 text-xs text-foreground-muted max-h-56 min-h-[14rem] overflow-y-auto whitespace-pre-wrap">
-                              {job.coldEmail}
-                            </div>
-                          ) : (
-                            <div className="flex-1 flex items-center justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md text-xs text-foreground-muted italic">No cold email generated yet.</div>
-                          )}
-                          <div className="mt-auto flex gap-2 items-center">
-                            <div className="flex-1 flex relative">
-                              <input 
-                                type="email" 
-                                placeholder="Contact Email (Optional)" 
-                                className="w-full text-xs border border-border rounded-md pl-2 pr-20 py-1.5 focus:ring-2 focus:ring-foreground focus:outline-none"
-                                value={job.contactEmail || ''}
-                                onChange={(e) => updateContactEmail(job.id, e.target.value)}
-                              />
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 text-[10px] px-2"
-                                disabled={actionLoading[`${job.id}-find-email`]}
-                                onClick={async () => {
-                                  const loadingKey = `${job.id}-find-email`;
-                                  setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
-                                  try {
-                                    const { extractRecruiterEmail } = await import('../services/aiService');
-                                    const email = await extractRecruiterEmail(job.notes || '', job.company);
-                                    if (email) {
-                                      updateContactEmail(job.id, email);
-                                      toast.success('Email found!');
-                                    } else {
-                                      toast.info('Could not automatically find an email.');
-                                    }
-                                  } catch (e) {
-                                    toast.error('Failed to find email.');
-                                  } finally {
-                                    setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
-                                  }
-                                }}
-                              >
-                                {actionLoading[`${job.id}-find-email`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Auto-find'}
-                              </Button>
-                            </div>
-                            {hasValidText(job.coldEmail) && (
-                              <Button size="sm" className="text-xs h-8 whitespace-nowrap" onClick={() => sendEmail(job)}>
-                                Send via Gmail
-                              </Button>
-                            )}
+                          <div className="flex-1 flex flex-col justify-center min-h-[14rem] bg-surface border border-dashed border-border rounded-md p-4 text-xs text-foreground-muted">
+                            <p>Find the hiring manager via Apify, send an intro email, and open their LinkedIn profile.</p>
+                            <Button
+                              size="sm"
+                              className="mt-4 w-fit"
+                              onClick={() => setConnectJob(job)}
+                            >
+                              <UserPlus className="mr-2 h-3.5 w-3.5" /> Connect with hiring manager
+                            </Button>
                           </div>
                         </div>
 
@@ -1244,6 +1200,19 @@ export function JobTracker() {
           isAiLoading={!!actionLoading[`${editorModal.job.id}-${editorModal.type}-improve`]}
         />
       )}
+      {connectJob ? (
+        <ConnectWithRecruiterModal
+          job={{
+            title: connectJob.title,
+            company: connectJob.company,
+            url: connectJob.url,
+          }}
+          profile={profile}
+          open
+          trackedJobId={connectJob.id}
+          onClose={() => setConnectJob(null)}
+        />
+      ) : null}
       </div>
     </PageShell>
     </div>

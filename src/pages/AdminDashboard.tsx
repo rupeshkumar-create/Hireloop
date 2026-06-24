@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
-import { db } from '../firebase';
+import { updateProfile } from '../services/profileService';
+import { getSupabaseBrowserClient } from '../lib/supabaseClient';
 import { cn } from '../lib/utils';
 import { runAdminGhostMode } from '../services/adminGhostMode';
 import type { CallAIFn } from '../services/jobResearcher';
@@ -620,11 +620,18 @@ export function AdminDashboard() {
             };
           },
           persistDailyJobs: async ({ userId, jobs, lastJobFetchTime, seenJobFingerprints, runDate }) => {
-            await setDoc(doc(db, 'users', userId), { dailyJobs: jobs, lastJobFetchTime, seenJobFingerprints }, { merge: true });
-            await setDoc(doc(db, 'users', userId, 'daily_matches', runDate), { jobs, fetchedAt: lastJobFetchTime }, { merge: true });
+            await updateProfile(userId, { dailyJobs: jobs, lastJobFetchTime, seenJobFingerprints });
+            await getSupabaseBrowserClient()
+              .from('daily_matches')
+              .upsert({
+                user_id: userId,
+                match_date: runDate,
+                jobs,
+                meta: { fetchedAt: lastJobFetchTime },
+              });
           },
           logRun: async (payload) => {
-            await addDoc(collection(db, 'admin_logs'), payload);
+            await getSupabaseBrowserClient().from('admin_logs').insert({ data: payload });
           },
         }
       );

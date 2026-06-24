@@ -33,10 +33,16 @@ export function getAppNavGroups(
       label: 'Workspace',
       items: [
         {
+          name: 'Jack',
+          path: '/chat',
+          icon: MessageSquareText,
+          count: dashboardCount,
+          mobilePrimary: true,
+        },
+        {
           name: "Today's matches",
           path: '/dashboard',
           icon: LayoutDashboard,
-          count: dashboardCount,
           mobilePrimary: true,
         },
       ],
@@ -73,8 +79,8 @@ export function getAppNavGroups(
 }
 
 export const MOBILE_SCOUT_ITEM: AppNavItem = {
-  name: 'Run Scout',
-  path: '/dashboard?scout=1',
+  name: 'Search jobs',
+  path: '/chat',
   icon: Sparkles,
   mobilePrimary: true,
 };

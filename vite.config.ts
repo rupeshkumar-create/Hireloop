@@ -37,6 +37,11 @@ const API_MOUNTS: ApiMount[] = [
   { prefix: '/api/openai', module: '/api/ai/[[...route]].ts', fixedRoute: 'openai' },
   { prefix: '/api/apollo', module: '/api/ai/[[...route]].ts', fixedRoute: 'apollo' },
   { prefix: '/api/ai', module: '/api/ai/[[...route]].ts', routeParam: true },
+  { prefix: '/api/apify', module: '/api/apify/[[...route]].ts', routeParam: true },
+  { prefix: '/api/connections', module: '/api/connections/[[...route]].ts', routeParam: true },
+  { prefix: '/api/jill', module: '/api/jill/[[...route]].ts', routeParam: true },
+  { prefix: '/api/chat', module: '/api/chat/[[...route]].ts', routeParam: true },
+  { prefix: '/api/storage', module: '/api/storage/[[...route]].ts', routeParam: true },
   { prefix: '/api/cron/process-user', module: '/api/cron/process-user.ts' },
 ];
 
@@ -96,7 +101,12 @@ export default defineConfig(({mode}) => {
   Object.assign(process.env, env);
 
   return {
-    plugins: [react(), tailwindcss(), localApiVercelPlugin()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      // API runs on :8000 via scripts/local-api-server.ts; Vite proxies /api in dev.
+      ...(process.env.VITE_INLINE_API === 'true' ? [localApiVercelPlugin()] : []),
+    ],
     define: {
       'process.env.OPENAI_API_KEY': JSON.stringify(env.OPENAI_API_KEY),
     },
@@ -106,6 +116,14 @@ export default defineConfig(({mode}) => {
       },
     },
     server: {
+      port: 3001,
+      host: '0.0.0.0',
+      proxy: {
+        '/api': {
+          target: `http://localhost:${env.API_PORT || '8000'}`,
+          changeOrigin: true,
+        },
+      },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

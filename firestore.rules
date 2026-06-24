@@ -217,5 +217,11 @@ service cloud.firestore {
     match /job_sources/{sourceId} {
       allow read, write: if isSuperAdmin();
     }
+
+    // Connection requests — created server-side; candidates may read their own.
+    match /connectionRequests/{requestId} {
+      allow read: if isAuthenticated() && resource.data.candidateUserId == request.auth.uid;
+      allow write: if false;
+    }
   }
 }

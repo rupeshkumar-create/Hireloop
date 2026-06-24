@@ -283,9 +283,9 @@ export function BlogPost() {
         )}
 
         <div className="blog-lp-cta">
-          <h3 className="blog-lp-display text-2xl">Ready to find remote roles that fit you?</h3>
+          <h3 className="blog-lp-display text-2xl">Ready to find roles that fit you?</h3>
           <p className="blog-lp-lede mx-auto mt-3 max-w-md">
-            HireSchema matches you to remote jobs daily — based on your resume, skills, and preferences. Free to start.
+            HireSchema matches you to jobs daily — resume or LinkedIn, Scout Chat, and connect with hiring managers. Free to start.
           </p>
           <Link to="/login" className="blog-lp-btn-p mt-6 inline-flex" onClick={() => slug && trackCtaClick(slug)}>
             Get daily job matches

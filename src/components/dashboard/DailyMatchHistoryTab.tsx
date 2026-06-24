@@ -192,7 +192,7 @@ export function DailyMatchHistoryTab({
                         </span>
                       </div>
                       <p className="text-[12px] text-[var(--hs-app-muted)]">
-                        {job.company} · {job.location || 'Remote'}
+                        {job.company} · {job.location || 'Flexible'}
                       </p>
                       {job.aiSummary ? (
                         <p className="mt-2 line-clamp-2 text-[12px] leading-6 text-[var(--hs-app-muted)]">

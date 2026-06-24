@@ -3,7 +3,7 @@
  * Serves deterministic SVG cover — zero AI, cacheable URL for og:image.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getBlogPostBySlug } from '../../../marketingEngine.js';
+import { getCoreBlogPostBySlug } from '../../../../lib/coreBlogPosts.js';
 import { generateCoverSvg } from '../../../contentGrowth/coverImage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -13,9 +13,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!slug) return res.status(400).end('slug required');
 
   try {
-    const post = await getBlogPostBySlug(slug);
-    const title = post?.title ?? 'HireSchema Hiring Guide';
-    const clusterId = post?.clusterId ?? 'remote-job-search';
+    const post = getCoreBlogPostBySlug(slug);
+    const title = post?.title ?? 'HireSchema Guide';
+    const clusterId = post?.clusterId ?? 'hireschema';
     const svg = generateCoverSvg(title, clusterId);
 
     res.setHeader('Content-Type', 'image/svg+xml');

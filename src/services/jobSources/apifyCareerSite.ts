@@ -81,7 +81,7 @@ export async function runCareerSiteActor(input: ApifyCareerSiteInput, token: str
     return Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
   } catch (err: any) {
     if (err?.name === 'AbortError') {
-      throw new Error(`Apify Actor timed out after ${timeoutMs / 1000}s — configure GITHUB_DISPATCH_TOKEN + GITHUB_REPO in Vercel for async job generation.`);
+      throw new Error(`Apify Actor timed out after ${timeoutMs / 1000}s — try again or run Scout via npm run scout locally.`);
     }
     throw err;
   } finally {

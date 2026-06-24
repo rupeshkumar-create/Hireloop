@@ -1,23 +1,12 @@
 /**
- * /api/cron/daily-alerts
- *
- * Dispatcher: runs once daily (Vercel Cron / external scheduler).
- * Fetches active users and fires off /api/cron/process-user for each.
- *
- * A user is "active" when:
- *   - plan is set (any value) AND receiveDailyAlerts !== false
- *   - lastActiveAt within the last 3 days
- *
- * Pro users  → 10 jobs/day
- * Free users →  1 job/day
- *
- * Users are ordered by lastJobFetchTime ascending so those who haven't
- * received jobs recently are always prioritised in each batch.
+ * /api/cron/daily-alerts — dispatcher (Supabase-backed).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../../../firebaseAdmin.js';
 import { requireCronSecret } from '../../../cronAuth.js';
 import { evaluateDueUsers, queueCronRun, shouldPauseForInactivity } from '../../../../services/cronEngine.js';
+import { listProfilesDueForDelivery } from '../../../db/profiles.js';
+import { upsertProfile } from '../../../db/profiles.js';
+import { createCronRunIfAbsent } from '../../../db/cronRuns.js';
 
 const DISPATCH_BATCH_SIZE = 50;
 
@@ -35,23 +24,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireCronSecret(req, res)) return;
 
   try {
-    const db = getAdminDb();
     const baseUrl = getBaseUrl(req);
     const now = new Date();
-    const dueSnapshot = await db
-      .collection('users')
-      .where('nextJobDeliveryAt', '<=', now.toISOString())
-      .orderBy('nextJobDeliveryAt', 'asc')
-      .limit(DISPATCH_BATCH_SIZE)
-      .get();
+    const dueSnapshot = await listProfilesDueForDelivery(now.toISOString(), DISPATCH_BATCH_SIZE);
 
-    const { due, skipped: skippedUsers } = evaluateDueUsers(
-      dueSnapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        data: docSnap.data(),
-      })),
-      now
-    );
+    const { due, skipped: skippedUsers } = evaluateDueUsers(dueSnapshot, now);
 
     let queued = 0;
     let skipped = skippedUsers.length;
@@ -62,15 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const loadedUser of skippedUsers) {
       if (!shouldPauseForInactivity(loadedUser.data, now)) continue;
       try {
-        await db.collection('users').doc(loadedUser.id).set(
-          {
-            receiveDailyAlerts: false,
-            automationPausedAt: now.toISOString(),
-            automationPausedReason: 'inactive_3d',
-            updatedAt: now.toISOString(),
-          },
-          { merge: true }
-        );
+        await upsertProfile(loadedUser.id, {
+          receiveDailyAlerts: false,
+          automationPausedAt: now.toISOString(),
+          automationPausedReason: 'inactive_3d',
+          updatedAt: now.toISOString(),
+        });
         pausedInactive++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -83,25 +57,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const queueResult = await queueCronRun(
         {
           userId: loadedUser.id,
-          runDate: profile.deliveryLocalDate,
-          plan: profile.plan,
-          email: profile.email,
+          runDate: profile.deliveryLocalDate as string,
+          plan: profile.plan as string,
+          email: profile.email as string,
         },
         {
-          createRun: async ({ runId, ...record }) => {
-            const ref = db.collection('cronRuns').doc(runId);
-            const existing = await ref.get();
-            if (existing.exists) return false;
-            await ref.set({
+          createRun: async ({ runId, ...record }) =>
+            createCronRunIfAbsent(runId, {
               ...record,
               status: 'queued',
               dispatchSource: 'daily-alerts-v3',
               deliveryTimezone: profile.deliveryTimezone || 'UTC',
               createdAt: new Date().toISOString(),
-            });
-            return true;
-          },
-        }
+            }),
+        },
       );
 
       if (queueResult.status === 'duplicate') {
@@ -111,7 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       queued++;
 
-      // Fire-and-forget per-user job processing
       fetch(`${baseUrl}/api/cron/process-user`, {
         method: 'POST',
         headers: {

@@ -113,7 +113,7 @@ export function ResumeProfile() {
           </div>
           <h2 className="text-xl font-semibold">{profile?.displayName || 'Set your name'}</h2>
           <p className="mb-5 text-sm text-[var(--hs-app-muted)]">
-            {careerPaths[0] || structured?.seniority || 'Remote job seeker'}
+            {careerPaths[0] || structured?.seniority || 'Job seeker'}
           </p>
 
           <div className="space-y-3 rounded-lg border border-[var(--hs-app-border)] bg-[var(--hs-app-bg)] p-4">

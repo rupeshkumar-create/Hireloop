@@ -25,7 +25,7 @@ export function buildLockedSlotFromJob(job: Job, index: number): LockedMatchSlot
     index,
     title: job.title || 'Senior role match',
     company: job.company || 'Top company',
-    location: job.location || 'Remote',
+    location: job.location || 'Flexible',
     salary: job.salary || 'Competitive',
     matchScore: score,
     teaser: `${scoreHint} · Pro only`,
