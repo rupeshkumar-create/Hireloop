@@ -6,7 +6,7 @@ import { setAiAuthTokenGetter } from '../services/aiAuth';
 import { toast } from 'sonner';
 import type { AppUser } from '../types/auth';
 import type { UserProfile } from '../lib/profileMapper';
-import { DEFAULT_TARGET_MARKETS } from '../lib/targetMarkets';
+import { getOAuthRedirectUrl } from '../lib/oauthRedirect';
 
 export type {
   LearningProfile,
@@ -186,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (signingIn) return;
     setSigningIn(true);
     try {
-      const redirectTo = `${window.location.origin}/login`;
+      const redirectTo = getOAuthRedirectUrl();
       const { error } = await getSupabaseBrowserClient().auth.signInWithOAuth({
         provider,
         options: {

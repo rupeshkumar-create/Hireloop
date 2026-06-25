@@ -7,8 +7,9 @@ import { WhatsAppSupportLink } from '../components/support/WhatsAppSupportLink';
 import { SeoHead } from '../components/seo/SeoHead';
 import { SITE_URL } from '../lib/siteSeo';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
-
+import { toast } from 'sonner';
 import { BRAND_LOGIN_DESCRIPTION } from '../lib/brand';
+import { isSupabaseBrowserConfigured } from '../lib/supabaseClient';
 
 const FLOW_STEPS = [
   { icon: Upload, label: 'Resume or LinkedIn', detail: 'We extract skills and suggest career paths' },
@@ -20,6 +21,20 @@ export function Login() {
   const { user, profile, loading, signInWithGoogle, signInWithLinkedIn, signingIn } = useAuth();
   const navigate = useNavigate();
   const isNewUser = !profile?.resumeText && !isOnboardingComplete(profile);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const authError =
+      params.get('error_description') ||
+      params.get('error') ||
+      hashParams.get('error_description') ||
+      hashParams.get('error');
+    if (authError) {
+      toast.error(decodeURIComponent(authError.replace(/\+/g, ' ')));
+      window.history.replaceState({}, '', '/login');
+    }
+  }, []);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -64,6 +79,11 @@ export function Login() {
           </div>
 
           <div className="space-y-6">
+            {!isSupabaseBrowserConfigured() ? (
+              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                Sign-in is not configured on this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.
+              </p>
+            ) : null}
             <button
               onClick={signInWithGoogle}
               disabled={signingIn}
