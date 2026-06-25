@@ -23,6 +23,21 @@ export function Login() {
   const isNewUser = !profile?.resumeText && !isOnboardingComplete(profile);
 
   useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes('access_token')) return;
+
+    const { hostname } = window.location;
+    const onLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!onLocal) return;
+
+    const prodBase = import.meta.env.VITE_SITE_URL?.trim().replace(/\/$/, '');
+    if (!prodBase || prodBase.includes('localhost')) return;
+
+    // Supabase Site URL still set to localhost — recover session on production.
+    window.location.replace(`${prodBase}/login${hash}`);
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const authError =
