@@ -44,10 +44,16 @@ export function extractLinkedInProfileUrlFromUser(user: User | null | undefined)
       const value = data[key];
       if (typeof value === 'string' && value.trim()) candidates.push(value.trim());
     }
-    for (const key of ['preferred_username', 'vanityName', 'vanity', 'slug', 'username']) {
+    for (const key of ['preferred_username', 'vanityName', 'vanity', 'slug', 'username', 'provider_id', 'sub']) {
       const value = data[key];
       if (typeof value === 'string' && value.trim() && !value.includes('@')) {
-        candidates.push(`https://linkedin.com/in/${value.trim()}`);
+        const slug = value.trim();
+        // LinkedIn OIDC sub is often the public handle (e.g. jTItE-xtg3)
+        if (!slug.startsWith('http')) {
+          candidates.push(`https://linkedin.com/in/${slug}`);
+        } else {
+          candidates.push(slug);
+        }
       }
     }
   }

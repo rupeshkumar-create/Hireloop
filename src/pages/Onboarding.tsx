@@ -77,20 +77,27 @@ export function Onboarding() {
 
       const linkedinUrl = extractLinkedInProfileUrlFromUser(user);
       if (linkedinUrl) {
+        setLinkedinInput(linkedinUrl);
         const loaded = await loadLinkedInPreview(linkedinUrl);
         if (loaded) return;
       }
 
       const fallbackText = buildResumeTextFromOAuthUser(user);
       if (fallbackText.length >= 10) {
+        const guessedUrl =
+          linkedinUrl ||
+          (typeof user?.user_metadata?.provider_id === 'string'
+            ? normalizeLinkedInProfileUrl(`https://linkedin.com/in/${user.user_metadata.provider_id}`)
+            : null) ||
+          '';
+        if (guessedUrl) setLinkedinInput(guessedUrl);
         setOAuthPreview({
-          linkedinUrl: linkedinUrl || linkedinInput || '',
+          linkedinUrl: guessedUrl,
           resumeText: fallbackText,
           displayName: user?.user_metadata?.full_name || user?.user_metadata?.name || profile.displayName,
           headline: user?.user_metadata?.headline,
           photoUrl: user?.user_metadata?.avatar_url || user?.user_metadata?.picture || profile.photoURL,
         });
-        if (!linkedinInput && linkedinUrl) setLinkedinInput(linkedinUrl);
       }
     })();
   }, [loading, profile?.uid, profile?.resumeText]);
@@ -216,7 +223,7 @@ export function Onboarding() {
   }, [profile?.careerPaths]);
 
   const handleLinkedInConfirm = async () => {
-    if (preview) {
+    if (preview?.resumeText?.trim()) {
       await confirmPreview(async () => {
         await onResumeReady();
       });
@@ -321,7 +328,11 @@ export function Onboarding() {
                   setLinkedinInput(e.target.value);
                   if (preview) clearPreview();
                 }}
-                placeholder="https://linkedin.com/in/your-handle"
+                placeholder={
+                  preview?.displayName
+                    ? 'Edit URL only if this is not your profile'
+                    : 'https://linkedin.com/in/your-handle'
+                }
               />
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
@@ -360,7 +371,11 @@ export function Onboarding() {
               <Input
                 value={linkedinInput}
                 onChange={(e) => setLinkedinInput(e.target.value)}
-                placeholder="https://linkedin.com/in/your-handle"
+                placeholder={
+                  preview?.displayName
+                    ? 'Edit URL only if this is not your profile'
+                    : 'https://linkedin.com/in/your-handle'
+                }
               />
               <Button
                 type="button"
