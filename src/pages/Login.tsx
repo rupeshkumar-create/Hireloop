@@ -9,7 +9,7 @@ import { SITE_URL } from '../lib/siteSeo';
 import { ArrowLeft, Briefcase, Sparkles, Upload, Compass, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 import { BRAND_LOGIN_DESCRIPTION } from '../lib/brand';
-import { isSupabaseBrowserConfigured } from '../lib/supabaseClient';
+import { isSupabaseBrowserConfigured, getSupabaseBrowserClient } from '../lib/supabaseClient';
 
 const FLOW_STEPS = [
   { icon: Upload, label: 'Resume or LinkedIn', detail: 'We extract skills and suggest career paths' },
@@ -24,17 +24,43 @@ export function Login() {
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (!hash.includes('access_token')) return;
+    const search = window.location.search;
+    const params = new URLSearchParams(search);
+    const hasOAuthReturn = hash.includes('access_token') || params.has('code');
+    if (!hasOAuthReturn) return;
 
     const { hostname } = window.location;
     const onLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-    if (!onLocal) return;
-
     const prodBase = import.meta.env.VITE_SITE_URL?.trim().replace(/\/$/, '');
-    if (!prodBase || prodBase.includes('localhost')) return;
 
-    // Supabase Site URL still set to localhost — recover session on production.
-    window.location.replace(`${prodBase}/login${hash}`);
+    if (onLocal && prodBase && !prodBase.includes('localhost')) {
+      const suffix = hash || search;
+      window.location.replace(`${prodBase}/login${suffix}`);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    const code = params.get('code');
+    if (code) {
+      void supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        window.history.replaceState({}, '', '/login');
+      });
+      return;
+    }
+
+    void supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        if (session) {
+          window.history.replaceState({}, '', '/login');
+        }
+      });
   }, []);
 
   useEffect(() => {

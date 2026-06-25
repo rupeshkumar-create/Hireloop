@@ -6,6 +6,7 @@ import { setAiAuthTokenGetter } from '../services/aiAuth';
 import { toast } from 'sonner';
 import type { AppUser } from '../types/auth';
 import type { UserProfile } from '../lib/profileMapper';
+import { DEFAULT_TARGET_MARKETS } from '../lib/targetMarkets';
 import { getOAuthRedirectUrl } from '../lib/oauthRedirect';
 
 export type {
@@ -94,12 +95,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data.session) setLoading(false);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       setRealUser(mapSessionUser(nextSession));
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSigningIn(false);
+      }
       if (!nextSession) {
         setRealProfile(null);
         setLoading(false);
+        setSigningIn(false);
       }
     });
 
@@ -112,59 +117,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = subscribeToProfile(
       realUser.uid,
       async (nextProfile) => {
-        if (!nextProfile) {
-          const nowIso = new Date().toISOString();
-          const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-          const bootstrap: Partial<UserProfile> = {
-            uid: realUser.uid,
-            email: realUser.email || '',
-            displayName: realUser.displayName || undefined,
-            photoURL: realUser.photoURL || undefined,
-            plan: 'free',
-            jobType: 'remote',
-            targetMarkets: [...DEFAULT_TARGET_MARKETS],
-            receiveDailyAlerts: true,
-            antiSlopEnabled: true,
-            deliveryTimezone: browserTimeZone,
-            preferredDeliveryHour: 8,
-            nextJobDeliveryAt: nowIso,
-            matchReadiness: {
-              status: 'blocked',
-              hasResume: false,
-              hasCareerPaths: false,
-              blockingReason: 'Profile missing usable resume text and career paths.',
-              qualityWarnings: [],
-            },
-            createdAt: nowIso,
-            lastActiveAt: nowIso,
-            lastJobFetchTime: '1970-01-01T00:00:00.000Z',
-          };
-          await saveProfile(realUser.uid, bootstrap).catch(console.error);
-          setRealProfile(bootstrap as UserProfile);
+        try {
+          if (!nextProfile) {
+            const nowIso = new Date().toISOString();
+            const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+            const bootstrap: Partial<UserProfile> = {
+              uid: realUser.uid,
+              email: realUser.email || '',
+              displayName: realUser.displayName || undefined,
+              photoURL: realUser.photoURL || undefined,
+              plan: 'free',
+              jobType: 'remote',
+              targetMarkets: [...DEFAULT_TARGET_MARKETS],
+              receiveDailyAlerts: true,
+              antiSlopEnabled: true,
+              deliveryTimezone: browserTimeZone,
+              preferredDeliveryHour: 8,
+              nextJobDeliveryAt: nowIso,
+              matchReadiness: {
+                status: 'blocked',
+                hasResume: false,
+                hasCareerPaths: false,
+                blockingReason: 'Profile missing usable resume text and career paths.',
+                qualityWarnings: [],
+              },
+              createdAt: nowIso,
+              lastActiveAt: nowIso,
+              lastJobFetchTime: '1970-01-01T00:00:00.000Z',
+            };
+            await saveProfile(realUser.uid, bootstrap).catch(console.error);
+            setRealProfile(bootstrap as UserProfile);
+            return;
+          }
+
+          setRealProfile(nextProfile);
+
+          const stale =
+            !nextProfile.lastActiveAt ||
+            new Date().getTime() - new Date(nextProfile.lastActiveAt).getTime() > 1000 * 60 * 60;
+
+          if (stale) {
+            const nowIso = new Date().toISOString();
+            const resumeAutomation =
+              nextProfile.automationPausedReason === 'inactive_3d'
+                ? {
+                    receiveDailyAlerts: true,
+                    automationPausedAt: undefined,
+                    automationPausedReason: undefined,
+                  }
+                : {};
+            saveProfile(realUser.uid, { lastActiveAt: nowIso, ...resumeAutomation }).catch(console.error);
+          }
+        } catch (error) {
+          console.error('Profile bootstrap failed:', error);
+        } finally {
           setLoading(false);
-          return;
         }
-
-        setRealProfile(nextProfile);
-
-        const stale =
-          !nextProfile.lastActiveAt ||
-          new Date().getTime() - new Date(nextProfile.lastActiveAt).getTime() > 1000 * 60 * 60;
-
-        if (stale) {
-          const nowIso = new Date().toISOString();
-          const resumeAutomation =
-            nextProfile.automationPausedReason === 'inactive_3d'
-              ? {
-                  receiveDailyAlerts: true,
-                  automationPausedAt: undefined,
-                  automationPausedReason: undefined,
-                }
-              : {};
-          saveProfile(realUser.uid, { lastActiveAt: nowIso, ...resumeAutomation }).catch(console.error);
-        }
-
-        setLoading(false);
       },
       (error) => {
         console.error('Profile subscription error:', error);
