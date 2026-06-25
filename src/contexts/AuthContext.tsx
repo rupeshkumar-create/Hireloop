@@ -8,6 +8,7 @@ import type { AppUser } from '../types/auth';
 import type { UserProfile } from '../lib/profileMapper';
 import { DEFAULT_TARGET_MARKETS } from '../lib/targetMarkets';
 import { getOAuthRedirectUrl } from '../lib/oauthRedirect';
+import { getValidAccessToken } from '../lib/supabaseSession';
 
 export type {
   LearningProfile,
@@ -84,10 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
-    setAiAuthTokenGetter(async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session?.access_token ?? null;
-    });
+    setAiAuthTokenGetter(getValidAccessToken);
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);

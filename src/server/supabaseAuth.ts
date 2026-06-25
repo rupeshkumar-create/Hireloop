@@ -9,8 +9,16 @@ export type VerifiedUser = {
 };
 
 export async function verifySupabaseToken(token: string): Promise<VerifiedUser> {
-  const { data, error } = await getSupabaseAdmin().auth.getUser(token);
+  const trimmed = token.trim();
+  if (!trimmed || trimmed.split('.').length < 3) {
+    throw Object.assign(new Error('Invalid or expired session.'), { status: 401 });
+  }
+
+  const { data, error } = await getSupabaseAdmin().auth.getUser(trimmed);
   if (error || !data.user) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[supabaseAuth] getUser failed:', error?.message ?? 'no user');
+    }
     throw Object.assign(new Error('Invalid or expired session.'), { status: 401 });
   }
   return mapSupabaseUser(data.user);

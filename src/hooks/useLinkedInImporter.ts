@@ -11,6 +11,11 @@ export type LinkedInImportPreview = {
   photoUrl?: string;
 };
 
+type LoadPreviewOptions = {
+  /** When true, failures are not surfaced via toast (e.g. optional Apify enrich). */
+  silent?: boolean;
+};
+
 export function useLinkedInImporter(
   updateProfile: (data: any) => Promise<void>,
   profile: any,
@@ -25,10 +30,14 @@ export function useLinkedInImporter(
   );
   const [preview, setPreview] = useState<LinkedInImportPreview | null>(null);
 
-  const loadLinkedInPreview = async (rawUrl: string): Promise<LinkedInImportPreview | null> => {
+  const loadLinkedInPreview = async (
+    rawUrl: string,
+    options?: LoadPreviewOptions
+  ): Promise<LinkedInImportPreview | null> => {
+    const silent = options?.silent === true;
     const normalized = normalizeLinkedInProfileUrl(rawUrl);
     if (!normalized) {
-      toast.error('Enter a valid LinkedIn profile URL (linkedin.com/in/username)');
+      if (!silent) toast.error('Enter a valid LinkedIn profile URL (linkedin.com/in/username)');
       return null;
     }
 
@@ -38,7 +47,7 @@ export function useLinkedInImporter(
       const resumeFromLinkedIn = profileTextFromLinkedInData(linkedInData);
 
       if (!resumeFromLinkedIn || resumeFromLinkedIn.length < 20) {
-        toast.error('Could not extract enough profile data from LinkedIn.');
+        if (!silent) toast.error('Could not extract enough profile data from LinkedIn.');
         return null;
       }
 
@@ -62,16 +71,19 @@ export function useLinkedInImporter(
       setPreview(next);
       return next;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'LinkedIn import failed');
+      if (!silent) {
+        toast.error(error instanceof Error ? error.message : 'LinkedIn import failed');
+      }
       return null;
     } finally {
       setImporting(false);
     }
   };
 
-  const confirmPreview = async (onSuccess?: () => void): Promise<boolean> => {
-    if (!preview) return false;
-
+  const confirmPreviewData = async (
+    data: LinkedInImportPreview,
+    onSuccess?: () => void
+  ): Promise<boolean> => {
     setImporting(true);
     try {
       const existingContact = profile?.structuredProfile?.contact || {};
@@ -80,16 +92,16 @@ export function useLinkedInImporter(
           ...(profile?.structuredProfile || {}),
           contact: {
             ...existingContact,
-            linkedin: preview.linkedinUrl,
-            fullName: existingContact.fullName || preview.displayName || profile?.displayName,
+            linkedin: data.linkedinUrl,
+            fullName: existingContact.fullName || data.displayName || profile?.displayName,
           },
         },
       });
 
-      const ok = await processResumeText(preview.resumeText, {
+      const ok = await processResumeText(data.resumeText, {
         onSuccess,
         quiet: true,
-        hyperlinkUrls: [preview.linkedinUrl],
+        hyperlinkUrls: [data.linkedinUrl],
       });
 
       if (ok) {
@@ -104,6 +116,11 @@ export function useLinkedInImporter(
     } finally {
       setImporting(false);
     }
+  };
+
+  const confirmPreview = async (onSuccess?: () => void): Promise<boolean> => {
+    if (!preview) return false;
+    return confirmPreviewData(preview, onSuccess);
   };
 
   const importFromLinkedIn = async (onSuccess?: () => void): Promise<boolean> => {
@@ -126,6 +143,7 @@ export function useLinkedInImporter(
     preview,
     loadLinkedInPreview,
     confirmPreview,
+    confirmPreviewData,
     importFromLinkedIn,
     setOAuthPreview,
     clearPreview,

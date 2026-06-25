@@ -1,4 +1,4 @@
-import { getAiAuthToken } from './aiAuth';
+import { getAiAuthToken, fetchWithAuth } from './aiAuth';
 import type { RecruiterContact } from '../types/recruiter';
 import type { ConnectionRequest } from '../types/connection';
 import type { IntroThread } from '../types/jill';
@@ -121,17 +121,8 @@ export async function importLinkedInProfile(url: string): Promise<{
   profile: Record<string, unknown>;
   linkedinUrl: string;
 }> {
-  const authToken = await getAiAuthToken();
-  if (!authToken) {
-    throw new Error('Not authenticated');
-  }
-
-  const response = await fetch('/api/apify/linkedin-profile', {
+  const response = await fetchWithAuth('/api/apify/linkedin-profile', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${authToken}`,
-    },
     body: JSON.stringify({ url }),
   });
 

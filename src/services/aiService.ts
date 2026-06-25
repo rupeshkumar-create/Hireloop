@@ -20,7 +20,7 @@ import {
   normalizeLinkedInUrl,
   pickLinkedInFromUrls,
 } from '../lib/resumeHyperlinks.js';
-import { getAiAuthToken } from './aiAuth';
+import { getAiAuthToken, fetchWithAuth } from './aiAuth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared OpenRouter proxy caller
@@ -35,7 +35,7 @@ export async function callOpenAI(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const response = await fetch('/api/openai', {
+  const response = await fetchWithAuth('/api/openai', {
     method: 'POST',
     headers,
     body: JSON.stringify({ messages, response_format, model }),

@@ -1,4 +1,4 @@
-import { getAiAuthToken } from './aiAuth';
+import { fetchWithAuth } from './aiAuth';
 import type { AgentChatMode } from '../lib/agentChat';
 
 export type ChatMessage = {
@@ -14,17 +14,8 @@ export async function sendChatMessage(
     model?: string;
   }
 ): Promise<string> {
-  const authToken = await getAiAuthToken();
-  if (!authToken) {
-    throw new Error('Not authenticated');
-  }
-
-  const response = await fetch('/api/chat/message', {
+  const response = await fetchWithAuth('/api/chat/message', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${authToken}`,
-    },
     body: JSON.stringify({
       messages,
       systemContext: options?.systemContext,

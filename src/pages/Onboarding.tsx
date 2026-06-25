@@ -46,6 +46,7 @@ export function Onboarding() {
     preview,
     loadLinkedInPreview,
     confirmPreview,
+    confirmPreviewData,
     setOAuthPreview,
     clearPreview,
   } = useLinkedInImporter(updateProfile, profile, processResumeText);
@@ -76,13 +77,8 @@ export function Onboarding() {
       ]);
 
       const linkedinUrl = extractLinkedInProfileUrlFromUser(user);
-      if (linkedinUrl) {
-        setLinkedinInput(linkedinUrl);
-        const loaded = await loadLinkedInPreview(linkedinUrl);
-        if (loaded) return;
-      }
-
       const fallbackText = buildResumeTextFromOAuthUser(user);
+
       if (fallbackText.length >= 10) {
         const guessedUrl =
           linkedinUrl ||
@@ -98,6 +94,10 @@ export function Onboarding() {
           headline: user?.user_metadata?.headline,
           photoUrl: user?.user_metadata?.avatar_url || user?.user_metadata?.picture || profile.photoURL,
         });
+      }
+
+      if (linkedinUrl) {
+        void loadLinkedInPreview(linkedinUrl, { silent: true });
       }
     })();
   }, [loading, profile?.uid, profile?.resumeText]);
@@ -229,11 +229,40 @@ export function Onboarding() {
       });
       return;
     }
+
     const normalized = normalizeLinkedInProfileUrl(linkedinInput);
     if (!normalized) {
       toast.error('Add your LinkedIn profile URL to continue.');
       return;
     }
+
+    const { data: authData } = await getSupabaseBrowserClient().auth.getUser();
+    const oauthUser = authData.user;
+    if (signedInWithLinkedIn(oauthUser)) {
+      const oauthText = buildResumeTextFromOAuthUser(oauthUser);
+      if (oauthText.length >= 10) {
+        await confirmPreviewData(
+          {
+            linkedinUrl: normalized,
+            resumeText: oauthText,
+            displayName:
+              oauthUser?.user_metadata?.full_name ||
+              oauthUser?.user_metadata?.name ||
+              profile?.displayName,
+            headline: oauthUser?.user_metadata?.headline,
+            photoUrl:
+              oauthUser?.user_metadata?.avatar_url ||
+              oauthUser?.user_metadata?.picture ||
+              profile?.photoURL,
+          },
+          async () => {
+            await onResumeReady();
+          }
+        );
+        return;
+      }
+    }
+
     const loaded = await loadLinkedInPreview(normalized);
     if (loaded) {
       await confirmPreview(async () => {
@@ -325,8 +354,15 @@ export function Onboarding() {
               <Input
                 value={linkedinInput}
                 onChange={(e) => {
-                  setLinkedinInput(e.target.value);
-                  if (preview) clearPreview();
+                  const next = e.target.value;
+                  setLinkedinInput(next);
+                  if (preview) {
+                    const nextNorm = normalizeLinkedInProfileUrl(next);
+                    const previewNorm = normalizeLinkedInProfileUrl(preview.linkedinUrl);
+                    if (nextNorm && previewNorm && nextNorm !== previewNorm) {
+                      clearPreview();
+                    }
+                  }
                 }}
                 placeholder={
                   preview?.displayName
