@@ -12,7 +12,7 @@ function resolveSiteUrl(): string {
   if (typeof process !== 'undefined' && process.env?.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  return 'https://hireloop-xi.vercel.app';
+  return 'https://hireloop-xi-swart.vercel.app';
 }
 
 export const SITE_URL = resolveSiteUrl();

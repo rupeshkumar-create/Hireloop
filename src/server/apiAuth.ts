@@ -15,7 +15,18 @@ export async function getUserPlan(uid: string): Promise<string> {
 
 export async function verifyAiAccess(token: string) {
   const decoded = await verifyAuthToken(token);
-  const profile = await getProfile(decoded.uid);
+  let profile = null;
+  try {
+    profile = await getProfile(decoded.uid);
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'object' && err && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Profile lookup failed';
+    console.error('[verifyAiAccess] getProfile failed:', message, decoded.uid);
+  }
   const plan = profile?.plan?.toLowerCase() || 'free';
   return { decoded, plan: plan === 'pro' ? ('pro' as const) : ('free' as const) };
 }
