@@ -4,7 +4,7 @@ import { routeApiRequest } from '../api/router.js';
 
 describe('AI API route wiring', () => {
   it('unified API router exports a handler', async () => {
-    const mod = await import('../../../api/[[...route]].ts');
+    const mod = await import('../../../api/index.ts');
     expect(typeof mod.default).toBe('function');
   });
 

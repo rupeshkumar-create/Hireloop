@@ -30,7 +30,7 @@ type ApiMount = {
 };
 
 const API_MOUNTS: ApiMount[] = [
-  { prefix: '/api', module: '/api/[[...route]].ts', routeParam: true },
+  { prefix: '/api', module: '/api/index.ts', routeParam: true },
 ];
 
 function localApiVercelPlugin() {

@@ -24,15 +24,18 @@
     }
   ],
   "functions": {
-    "api/[[...route]].ts": { "maxDuration": 300 }
+    "api/index.ts": { "maxDuration": 300 }
   },
   "rewrites": [
-    { "source": "/api/openai", "destination": "/api/ai/openai" },
-    { "source": "/api/apollo", "destination": "/api/ai/apollo" },
-    { "source": "/api/cron", "destination": "/api/cron/tick" },
-    { "source": "/api/analytics/pageview", "destination": "/api/public/analytics/pageview" },
-    { "source": "/blog/rss.xml", "destination": "/api/blog/rss.xml" },
-    { "source": "/BingSiteAuth.xml", "destination": "/api/public/bing-site-auth" },
+    { "source": "/api/openai", "destination": "/api?route=openai" },
+    { "source": "/api/apollo", "destination": "/api?route=apollo" },
+    { "source": "/api/cron", "destination": "/api?route=cron/tick" },
+    { "source": "/api/cron/daily-alerts", "destination": "/api?route=cron/daily-alerts" },
+    { "source": "/api/cron/process-user", "destination": "/api?route=cron/process-user" },
+    { "source": "/api/analytics/pageview", "destination": "/api?route=public/analytics/pageview" },
+    { "source": "/blog/rss.xml", "destination": "/api?route=blog/rss.xml" },
+    { "source": "/BingSiteAuth.xml", "destination": "/api?route=public/bing-site-auth" },
+    { "source": "/api/(.*)", "destination": "/api?route=$1" },
     { "source": "/((?!api/|assets/|.*\\..*).*)", "destination": "/index.html" }
   ],
   "crons": [
